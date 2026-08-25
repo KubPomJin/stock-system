@@ -392,7 +392,7 @@
      Content width is simply whatever is left over — the same model as the
      margin handles in a spreadsheet's print view. Defaults are 0.2in top and
      bottom, and 0.5in sides to clear the tractor strips on a full 9in sheet. */
-  #order-print-area .ot-sheet{height:5.5in;
+  #order-print-area .ot-sheet{height:var(--ot-page-h, 5.5in);
     padding:var(--ot-mt, 5.1mm) var(--ot-mr, 12.7mm) var(--ot-mb, 5.1mm) var(--ot-ml, 12.7mm);
     display:flex;flex-direction:column;overflow:hidden;}
   #order-print-area .ot-doc{color:#000;font-size:11px;line-height:1.4;display:flex;flex-direction:column;height:100%;}
@@ -1430,6 +1430,16 @@
           </select>
           <div class="field-hint" style="margin:6px 0 0;line-height:1.5;">
             ไดรเวอร์บางตัวนับ "หน้ากระดาษ" เป็นพื้นที่ที่พิมพ์ได้<br>ไม่ใช่กระดาษจริง — ถ้าฟอร์มเยื้อง ลองสลับดู
+          </div>
+        </div>
+        <div class="po-group">
+          <h3>ปรับความสูงหน้ากระดาษ (มม.)</h3>
+          <input type="number" id="ov-page-trim" min="-15" max="15" step="0.1" value="0">
+          <div class="field-hint" style="margin:6px 0 0;line-height:1.5;">
+            ใช้เมื่อพิมพ์ยาวหลายใบแล้ว<b>เลื่อนลงสะสม</b><br>
+            ค่าลบ = หน้าสั้นลง (แก้อาการเลื่อนลง)<br>
+            คิดจาก: ระยะที่เลื่อน ÷ จำนวนใบ<br>
+            <b>ค่านี้จำไว้เฉพาะเครื่องนี้</b>
           </div>
         </div>
         <div class="po-group">

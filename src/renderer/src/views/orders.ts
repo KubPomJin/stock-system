@@ -337,6 +337,23 @@ function paperWidthIn(): number {
   return select('ov-paper').value === '8' ? 8 : 9
 }
 
+const TRIM_KEY = 'print.orderPageTrimMm'
+
+// Continuous forms drift when the length the printer advances does not exactly
+// match the page we send. That difference is a property of the printer (its
+// form length / skip-over-perforation setting), and the software cannot read
+// it — but sending a page shortened by the same amount cancels it out.
+// Verified separately that our own output has no drift: ten sheets render with
+// an identical MediaBox and identical margins, so any creep is mechanical.
+function pageTrimMm(): number {
+  const v = parseFloat(input('ov-page-trim').value)
+  return isNaN(v) ? 0 : Math.max(-15, Math.min(15, v))
+}
+
+function pageHeightIn(): number {
+  return 5.5 + pageTrimMm() / 25.4
+}
+
 function readMargins(): Margins {
   const n = (id: string, fallback: number): number => {
     const v = parseFloat(input(id).value)
@@ -370,12 +387,18 @@ function applyMargins(): void {
 }
 
 function applyPaperChoice(): void {
-  $('order-print-area').style.setProperty('--ot-paper-w', `${paperWidthIn()}in`)
-  $('ov-scale').textContent = `แสดงขนาดจริง 100% · ${paperWidthIn()} × 5.5 นิ้ว`
+  const area = $('order-print-area')
+  area.style.setProperty('--ot-paper-w', `${paperWidthIn()}in`)
+  area.style.setProperty('--ot-page-h', `${pageHeightIn()}in`)
+  const trim = pageTrimMm()
+  $('ov-scale').textContent =
+    `แสดงขนาดจริง 100% · ${paperWidthIn()} × ${(pageHeightIn() * 25.4).toFixed(1)} มม.` +
+    (trim ? ` (ปรับ ${trim > 0 ? '+' : ''}${trim} มม.)` : '')
 }
 
 function restorePrintSettings(): void {
   select('ov-paper').value = localStorage.getItem(PAPER_KEY) ?? '9'
+  input('ov-page-trim').value = localStorage.getItem(TRIM_KEY) ?? '0'
   applyPaperChoice()
   let m = defaultMargins(paperWidthIn())
   try {
@@ -407,6 +430,8 @@ function openPreview(docs: PrintData | PrintData[]): void {
 }
 
 function closePreview(): void {
+  // Nothing was claimed, so there is nothing to release — just forget the batch.
+  pendingBlank = null
   $('order-preview-modal').classList.remove('active')
 }
 
@@ -419,13 +444,24 @@ function closePreview(): void {
 // rule is injected per job.
 async function doPrint(): Promise<void> {
   try {
+    // Blank forms claim their serials here, not at preview time. The server is
+    // the authority, so re-render with the numbers it actually handed out
+    // rather than the ones the preview guessed.
+    if (pendingBlank) {
+      const { numbers } = await window.api.orders.reserveNumbers(pendingBlank)
+      $('order-print-area').innerHTML = numbers.map(blankPrintData).map(buildPrintHtml).join('')
+      applyPaperChoice()
+      applyMargins()
+      pendingBlank = null
+      await refreshBlankStartNumber()
+    }
     const res = await runPrint({
       bodyClass: 'printing-order',
       deviceName: select('ov-printer').value,
       copies: parseInt(input('ov-copies').value, 10) || 1,
       landscape: false,
       pageCount: $('order-print-area').querySelectorAll('.ot-sheet').length,
-      pageSize: { widthIn: paperWidthIn(), heightIn: 5.5 },
+      pageSize: { widthIn: paperWidthIn(), heightIn: pageHeightIn() },
       defaultFileName: 'ใบสั่งสินค้า.pdf',
       // Only this document asks for a zero edge: the LQ-310 continuous form is
       // defined in the driver with margin 0.00 on all sides, and each .ot-sheet
@@ -433,7 +469,7 @@ async function doPrint(): Promise<void> {
       margins: { marginType: 'none' },
       // margin:0 here — the 0.2/0.5in edges live as padding on each .ot-sheet so
       // they repeat on every page (container padding only pads first/last page).
-      pageCss: `@media print{@page{size:${paperWidthIn()}in 5.5in;margin:0;}}`
+      pageCss: `@media print{@page{size:${paperWidthIn()}in ${pageHeightIn()}in;margin:0;}}`
     })
     if (res.ok) {
       closePreview()
@@ -454,6 +490,23 @@ export async function refreshBlankStartNumber(): Promise<void> {
   }
 }
 
+// A blank-form batch that has been previewed but not printed yet. Numbers are
+// only claimed at the moment of printing — opening the preview to check the
+// layout and closing it again must not burn a serial, because a burned number
+// leaves a gap in a paper document trail that cannot be explained afterwards.
+let pendingBlank: { bookType: string; startNumber: string; count: number } | null = null
+
+// Preview-only sequence. Mirrors the server's format (A69-0001) so what is on
+// screen matches what will be claimed; the server remains the authority and its
+// numbers are what actually get printed.
+function previewNumbers(start: string, count: number): string[] {
+  const m = /^(.*?)(\d+)$/.exec(start)
+  if (!m) return Array.from({ length: count }, () => start)
+  const [, prefix, digits] = m
+  const first = Number(digits)
+  return Array.from({ length: count }, (_, i) => prefix + String(first + i).padStart(digits.length, '0'))
+}
+
 async function previewBlankForms(): Promise<void> {
   const count = parseInt(input('blank-count').value, 10)
   if (!(count >= 1 && count <= 100)) {
@@ -461,19 +514,19 @@ async function previewBlankForms(): Promise<void> {
     return
   }
   try {
-    // Reserving here consumes the numbers, so the next batch continues on and
-    // the same number is never printed twice.
-    const { numbers } = await window.api.orders.reserveNumbers({
-      bookType: select('blank-book').value,
-      startNumber: input('blank-start').value.trim(),
-      count
-    })
+    const bookType = select('blank-book').value
+    let start = input('blank-start').value.trim()
+    if (!start) {
+      start = await window.api.orders.nextNumber(bookType)
+      input('blank-start').value = start
+    }
+    pendingBlank = { bookType, startNumber: start, count }
+    const numbers = previewNumbers(start, count)
     openPreview(numbers.map(blankPrintData))
-    await refreshBlankStartNumber()
     showToast(
-      numbers.length === 1
-        ? `เตรียมฟอร์มเปล่าเลขที่ ${numbers[0]} แล้ว — กด "พิมพ์" ในหน้าต่างตัวอย่าง`
-        : `เตรียมฟอร์มเปล่า ${numbers.length} ใบ (${numbers[0]} ถึง ${numbers[numbers.length - 1]})`
+      count === 1
+        ? `ตัวอย่างฟอร์มเปล่าเลขที่ ${numbers[0]} — เลขจะถูกใช้จริงเมื่อกด "พิมพ์"`
+        : `ตัวอย่างฟอร์มเปล่า ${count} ใบ (${numbers[0]} ถึง ${numbers[count - 1]}) — เลขจะถูกใช้จริงเมื่อกด "พิมพ์"`
     )
   } catch (err) {
     toastError(err)
@@ -636,6 +689,11 @@ export function initOrders(): void {
   ;['ov-m-top', 'ov-m-right', 'ov-m-bottom', 'ov-m-left'].forEach((id) =>
     input(id).addEventListener('input', applyMargins)
   )
+  input('ov-page-trim').addEventListener('input', () => {
+    localStorage.setItem(TRIM_KEY, input('ov-page-trim').value)
+    applyPaperChoice()
+    applyMargins()
+  })
   $('ov-m-reset').addEventListener('click', () => {
     writeMarginInputs(defaultMargins(paperWidthIn()))
     applyMargins()
