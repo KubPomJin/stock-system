@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>StockKeep — หน้าจอทั้งหมด (สภาพปัจจุบัน สำหรับใช้ออกแบบใหม่)</title>
+<style>
+  :root{
+    --bg-app:#EEF1F2; --bg-sidebar:#1C2124; --sidebar-hover:#262D31; --sidebar-text:#9AA3A8;
+    --bg-panel:#FFFFFF; --accent:#DC7A16; --accent-dark:#B4620F; --accent-soft:#FBEBD8;
+    --text-primary:#1A1F22; --text-secondary:#6D767B; --border:#DEE3E5;
+    --ok:#2F7D52; --ok-bg:#E5F3EB; --warn:#B8790F; --warn-bg:#FDF3E2;
+    --danger:#C0392B; --danger-bg:#FBEAE8; --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Noto Sans Thai","Leelawadee UI","Segoe UI",sans-serif;
+       background:var(--bg-app);color:var(--text-primary);font-size:13.5px;}
+  .mono{font-family:"JetBrains Mono","Cascadia Mono",Consolas,monospace;}
+
+  .banner{background:#1C2124;color:#fff;padding:12px 20px;font-size:13px;line-height:1.7;}
+  .banner b{color:var(--accent);}
+
+  .app{display:grid;grid-template-columns:216px 1fr;height:calc(100vh - 62px);}
+  .sidebar{background:var(--bg-sidebar);display:flex;flex-direction:column;padding:18px 12px;overflow-y:auto;}
+  .brand{display:flex;align-items:center;gap:9px;padding:4px 8px 22px;color:#fff;}
+  .brand-mark{width:26px;height:26px;border-radius:6px;background:var(--accent);display:flex;
+              align-items:center;justify-content:center;font-weight:700;font-size:14px;}
+  .brand-name{font-weight:600;font-size:14.5px;}
+  .nav-group-label{color:#5C666B;font-size:10.5px;letter-spacing:.6px;padding:14px 10px 6px;font-weight:600;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);
+            color:var(--sidebar-text);cursor:pointer;font-size:13px;font-weight:500;margin-bottom:2px;
+            border:none;background:none;width:100%;text-align:left;font-family:inherit;}
+  .nav-item:hover{background:var(--sidebar-hover);color:#fff;}
+  .nav-item.active{background:var(--accent);color:#fff;}
+  .sidebar-footer{margin-top:auto;padding:10px;color:#5C666B;font-size:11.5px;
+                  border-top:1px solid #2A3034;padding-top:14px;line-height:1.6;}
+
+  .main{display:flex;flex-direction:column;min-width:0;}
+  .topbar{height:54px;background:var(--bg-panel);border-bottom:1px solid var(--border);
+          display:flex;align-items:center;padding:0 22px;gap:16px;flex-shrink:0;}
+  .topbar h1{font-size:15px;font-weight:600;margin:0;}
+  .spacer{flex:1;}
+  .user-chip{display:flex;align-items:center;gap:9px;padding-left:16px;border-left:1px solid var(--border);}
+  .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent-dark);
+               display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
+  .user-name{font-size:12.5px;font-weight:600;}
+  .user-role{font-size:11px;color:var(--text-secondary);}
+
+  .content{padding:22px 26px;overflow-y:auto;flex:1;}
+  .view{display:none;} .view.active{display:block;}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px;}
+  .kpi-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+  .kpi-label{font-size:11.5px;color:var(--text-secondary);font-weight:600;letter-spacing:.4px;margin-bottom:8px;}
+  .kpi-value{font-size:23px;font-weight:700;font-family:"JetBrains Mono",Consolas,monospace;}
+  .kpi-value.danger{color:var(--danger);}
+  .kpi-sub{font-size:11.5px;color:var(--text-secondary);margin-top:4px;}
+  .kpi-card.alert-danger{background:var(--danger-bg);border-color:#F0C4BF;}
+  .kpi-card.alert-warn{background:var(--warn-bg);border-color:#F0DCB4;}
+
+  .panel{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;
+         overflow:hidden;margin-bottom:20px;}
+  .panel-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
+  .panel-head h2{font-size:13.5px;font-weight:600;margin:0;}
+  .panel-head-sub{color:var(--text-secondary);font-size:12px;margin-left:8px;}
+  .panel-actions{margin-left:auto;display:flex;gap:8px;}
+
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:11px;letter-spacing:.4px;color:var(--text-secondary);font-weight:600;
+     padding:9px 14px;background:#F7F8F9;border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top;}
+  .num{text-align:right;font-family:"JetBrains Mono",Consolas,monospace;font-size:12.5px;}
+  .table-scroll{overflow-x:auto;}
+
+  .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.warn{background:var(--warn-bg);color:var(--warn);}
+  .badge.danger{background:var(--danger-bg);color:var(--danger);}
+  .badge.muted{background:#EDEFF0;color:var(--text-secondary);}
+  .badge.role{background:var(--accent-soft);color:var(--accent-dark);}
+
+  .alert-banner{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:10px;
+                margin-bottom:18px;border:1px solid;}
+  .alert-banner.danger{background:var(--danger-bg);border-color:#F0C4BF;color:var(--danger);}
+  .alert-text{flex:1;font-size:13px;line-height:1.4;}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius);border:1px solid var(--border);
+       background:#fff;padding:7px 13px;font-size:12.5px;font-weight:600;cursor:pointer;
+       font-family:inherit;color:var(--text-primary);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.small{padding:5px 9px;font-size:11.5px;}
+
+  label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:5px;}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
+                        font-family:inherit;font-size:13px;background:#fff;color:var(--text-primary);}
+  .field-row{display:grid;gap:12px;margin-bottom:14px;}
+  .c2{grid-template-columns:1fr 1fr;} .c3{grid-template-columns:1fr 1fr 1fr;} .c4{grid-template-columns:repeat(4,1fr);}
+  .field-hint{font-size:11px;color:var(--text-secondary);margin-top:4px;}
+
+  .filter-bar{padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;
+              display:flex;flex-direction:column;gap:10px;}
+  .filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .filter-row-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);min-width:74px;}
+  .chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:12px;
+        font-weight:600;color:var(--text-secondary);cursor:pointer;font-family:inherit;}
+  .chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .chk{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;white-space:nowrap;}
+  .chk input{width:auto;}
+
+  .ct-code{font-family:"JetBrains Mono",Consolas,monospace;font-size:11.5px;color:var(--text-secondary);}
+  .ct-name{font-weight:600;font-size:13px;line-height:1.35;}
+  .ct-unit{font-size:11px;color:var(--text-secondary);}
+  .ct-sys{font-size:11.5px;color:var(--text-secondary);margin-bottom:3px;white-space:nowrap;}
+  .ct-sys b{color:var(--text-primary);font-size:12.5px;}
+  .ct-in{width:96px;text-align:right;}
+  .ct-diff{margin-top:4px;min-height:18px;}
+  .ct-total{background:#FAFBFB;}
+  .ct-big{font-size:15px;font-weight:700;font-family:"JetBrains Mono",Consolas,monospace;}
+  .ct-recv input[type=number]{width:78px;} .ct-recv input[type=date]{width:138px;margin-top:4px;}
+  .ct-recv label{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--text-primary);
+                 font-size:12px;margin-bottom:5px;}
+  .ct-recv label input{width:auto;}
+  tr.is-done{background:#F6FBF8;}
+  .summary{padding:0 18px 14px;display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--text-secondary);}
+  .summary b{color:var(--text-primary);font-family:"JetBrains Mono",Consolas,monospace;}
+  .foot{padding:16px 18px;display:flex;justify-content:flex-end;}
+  .gauge{height:6px;background:#E7EAEB;border-radius:3px;position:relative;width:150px;}
+  .gauge i{display:block;height:100%;border-radius:3px;}
+  .stock-total{font-weight:600;font-size:12.5px;margin-top:5px;}
+  .stock-breakdown{color:var(--text-secondary);font-size:10.5px;margin-top:2px;}
+
+  /* login */
+  .login-wrap{display:flex;align-items:center;justify-content:center;padding:60px 20px;}
+  .login-card{width:400px;background:#fff;border:1px solid var(--border);border-radius:14px;
+              padding:30px;box-shadow:0 12px 32px rgba(20,24,26,.08);}
+  .login-brand{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:24px;}
+  .login-brand .brand-mark{width:44px;height:44px;font-size:20px;border-radius:10px;}
+  .login-brand h1{font-size:17px;margin:4px 0 0;}
+  .login-brand p{font-size:12.5px;color:var(--text-secondary);margin:2px 0 0;}
+
+  /* print dialog */
+  .pd{display:flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;}
+  .pd-opts{width:250px;border-right:1px solid var(--border);padding:16px 18px;}
+  .pd-opts h3{font-size:12px;font-weight:700;color:var(--text-secondary);margin:0 0 6px;}
+  .pd-group{margin-bottom:16px;}
+  .pd-prev{flex:1;background:#EDEFF0;padding:20px;min-height:320px;}
+  .pd-paper{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);padding:16px;height:100%;
+            display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:12px;}
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <b>StockKeep — หน้าจอทั้งหมด (สภาพปัจจุบัน)</b> · คลิกเมนูซ้ายเพื่อดูแต่ละหน้า<br>
+  ไฟล์นี้ใช้เป็นจุดตั้งต้นในการออกแบบใหม่ — โจทย์และพรอมต์เต็มอยู่ใน <b>DESIGN-BRIEF-fullapp.md</b>
+</div>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="brand"><div class="brand-mark">S</div><div class="brand-name">StockKeep</div></div>
+    <div class="nav-group-label">ภาพรวม</div>
+    <button class="nav-item active" data-v="dashboard">แดชบอร์ด</button>
+    <div class="nav-group-label">คลังสินค้า</div>
+    <button class="nav-item" data-v="products">สินค้า</button>
+    <button class="nav-item" data-v="receiving">รับสินค้า</button>
+    <button class="nav-item" data-v="transfer">เบิกของ</button>
+    <button class="nav-item" data-v="stocktake">ตรวจนับสต๊อก</button>
+    <button class="nav-item" data-v="history">ประวัติสต๊อก</button>
+    <button class="nav-item" data-v="exchange">เชื่อมระบบบิล</button>
+    <div class="nav-group-label">เอกสาร</div>
+    <button class="nav-item" data-v="orders">ใบสั่งสินค้า</button>
+    <div class="nav-group-label">ระบบ</div>
+    <button class="nav-item" data-v="users">ผู้ใช้งาน</button>
+    <div class="nav-group-label">อื่นๆ</div>
+    <button class="nav-item" data-v="login">หน้าเข้าสู่ระบบ</button>
+    <button class="nav-item" data-v="printdlg">หน้าต่างพิมพ์</button>
+    <div class="sidebar-footer">StockKeep v1.3.2<br>ระบบสิทธิ์ผู้ใช้งาน 3 ระดับ</div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h1 id="title">แดชบอร์ด</h1>
+      <div class="spacer"></div>
+      <div class="user-chip">
+        <div class="user-avatar">ผ</div>
+        <div><div class="user-name">ผู้ดูแลระบบ</div><div class="user-role">แอดมิน / เจ้าของร้าน</div></div>
+        <button class="btn small" style="margin-left:10px;">ออกจากระบบ</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="v-dashboard">
+        <div class="alert-banner danger">
+          <div class="alert-text"><b>เตือน:</b> มีสินค้า <b>1 รายการ</b> ที่สต๊อกติดลบ และอีก <b>2 รายการ</b> ต่ำกว่าขั้นต่ำ</div>
+          <button class="btn small">ดูรายการ</button>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi-card"><div class="kpi-label">รายการสินค้าทั้งหมด</div><div class="kpi-value">7</div><div class="kpi-sub">ใน 4 หมวดหมู่</div></div>
+          <div class="kpi-card alert-danger"><div class="kpi-label">ต่ำกว่าขั้นต่ำ</div><div class="kpi-value danger">3</div><div class="kpi-sub">ต้องสั่งซื้อเพิ่ม</div></div>
+          <div class="kpi-card"><div class="kpi-label">มูลค่าสต๊อก</div><div class="kpi-value">฿48,320</div><div class="kpi-sub">ตามต้นทุนล่าสุด</div></div>
+          <div class="kpi-card alert-warn"><div class="kpi-label">ยังไม่มีสต๊อก</div><div class="kpi-value">1</div><div class="kpi-sub">ต้องพิมพ์จำนวนเข้าไป</div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>สินค้าต่ำกว่าสต๊อกขั้นต่ำ</h2><span class="panel-head-sub">ควรสั่งซื้อรายการเหล่านี้ก่อน</span></div>
+          <table>
+            <thead><tr><th>สถานะ</th><th>บาร์โค้ด</th><th>คำอธิบาย</th><th>สต๊อก</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge danger">ติดลบ</span></td><td class="mono">000001</td><td>ท่อแบน 5x2x2.7มม.</td>
+                  <td><div class="gauge"><i style="width:0%;background:var(--danger)"></i></div>
+                      <div class="stock-total">-2 ชิ้น</div><div class="stock-breakdown">คลัง: 0 ชิ้น · หน้าร้าน: -2 ชิ้น</div></td></tr>
+              <tr><td><span class="badge warn">ต่ำ</span></td><td class="mono">000012</td><td>เหล็กเส้นกลม SR24 6มม.</td>
+                  <td><div class="gauge"><i style="width:0%;background:var(--warn)"></i></div>
+                      <div class="stock-total">0 ชิ้น</div><div class="stock-breakdown">คลัง: 0 ชิ้น · หน้าร้าน: 0 ชิ้น</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PRODUCTS -->
+      <div class="view" id="v-products">
+        <div class="panel">
+          <div class="panel-head"><h2>สินค้า</h2><span class="panel-head-sub">ทั้งหมด 7 รายการ</span>
+            <div class="panel-actions"><button class="btn primary">+ เพิ่มสินค้า</button></div></div>
+          <div class="filter-bar">
+            <input placeholder="ค้นหาด้วยบาร์โค้ดหรือคำอธิบายสินค้า...">
+            <div class="filter-row"><span class="filter-row-label">หมวดหมู่</span>
+              <button class="chip active">ทั้งหมด</button><button class="chip">ท่อเหล็ก</button>
+              <button class="chip">ตาข่ายเหล็ก</button><button class="chip">น็อตและสกรู</button></div>
+            <div class="filter-row"><span class="filter-row-label">สถานะสต๊อก</span>
+              <button class="chip active">ทั้งหมด</button><button class="chip">ปกติ</button>
+              <button class="chip">ต่ำกว่าขั้นต่ำ</button><button class="chip">ติดลบ</button></div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>บาร์โค้ด</th><th>คำอธิบาย</th><th>หมวดหมู่</th><th>หน่วยฐาน</th>
+              <th>สต๊อก (คลัง / หน้าร้าน)</th><th class="num">ต้นทุน</th><th class="num">ราคาขาย</th>
+              <th class="num">ราคาช่าง</th><th class="num">ราคาส่ง</th><th>สถานะ</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="mono">000010</td><td>น็อตหกเหลี่ยม M10x40</td><td>น็อตและสกรู</td><td>ชิ้น</td>
+                <td><div class="gauge"><i style="width:55%;background:var(--ok)"></i></div>
+                    <div class="stock-total">2 พาเลท 5 กล่อง</div><div class="stock-breakdown">คลัง: 960 · หน้าร้าน: 140</div></td>
+                <td class="num">3.50</td><td class="num">5.00</td><td class="num">4.50</td><td class="num">4.00</td>
+                <td><span class="badge ok">ปกติ</span></td><td><button class="btn small">แก้ไข</button></td></tr>
+              <tr><td class="mono">000001</td><td>ท่อแบน 5x2x2.7มม.</td><td>ท่อเหล็ก</td><td>ชิ้น</td>
+                <td><div class="gauge"><i style="width:0%;background:var(--danger)"></i></div>
+                    <div class="stock-total">-2 ชิ้น</div><div class="stock-breakdown">คลัง: 0 · หน้าร้าน: -2</div></td>
+                <td class="num">960.00</td><td class="num">1058.00</td><td class="num">1015.00</td><td class="num">985.00</td>
+                <td><span class="badge danger">ติดลบ</span></td><td><button class="btn small">แก้ไข</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- RECEIVING -->
+      <div class="view" id="v-receiving">
+        <div class="panel">
+          <div class="panel-head"><h2>รับสินค้าใหม่</h2><span class="panel-head-sub">บันทึกสินค้าที่รับเข้าจากผู้จำหน่าย</span></div>
+          <div style="padding:18px;">
+            <div class="field-row c4">
+              <div><label>เลขที่เอกสาร</label><input class="mono" value="REC-20260818-0001" readonly></div>
+              <div><label>วันที่</label><input type="date" value="2026-08-18"></div>
+              <div><label>ผู้จำหน่าย</label><input placeholder="พิมพ์เพื่อค้นหาหรือเพิ่มผู้จำหน่าย..."></div>
+              <div><label>รับเข้าที่</label><select><option>คลังสินค้า</option><option>หน้าร้าน</option></select></div>
+            </div>
+            <label>หมายเหตุ</label><input placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)">
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>รายการสินค้า</h2></div>
+          <div style="padding:14px 18px;background:#FAFBFB;border-bottom:1px solid var(--border);">
+            <div style="margin-bottom:10px;"><label>สินค้า</label><select><option>000010 — น็อตหกเหลี่ยม M10x40</option></select></div>
+            <div class="field-row c4" style="margin-bottom:0;align-items:end;">
+              <div><label>หน่วยที่รับ</label><select><option>กล่อง (1 กล่อง = 24 ชิ้น)</option></select></div>
+              <div><label>จำนวน</label><input type="number" value="5"></div>
+              <div><label>ต้นทุนต่อหน่วย</label><input type="number" value="84.00"></div>
+              <div><button class="btn primary" style="width:100%;justify-content:center;">+ เพิ่มรายการ</button></div>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th>บาร์โค้ด</th><th>คำอธิบาย</th><th>หน่วย</th><th class="num">จำนวน</th><th class="num">ต้นทุน/หน่วย</th><th class="num">รวม</th><th></th></tr></thead>
+            <tbody><tr><td class="mono">000010</td><td>น็อตหกเหลี่ยม M10x40</td><td>กล่อง</td>
+              <td class="num">5</td><td class="num">84.00</td><td class="num">420.00</td><td><button class="btn small">ลบ</button></td></tr></tbody>
+          </table>
+          <div style="padding:16px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+            <div style="width:260px;">
+              <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--text-secondary);font-size:12.5px;"><span>ยอดรวมก่อนภาษี</span><span class="mono">฿420.00</span></div>
+              <div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--text-secondary);font-size:12.5px;"><span>ภาษีมูลค่าเพิ่ม 7%</span><span class="mono">฿29.40</span></div>
+              <div style="display:flex;justify-content:space-between;padding:8px 0 0;border-top:1px solid var(--border);font-weight:700;font-size:14.5px;"><span>ยอดรวมทั้งสิ้น</span><span class="mono">฿449.40</span></div>
+            </div>
+          </div>
+          <div class="foot"><button class="btn primary">บันทึกเอกสาร</button></div>
+        </div>
+      </div>
+
+      <!-- TRANSFER -->
+      <div class="view" id="v-transfer">
+        <div class="panel">
+          <div class="panel-head"><h2>เบิกของ (โยกสต๊อกระหว่างสถานที่)</h2><span class="panel-head-sub">เช่น เบิกของจากคลังมาเติมหน้าร้าน</span></div>
+          <div style="padding:18px;">
+            <div class="field-row c3" style="align-items:end;">
+              <div><label>จากสถานที่</label><select><option>คลังสินค้า</option></select></div>
+              <div style="text-align:center;padding-bottom:8px;"><button class="btn">⇄ สลับ</button></div>
+              <div><label>ไปที่สถานที่</label><select><option>หน้าร้าน</option></select></div>
+            </div>
+            <div><label>เอกสารเลขที่</label><input class="mono" value="TRF-20260818-0001" readonly style="max-width:220px;"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>รายการที่เบิก</h2></div>
+          <div style="padding:14px 18px;background:#FAFBFB;border-bottom:1px solid var(--border);">
+            <div style="margin-bottom:10px;"><label>สินค้า</label><select><option>000010 — น็อตหกเหลี่ยม M10x40</option></select></div>
+            <div class="field-row c3" style="margin-bottom:0;align-items:end;">
+              <div><label>หน่วยที่เบิก</label><select><option>กล่อง</option></select></div>
+              <div><label>จำนวน</label><input type="number" value="2"></div>
+              <div><button class="btn primary" style="width:100%;justify-content:center;">+ เพิ่มรายการ</button></div>
+            </div>
+            <div class="field-hint" style="margin-top:8px;">คงเหลือที่ "คลังสินค้า" ตอนนี้: 2 พาเลท</div>
+          </div>
+          <table>
+            <thead><tr><th>บาร์โค้ด</th><th>คำอธิบาย</th><th>หน่วย</th><th class="num">จำนวน</th><th>คงเหลือต้นทางหลังเบิก</th><th></th></tr></thead>
+            <tbody><tr><td class="mono">000010</td><td>น็อตหกเหลี่ยม M10x40</td><td>กล่อง</td><td class="num">2</td>
+              <td>1 พาเลท 18 กล่อง</td><td><button class="btn small">ลบ</button></td></tr></tbody>
+          </table>
+          <div class="foot"><button class="btn primary">บันทึกการเบิกของ</button></div>
+        </div>
+      </div>
+
+      <!-- STOCKTAKE -->
+      <div class="view" id="v-stocktake">
+        <div class="panel">
+          <div class="panel-head"><h2>ตรวจนับสต๊อก</h2><span class="panel-head-sub">พิมพ์ใบตรวจนับ → นับจริงหน้างาน → บันทึกกลับเข้าระบบ</span>
+            <div class="panel-actions"><button class="btn">ดูตัวอย่าง / พิมพ์ใบตรวจนับ</button></div></div>
+          <div style="padding:18px;">
+            <div class="field-row c2">
+              <div><label>ใบตรวจนับที่พิมพ์ไว้ (ยังไม่ได้บันทึก)</label><select><option>— ไม่ใช้ (ออกเลขใหม่) —</option></select>
+                <div class="field-hint">เลือกใบที่พิมพ์ไว้เพื่อกรอกย้อนหลัง — เลขที่จะไม่เปลี่ยน</div></div>
+              <div><label>เลขที่เอกสารตรวจนับ (แก้ได้)</label><input class="mono" value="STK-20260818-0001"></div>
+            </div>
+            <div class="field-row c4">
+              <div><label>วันที่ตรวจนับ</label><input type="date" value="2026-08-18"></div>
+              <div><label>เวลาที่นับจริง</label><input type="time" value="16:32"></div>
+              <div><label>ผู้นับ (คนที่นับจริง)</label><input placeholder="ชื่อคนที่เดินนับของ"></div>
+              <div><label>หมวดหมู่</label><select><option>ทั้งหมด</option></select></div>
+            </div>
+            <div><label>หมายเหตุการตรวจนับ</label><input placeholder="เช่น ตรวจนับประจำเดือน ส.ค. 2569"></div>
+            <div style="margin-top:14px;" class="chk"><input type="checkbox"> บันทึกแบบไม่ออกเลขที่เอกสาร (ปรับด่วน)</div>
+          </div>
+          <div class="summary"><div>นับแล้ว <b>2 / 6</b> ช่อง</div><div>พบผลต่าง <b>1</b> รายการ</div><div>มูลค่าผลต่างรวม <b>-฿250</b></div></div>
+          <div class="filter-bar"><div class="filter-row" style="gap:12px;">
+            <input style="flex:1;min-width:220px;" placeholder="ค้นหาบาร์โค้ดหรือชื่อสินค้า...">
+            <span class="chk"><input type="checkbox"> เฉพาะที่ยังไม่นับ</span>
+            <span class="chk"><input type="checkbox"> เฉพาะที่มีผลต่าง</span></div></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th style="min-width:230px;">สินค้า</th><th style="min-width:132px;">คลังสินค้า</th>
+              <th style="min-width:132px;">หน้าร้าน</th><th style="min-width:120px;">รวมทุกคลัง</th>
+              <th style="min-width:150px;">ของเข้า (ถ้ามี)</th><th style="min-width:180px;">หมายเหตุผู้นับ</th></tr></thead>
+            <tbody>
+              <tr class="is-done">
+                <td><div class="ct-code">000010</div><div class="ct-name">น็อตหกเหลี่ยม M10x40</div><div class="ct-unit">หน่วยฐาน: ชิ้น</div></td>
+                <td><div class="ct-sys">ในระบบ <b>2 กล่อง</b></div><input class="ct-in" value="48"><div class="ct-diff"><span class="badge ok">ตรง</span></div></td>
+                <td><div class="ct-sys">ในระบบ <b>10 ชิ้น</b></div><input class="ct-in" value="8"><div class="ct-diff"><span class="badge danger">ขาด 2 ชิ้น</span></div></td>
+                <td class="ct-total"><div class="ct-sys">ในระบบ <b>2 กล่อง 10 ชิ้น</b></div><div class="ct-big">2 กล่อง 8 ชิ้น</div><div class="ct-diff"><span class="badge danger">ขาด 2 ชิ้น</span></div></td>
+                <td class="ct-recv"><label><input type="checkbox" checked> มีของเข้า</label><input type="number" value="24" placeholder="จำนวน"><input type="date" value="2026-08-18"></td>
+                <td><input value="ของเข้าเมื่อเช้า ยังไม่ได้บันทึก"></td></tr>
+              <tr>
+                <td><div class="ct-code">000001</div><div class="ct-name">ท่อแบน 5x2x2.7มม.</div><div class="ct-unit">หน่วยฐาน: ชิ้น</div></td>
+                <td><div class="ct-sys">ในระบบ <b>40 ชิ้น</b></div><input class="ct-in" placeholder="นับได้"><div class="ct-diff"><span style="color:#6D767B;font-size:11px;">ยังไม่นับ</span></div></td>
+                <td><div class="ct-sys">ในระบบ <b>6 ชิ้น</b></div><input class="ct-in" placeholder="นับได้"><div class="ct-diff"><span style="color:#6D767B;font-size:11px;">ยังไม่นับ</span></div></td>
+                <td class="ct-total"><div class="ct-sys">ในระบบ <b>46 ชิ้น</b></div><div class="ct-big">—</div><div class="ct-diff"></div></td>
+                <td class="ct-recv"><label><input type="checkbox"> มีของเข้า</label><input type="number" placeholder="จำนวน"><input type="date"></td>
+                <td><input placeholder="เช่น ของเสียหาย, ขายไม่ได้บันทึก"></td></tr>
+            </tbody>
+          </table></div>
+          <div class="foot"><button class="btn primary">บันทึกผลการตรวจนับ</button></div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div class="view" id="v-history">
+        <div class="panel">
+          <div class="panel-head"><h2>ประวัติสต๊อก</h2>
+            <div class="panel-actions"><button class="btn small primary">รอบการตรวจนับ</button><button class="btn small">การเคลื่อนไหวทั้งหมด</button></div></div>
+          <div class="filter-bar"><span class="field-hint" style="margin:0;">แต่ละแถวคือการตรวจนับหนึ่งรอบ — เก็บรายการที่นับทั้งหมด พร้อมเวลาที่คนตรวจนับและเวลาที่บันทึกเข้าระบบ</span></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>เวลาที่นับ (คนตรวจ)</th><th>บันทึกเข้าระบบ</th><th>เอกสาร</th><th>สถานที่</th>
+              <th>หมวดหมู่</th><th class="num">นับ</th><th class="num">เปลี่ยน</th><th>ผู้บันทึก</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>18/08/2569 16:32 น.</td><td>18/08/2569 16:45</td><td class="mono">STK-20260818-0001</td>
+                <td>คลังสินค้า</td><td>ทั้งหมด</td><td class="num">6</td><td class="num" style="color:var(--warn);font-weight:600;">1</td>
+                <td>ผู้ดูแลระบบ</td><td><button class="btn small">ดูรายการ</button></td></tr>
+              <tr><td>17/08/2569 08:30 น.</td><td>17/08/2569 08:41</td><td><span class="badge muted">ปรับด่วน</span></td>
+                <td>หน้าร้าน</td><td>น็อตและสกรู</td><td class="num">3</td><td class="num">0</td>
+                <td>อานงค์</td><td><button class="btn small">ดูรายการ</button></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- EXCHANGE -->
+      <div class="view" id="v-exchange">
+        <div class="panel">
+          <div class="panel-head"><h2>เชื่อมระบบบิล (BillKeep)</h2><span class="panel-head-sub">นำเข้าผลปิดวันเพื่อตัดสต๊อก</span></div>
+          <div style="padding:18px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+              <button class="btn primary">นำเข้าไฟล์ปิดวัน (.json)</button>
+              <button class="btn">ส่งออกรายการสินค้าให้ BillKeep</button>
+            </div>
+            <div class="field-hint" style="margin:0;line-height:1.7;">
+              <b>นำเข้า</b> — อ่านไฟล์ที่ BillKeep ส่งมา แล้วตัดสต๊อกตามบิลที่ขายจริง (ดูสรุปก่อนยืนยัน)<br>
+              <b>ส่งออก</b> — ส่งรายการสินค้าและยอดคงเหลือให้ BillKeep (ใช้เมื่ออยู่คนละเครื่อง)
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>ประวัติการนำเข้า</h2></div>
+          <table>
+            <thead><tr><th>วันที่นำเข้า</th><th>วันที่ปิดบิล</th><th class="num">ตัดสต๊อก</th><th class="num">สินค้าใหม่</th><th class="num">ข้าม</th><th>ผู้นำเข้า</th></tr></thead>
+            <tbody><tr><td>17/08/2569 18:20</td><td>17/08/2569</td><td class="num">24</td><td class="num">2</td><td class="num">0</td><td>ผู้ดูแลระบบ</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ORDERS -->
+      <div class="view" id="v-orders">
+        <div class="panel">
+          <div class="panel-head"><h2>พิมพ์ฟอร์มเปล่า</h2><span class="panel-head-sub">พิมพ์ใบสั่งสินค้าเปล่าพร้อมเลขที่ ไว้เขียนด้วยมือ</span>
+            <div class="panel-actions"><button class="btn primary">ดูตัวอย่าง / พิมพ์ฟอร์มเปล่า</button></div></div>
+          <div style="padding:18px;">
+            <div class="field-row c3">
+              <div><label>เล่มบิล</label><select><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+              <div><label>เลขที่เริ่มต้น (แก้ได้)</label><input class="mono" value="A6908-001"></div>
+              <div><label>จำนวนใบที่จะพิมพ์</label><input type="number" value="10"></div>
+            </div>
+            <div class="field-hint" style="margin:0;">เลขที่รันแยกตามเล่มและเดือน — พิมพ์แล้วระบบเดินเลขต่อให้อัตโนมัติ ไม่ซ้ำเดิม</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>ใบสั่งสินค้าที่บันทึกไว้</h2><span class="panel-head-sub">กดเพื่อพิมพ์ซ้ำ</span></div>
+          <table>
+            <thead><tr><th>เลขที่</th><th>วันที่-เวลา</th><th>ลูกค้า</th><th class="num">รายการ</th><th class="num">รวมเป็นเงิน</th><th></th></tr></thead>
+            <tbody><tr><td class="mono">A6908-001</td><td>18/08/2569 14:20</td><td>ร้านช่างสมชาย</td>
+              <td class="num">3</td><td class="num">2,450.00</td><td><button class="btn small">พิมพ์ซ้ำ</button></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div class="view" id="v-users">
+        <div class="panel">
+          <div class="panel-head"><h2>ผู้ใช้งานระบบ</h2><span class="panel-head-sub">จัดการสิทธิ์การเข้าถึงของพนักงาน</span>
+            <div class="panel-actions"><button class="btn primary">+ เพิ่มผู้ใช้งาน</button></div></div>
+          <table>
+            <thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อที่แสดง</th><th>สิทธิ์การใช้งาน</th><th>สถานะ</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="mono">admin</td><td>ผู้ดูแลระบบ</td><td><span class="badge role">แอดมิน / เจ้าของร้าน</span></td>
+                <td><span class="badge ok">ใช้งานอยู่</span></td><td><button class="btn small">รีเซ็ตรหัสผ่าน</button></td></tr>
+              <tr><td class="mono">anong</td><td>อานงค์ พูนทรัพย์</td><td><span class="badge role">คนจัดสต็อก</span></td>
+                <td><span class="badge ok">ใช้งานอยู่</span></td><td><button class="btn small">รีเซ็ตรหัสผ่าน</button> <button class="btn small">ปิดการใช้งาน</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>สำรองและกู้คืนข้อมูล</h2><span class="panel-head-sub">ป้องกันข้อมูลสูญหาย และใช้ย้ายข้อมูลข้ามเครื่อง</span></div>
+          <div style="padding:18px;">
+            <div style="display:flex;gap:10px;margin-bottom:12px;">
+              <button class="btn">สำรองข้อมูล (Export)</button><button class="btn">นำเข้าข้อมูล (Import)</button></div>
+            <div class="field-hint" style="margin:0;line-height:1.7;">
+              <b>สำรองข้อมูล</b> — บันทึกข้อมูลทั้งหมดเป็นไฟล์ .db เก็บไว้ในที่ปลอดภัย<br>
+              <b>นำเข้าข้อมูล</b> — กู้คืนจากไฟล์สำรอง <span style="color:var(--danger);">จะเขียนทับข้อมูลปัจจุบันทั้งหมด</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="view" id="v-login">
+        <div class="login-wrap"><div class="login-card">
+          <div class="login-brand"><div class="brand-mark">S</div><h1>เข้าสู่ระบบ StockKeep</h1><p>ระบบจัดการสต๊อกสินค้า</p></div>
+          <label>ชื่อผู้ใช้</label><input placeholder="เช่น somchai">
+          <div style="margin-top:12px;"></div>
+          <label>รหัสผ่าน</label><input type="password" placeholder="••••••••">
+          <button class="btn primary" style="width:100%;justify-content:center;margin-top:16px;">เข้าสู่ระบบ</button>
+        </div></div>
+      </div>
+
+      <!-- PRINT DIALOG -->
+      <div class="view" id="v-printdlg">
+        <div class="pd">
+          <div class="pd-opts">
+            <div style="font-size:12.5px;color:var(--text-secondary);padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:14px;">รวม <b style="color:var(--text-primary);font-size:14px;">2</b> แผ่น</div>
+            <div class="pd-group"><h3>เครื่องพิมพ์</h3><select><option>EPSON LQ-310</option><option>Microsoft Print to PDF</option></select></div>
+            <div class="pd-group"><h3>จำนวนสำเนา</h3><input type="number" value="1"></div>
+            <div class="pd-group"><h3>แนวกระดาษ</h3>
+              <label class="chk" style="margin-bottom:7px;"><input type="radio" name="l"> แนวตั้ง</label>
+              <label class="chk"><input type="radio" name="l" checked> แนวนอน</label></div>
+            <div class="field-hint" style="margin:0;">กระดาษ A4 · ใบละ 20 รายการ<br>ตัวอย่างด้านขวาคือหน้าที่จะพิมพ์จริง</div>
+          </div>
+          <div class="pd-prev"><div class="pd-paper">[ ตัวอย่างกระดาษ A4 ขนาดจริง — เลื่อนดูได้ทุกหน้า ]</div></div>
+        </div>
+        <div style="max-width:none;display:flex;justify-content:space-between;align-items:center;padding:14px 0;">
+          <span class="field-hint" style="margin:0;">กด "พิมพ์" เพื่อพิมพ์ทันที — หรือเลือก Microsoft Print to PDF เพื่อบันทึกเป็นไฟล์</span>
+          <div style="display:flex;gap:8px;"><button class="btn">ยกเลิก</button><button class="btn primary">พิมพ์</button></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  var titles = {dashboard:'แดชบอร์ด',products:'สินค้า',receiving:'รับสินค้า',transfer:'เบิกของ',
+    stocktake:'ตรวจนับสต๊อก',history:'ประวัติสต๊อก',exchange:'เชื่อมระบบบิล',orders:'ใบสั่งสินค้า',
+    users:'ผู้ใช้งาน',login:'หน้าเข้าสู่ระบบ',printdlg:'หน้าต่างพิมพ์'};
+  document.querySelectorAll('.nav-item').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.nav-item').forEach(function(x){x.classList.remove('active')});
+      b.classList.add('active');
+      document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active')});
+      document.getElementById('v-' + b.dataset.v).classList.add('active');
+      document.getElementById('title').textContent = titles[b.dataset.v] || '';
+    });
+  });
+</script>
+</body>
+</html>

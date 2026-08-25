@@ -1,0 +1,48 @@
+{
+  "name": "stockkeep",
+  "productName": "StockKeep",
+  "version": "1.5.1",
+  "description": "ระบบจัดการสต๊อกสินค้า — Stock Management System",
+  "main": "./out/main/index.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "electron-builder install-app-deps",
+    "dist": "electron-vite build && electron-builder --win"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.10.0"
+  },
+  "devDependencies": {
+    "@tabler/icons-webfont": "^2.47.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.0.0",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.19"
+  },
+  "build": {
+    "appId": "com.stockkeep.app",
+    "productName": "StockKeep",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

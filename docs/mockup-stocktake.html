@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>StockKeep — หน้าตรวจนับสต๊อก (สภาพปัจจุบัน สำหรับใช้ออกแบบใหม่)</title>
+<style>
+  :root{
+    --bg-app:#EEF1F2; --bg-panel:#FFFFFF; --accent:#DC7A16; --accent-dark:#B4620F;
+    --accent-soft:#FBEBD8; --text-primary:#1A1F22; --text-secondary:#6D767B;
+    --border:#DEE3E5; --ok:#2F7D52; --ok-bg:#E5F3EB; --warn:#B8790F; --warn-bg:#FDF3E2;
+    --danger:#C0392B; --danger-bg:#FBEAE8; --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;padding:24px;font-family:"Noto Sans Thai","Leelawadee UI","Segoe UI",sans-serif;
+       background:var(--bg-app);color:var(--text-primary);font-size:13.5px;}
+  .mono{font-family:"JetBrains Mono","Cascadia Mono",Consolas,monospace;}
+  .note{max-width:1100px;margin:0 auto 18px;background:#fff;border:1px solid var(--border);
+        border-left:4px solid var(--accent);border-radius:0 10px 10px 0;padding:14px 18px;line-height:1.7;}
+  .note h1{font-size:16px;margin:0 0 6px;}
+  .panel{max-width:1100px;margin:0 auto 20px;background:var(--bg-panel);border:1px solid var(--border);
+         border-radius:10px;overflow:hidden;}
+  .panel-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
+  .panel-head h2{font-size:13.5px;font-weight:600;margin:0;}
+  .panel-head-sub{color:var(--text-secondary);font-size:12px;margin-left:8px;}
+  .panel-actions{margin-left:auto;}
+  .btn{display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius);border:1px solid var(--border);
+       background:#fff;padding:7px 13px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:5px;}
+  input,select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
+               font-family:inherit;font-size:13px;background:#fff;color:var(--text-primary);}
+  .field-row{display:grid;gap:12px;margin-bottom:14px;}
+  .c2{grid-template-columns:1fr 1fr;} .c4{grid-template-columns:1fr 1fr 1fr 1fr;}
+  .field-hint{font-size:11px;color:var(--text-secondary);margin-top:4px;}
+  .filter-bar{padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;
+              display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .chk{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;white-space:nowrap;}
+  .chk input{width:auto;}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:11px;letter-spacing:.4px;color:var(--text-secondary);font-weight:600;
+     padding:9px 14px;background:#F7F8F9;border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top;}
+  .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.warn{background:var(--warn-bg);color:var(--warn);}
+  .badge.danger{background:var(--danger-bg);color:var(--danger);}
+  .ct-code{font-family:"JetBrains Mono",Consolas,monospace;font-size:11.5px;color:var(--text-secondary);}
+  .ct-name{font-weight:600;font-size:13px;line-height:1.35;}
+  .ct-unit{font-size:11px;color:var(--text-secondary);}
+  .ct-sys{font-size:11.5px;color:var(--text-secondary);margin-bottom:3px;white-space:nowrap;}
+  .ct-sys b{color:var(--text-primary);font-size:12.5px;}
+  .ct-in{width:96px;text-align:right;}
+  .ct-diff{margin-top:4px;min-height:18px;}
+  .ct-total{background:#FAFBFB;}
+  .ct-big{font-size:15px;font-weight:700;font-family:"JetBrains Mono",Consolas,monospace;}
+  .ct-recv input[type=number]{width:78px;}
+  .ct-recv input[type=date]{width:138px;margin-top:4px;}
+  .ct-recv label{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--text-primary);
+                 font-size:12px;margin-bottom:5px;}
+  .ct-recv label input{width:auto;}
+  tr.is-done{background:#F6FBF8;}
+  .summary{padding:0 18px 14px;display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--text-secondary);}
+  .summary b{color:var(--text-primary);font-family:"JetBrains Mono",Consolas,monospace;}
+  .foot{padding:16px 18px;display:flex;justify-content:flex-end;}
+</style>
+</head>
+<body>
+
+<div class="note">
+  <h1>หน้า "ตรวจนับสต๊อก" — สภาพปัจจุบัน</h1>
+  ไฟล์นี้คือหน้าจอจริงของโปรแกรม (ตัดตรรกะออก เหลือแต่หน้าตา) ใช้เป็นจุดตั้งต้นในการออกแบบใหม่<br>
+  โจทย์และพรอมต์เต็มอยู่ในไฟล์ <b>DESIGN-BRIEF-stocktake.md</b> ข้างๆ ไฟล์นี้<br>
+  <b>ปัญหาหลัก:</b> ตารางกว้าง ต้องเลื่อนซ้าย-ขวา · คีย์ข้อมูลช้า · ดูไม่ออกว่ารายการไหนคีย์แล้ว
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>ตรวจนับสต๊อก</h2>
+    <span class="panel-head-sub">พิมพ์ใบตรวจนับ → นับจริงหน้างาน → บันทึกกลับเข้าระบบ</span>
+    <div class="panel-actions"><button class="btn">ดูตัวอย่าง / พิมพ์ใบตรวจนับ</button></div>
+  </div>
+
+  <div style="padding:18px;">
+    <div class="field-row c2">
+      <div><label>ใบตรวจนับที่พิมพ์ไว้ (ยังไม่ได้บันทึก)</label>
+        <select><option>— ไม่ใช้ (ออกเลขใหม่) —</option></select>
+        <div class="field-hint">เลือกใบที่พิมพ์ไว้เพื่อกรอกย้อนหลัง — เลขที่จะไม่เปลี่ยน</div>
+      </div>
+      <div><label>เลขที่เอกสารตรวจนับ (แก้ได้)</label>
+        <input class="mono" value="STK-20260818-0001"></div>
+    </div>
+    <div class="field-row c4">
+      <div><label>วันที่ตรวจนับ</label><input type="date" value="2026-08-18"></div>
+      <div><label>เวลาที่นับจริง (ตามใบนับ)</label><input type="time" value="16:32"></div>
+      <div><label>ผู้นับ (คนที่นับจริง)</label><input placeholder="ชื่อคนที่เดินนับของ"></div>
+      <div><label>หมวดหมู่</label><select><option>ทั้งหมด</option></select></div>
+    </div>
+    <div><label>หมายเหตุการตรวจนับ</label><input placeholder="เช่น ตรวจนับประจำเดือน ส.ค. 2569"></div>
+    <div style="margin-top:14px;" class="chk">
+      <input type="checkbox"> บันทึกแบบไม่ออกเลขที่เอกสาร (ปรับด่วน)
+    </div>
+  </div>
+
+  <div class="summary">
+    <div>นับแล้ว <b>2 / 6</b> ช่อง</div>
+    <div>พบผลต่าง <b>1</b> รายการ</div>
+    <div>มูลค่าผลต่างรวม <b>-฿250</b></div>
+  </div>
+
+  <div class="filter-bar">
+    <input style="flex:1;min-width:220px;" placeholder="ค้นหาบาร์โค้ดหรือชื่อสินค้า...">
+    <span class="chk"><input type="checkbox"> เฉพาะที่ยังไม่นับ</span>
+    <span class="chk"><input type="checkbox"> เฉพาะที่มีผลต่าง</span>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th style="min-width:230px;">สินค้า</th>
+      <th style="min-width:132px;">คลังสินค้า</th>
+      <th style="min-width:132px;">หน้าร้าน</th>
+      <th style="min-width:120px;">รวมทุกคลัง</th>
+      <th style="min-width:150px;">ของเข้า (ถ้ามี)</th>
+      <th style="min-width:180px;">หมายเหตุผู้นับ</th>
+    </tr></thead>
+    <tbody>
+      <tr class="is-done">
+        <td><div class="ct-code">000010</div><div class="ct-name">น็อตหกเหลี่ยม M10x40 ชุบกัลวาไนซ์</div><div class="ct-unit">หน่วยฐาน: ชิ้น</div></td>
+        <td><div class="ct-sys">ในระบบ <b>2 กล่อง</b></div><input class="ct-in" value="48"><div class="ct-diff"><span class="badge ok">ตรง</span></div></td>
+        <td><div class="ct-sys">ในระบบ <b>10 ชิ้น</b></div><input class="ct-in" value="8"><div class="ct-diff"><span class="badge danger">ขาด 2 ชิ้น</span></div></td>
+        <td class="ct-total"><div class="ct-sys">ในระบบ <b>2 กล่อง 10 ชิ้น</b></div><div class="ct-big">2 กล่อง 8 ชิ้น</div><div class="ct-diff"><span class="badge danger">ขาด 2 ชิ้น</span></div></td>
+        <td class="ct-recv"><label><input type="checkbox" checked> มีของเข้า</label><input type="number" value="24" placeholder="จำนวน"><input type="date" value="2026-08-18"></td>
+        <td><input value="ของเข้าเมื่อเช้า ยังไม่ได้บันทึก"></td>
+      </tr>
+      <tr>
+        <td><div class="ct-code">000001</div><div class="ct-name">ท่อแบน 5x2x2.7มม.</div><div class="ct-unit">หน่วยฐาน: ชิ้น</div></td>
+        <td><div class="ct-sys">ในระบบ <b>40 ชิ้น</b></div><input class="ct-in" placeholder="นับได้"><div class="ct-diff"><span style="color:#6D767B;font-size:11px;">ยังไม่นับ</span></div></td>
+        <td><div class="ct-sys">ในระบบ <b>6 ชิ้น</b></div><input class="ct-in" placeholder="นับได้"><div class="ct-diff"><span style="color:#6D767B;font-size:11px;">ยังไม่นับ</span></div></td>
+        <td class="ct-total"><div class="ct-sys">ในระบบ <b>46 ชิ้น</b></div><div class="ct-big">—</div><div class="ct-diff"></div></td>
+        <td class="ct-recv"><label><input type="checkbox"> มีของเข้า</label><input type="number" placeholder="จำนวน"><input type="date"></td>
+        <td><input placeholder="เช่น ของเสียหาย, ขายไม่ได้บันทึก"></td>
+      </tr>
+      <tr>
+        <td><div class="ct-code">000012</div><div class="ct-name">เหล็กเส้นกลม SR24 6มม.</div><div class="ct-unit">หน่วยฐาน: ชิ้น</div></td>
+        <td><div class="ct-sys">ในระบบ <b>0 ชิ้น</b></div><input class="ct-in" placeholder="นับได้"><div class="ct-diff"><span style="color:#6D767B;font-size:11px;">ยังไม่นับ</span></div></td>
+        <td><div class="ct-sys">ในระบบ <b>0 ชิ้น</b></div><input class="ct-in" placeholder="นับได้"><div class="ct-diff"><span style="color:#6D767B;font-size:11px;">ยังไม่นับ</span></div></td>
+        <td class="ct-total"><div class="ct-sys">ในระบบ <b>0 ชิ้น</b></div><div class="ct-big">—</div><div class="ct-diff"></div></td>
+        <td class="ct-recv"><label><input type="checkbox"> มีของเข้า</label><input type="number" placeholder="จำนวน"><input type="date"></td>
+        <td><input placeholder="เช่น ของเสียหาย, ขายไม่ได้บันทึก"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="foot"><button class="btn primary">บันทึกผลการตรวจนับ</button></div>
+</div>
+
+</body>
+</html>

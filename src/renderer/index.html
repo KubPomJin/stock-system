@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:">
+<title>StockKeep — ระบบจัดการสต๊อกสินค้า</title>
+<style>
+  :root{
+    --bg-app:#EEF1F2;
+    --bg-sidebar:#1C2124;
+    --sidebar-hover:#262D31;
+    --sidebar-text:#9AA3A8;
+    --bg-panel:#FFFFFF;
+    --accent:#DC7A16;
+    --accent-dark:#B4620F;
+    --accent-soft:#FBEBD8;
+    --text-primary:#1A1F22;
+    --text-secondary:#6D767B;
+    --border:#DEE3E5;
+    --ok:#2F7D52;
+    --ok-bg:#E5F3EB;
+    --warn:#B8790F;
+    --warn-bg:#FDF3E2;
+    --danger:#C0392B;
+    --danger-bg:#FBEAE8;
+    --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Noto Sans Thai','Leelawadee UI','Segoe UI',Tahoma,system-ui,sans-serif;
+    background:var(--bg-app);
+    color:var(--text-primary);
+    font-size:13.5px;
+  }
+  .mono{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;}
+  .app{display:grid;grid-template-columns:216px 1fr;height:100vh;}
+
+  .sidebar{background:var(--bg-sidebar);display:flex;flex-direction:column;padding:18px 12px;}
+  .brand{display:flex;align-items:center;gap:9px;padding:4px 8px 22px;color:#fff;}
+  .brand-mark{width:26px;height:26px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;}
+  .brand-name{font-weight:600;font-size:14.5px;letter-spacing:.2px;}
+  .nav-group-label{color:#5C666B;font-size:10.5px;letter-spacing:.6px;padding:14px 10px 6px;font-weight:600;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);color:var(--sidebar-text);cursor:pointer;font-size:13px;font-weight:500;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;font-family:inherit;}
+  .nav-item i{font-size:17px;width:17px;}
+  .nav-item:hover{background:var(--sidebar-hover);color:#fff;}
+  .nav-item.active{background:var(--accent);color:#fff;}
+  .sidebar-footer{margin-top:auto;padding:10px;color:#5C666B;font-size:11.5px;border-top:1px solid #2A3034;padding-top:14px;line-height:1.6;}
+
+  .main{display:flex;flex-direction:column;min-width:0;}
+  .topbar{height:54px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:16px;flex-shrink:0;}
+  .topbar h1{font-size:15px;font-weight:600;margin:0;flex-shrink:0;}
+  .filter-bar{padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;display:flex;flex-direction:column;gap:10px;}
+  .filter-search{width:100%;}
+  .filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .filter-row-label{font-size:11.5px;font-weight:600;color:var(--text-secondary);white-space:nowrap;min-width:74px;}
+  .chip-row{display:flex;gap:6px;flex-wrap:wrap;}
+  .chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .chip:hover{border-color:var(--accent);}
+  .chip.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .filter-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text-secondary);}
+  .filter-clear{color:var(--accent);font-weight:600;cursor:pointer;background:none;border:none;font-family:inherit;font-size:12px;padding:0;}
+
+  /* Combobox (searchable + add-new) */
+  .combobox{position:relative;}
+  .combobox-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin-top:3px;box-shadow:0 6px 18px rgba(20,24,26,.1);z-index:30;max-height:220px;overflow-y:auto;display:none;}
+  .combobox-list.open{display:block;}
+  .combobox-option{padding:9px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+  .combobox-option:hover,.combobox-option.active{background:var(--accent-soft);}
+  .combobox-option i{font-size:15px;color:var(--text-secondary);}
+  .combobox-option.add-new{color:var(--accent-dark);font-weight:600;border-top:1px solid var(--border);}
+  .combobox-option.add-new i{color:var(--accent);}
+  .combobox-empty{padding:9px 12px;font-size:12.5px;color:var(--text-secondary);}
+  .topbar-spacer{flex:1;}
+  .topbar-org{font-size:12px;color:var(--text-secondary);text-align:right;line-height:1.3;}
+  .topbar-org b{color:var(--text-primary);display:block;font-size:12.5px;font-weight:600;}
+  .user-chip{display:flex;align-items:center;gap:9px;padding-left:16px;margin-left:16px;border-left:1px solid var(--border);flex-shrink:0;}
+  .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+  .user-meta{line-height:1.25;}
+  .user-name{font-size:12.5px;font-weight:600;}
+  .user-role{font-size:11px;color:var(--text-secondary);}
+
+  .content{padding:22px 26px;overflow-y:auto;flex:1;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px;}
+  .kpi-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+  .kpi-label{font-size:11.5px;color:var(--text-secondary);font-weight:600;letter-spacing:.4px;margin-bottom:8px;}
+  .kpi-value{font-size:23px;font-weight:700;font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;}
+  .kpi-value.danger{color:var(--danger);}
+  .kpi-sub{font-size:11.5px;color:var(--text-secondary);margin-top:4px;}
+
+  .panel{background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px;}
+  .panel-head{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
+  .panel-head h2{font-size:13.5px;font-weight:600;margin:0;}
+  .panel-head-sub{color:var(--text-secondary);font-size:12px;margin-left:8px;}
+  .panel-actions{margin-left:auto;display:flex;gap:8px;}
+
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:11px;letter-spacing:.4px;color:var(--text-secondary);font-weight:600;padding:9px 18px;background:#F7F8F9;border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:10px 18px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FAFBFB;}
+  .num{text-align:right;font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-size:12.5px;}
+
+  .gauge-track{position:relative;height:6px;background:#E7EAEB;border-radius:3px;overflow:visible;width:100%;}
+  .gauge-fill{height:100%;border-radius:3px;}
+  .gauge-fill.ok{background:var(--ok);}
+  .gauge-fill.warn{background:var(--warn);}
+  .gauge-fill.danger{background:var(--danger);}
+  .gauge-min-marker{position:absolute;top:-3px;width:2px;height:12px;background:var(--text-secondary);opacity:.5;}
+  .stock-cell{width:210px;}
+  .stock-total{font-weight:600;font-size:12.5px;margin-top:5px;}
+  .stock-breakdown{color:var(--text-secondary);font-size:10.5px;margin-top:2px;}
+
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.warn{background:var(--warn-bg);color:var(--warn);}
+  .badge.danger{background:var(--danger-bg);color:var(--danger);}
+  .badge.role{background:var(--accent-soft);color:var(--accent-dark);}
+  .badge.muted{background:#EDEFF0;color:var(--text-secondary);}
+  .badge i{font-size:12px;}
+  .badge-lg{padding:5px 11px;font-size:12px;}
+
+  /* Dashboard alert banner */
+  .alert-banner{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:10px;margin-bottom:18px;border:1px solid;}
+  .alert-banner i.alert-icon{font-size:22px;flex-shrink:0;}
+  .alert-banner .alert-text{flex:1;font-size:13px;line-height:1.4;}
+  .alert-banner .alert-text b{font-weight:700;}
+  .alert-banner.danger{background:var(--danger-bg);border-color:#F0C4BF;color:var(--danger);}
+  .alert-banner.warn{background:var(--warn-bg);border-color:#F0DCB4;color:var(--warn);}
+  .alert-banner .alert-jump{font-size:12px;font-weight:600;padding:6px 12px;border-radius:var(--radius);border:1px solid currentColor;background:none;color:inherit;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .alert-banner .alert-jump:hover{background:rgba(0,0,0,.04);}
+
+  .kpi-card.alert-danger{background:var(--danger-bg);border-color:#F0C4BF;}
+  .kpi-card.alert-warn{background:var(--warn-bg);border-color:#F0DCB4;}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;border-radius:var(--radius);border:1px solid var(--border);background:#fff;padding:7px 13px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--text-primary);font-family:inherit;}
+  .btn:hover{background:#F5F6F7;}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark);}
+  .btn.ghost{border-color:transparent;background:none;}
+  .btn.ghost:hover{background:#F0F1F2;}
+  .btn i{font-size:15px;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn.small{padding:5px 9px;font-size:11.5px;}
+
+  .icon-btn{background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px;border-radius:4px;display:flex;}
+  .icon-btn:hover{background:#EEF0F1;color:var(--text-primary);}
+
+  label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:5px;}
+  input[type=text],input[type=number],input[type=date],input[type=password],select,textarea{
+    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);
+    font-family:inherit;font-size:13px;background:#fff;color:var(--text-primary);
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .field-row{display:grid;gap:12px;margin-bottom:14px;}
+  .field-row.c1{grid-template-columns:1fr;}
+  .field-row.c2{grid-template-columns:1fr 1fr;}
+  .field-row.c3{grid-template-columns:1fr 1fr 1fr;}
+  .field-row.c4{grid-template-columns:1fr 1fr 1fr 1fr;}
+  .field-hint{font-size:11px;color:var(--text-secondary);margin-top:4px;}
+
+  .overlay{position:fixed;inset:0;background:rgba(20,24,26,.35);display:none;z-index:40;}
+  .overlay.active{display:block;}
+  /* Centred dialog rather than a side panel: the product form has eight groups
+     of fields and people were scrolling up and down to compare them. Wide and
+     two-column means the whole record is visible at once. */
+  .slideover{position:fixed;inset:0;margin:auto;width:min(1060px,94vw);height:max-content;max-height:90vh;
+    background:#fff;border-radius:12px;box-shadow:0 18px 48px rgba(0,0,0,.22);z-index:41;
+    opacity:0;visibility:hidden;transform:translateY(8px) scale(.99);
+    transition:opacity .16s ease,transform .16s ease,visibility .16s;display:flex;flex-direction:column;}
+  .slideover.active{opacity:1;visibility:visible;transform:none;}
+  .slideover-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;}
+  .slideover-head h2{font-size:15px;margin:0;font-weight:600;}
+  .slideover-body{padding:20px;overflow-y:auto;flex:1;
+    display:grid;grid-template-columns:1fr 1fr;gap:0 22px;align-content:start;}
+  /* Unit structure and opening stock hold repeating rows, so they get the full
+     width instead of being squeezed into a column. */
+  .slideover-body > fieldset.span-2{grid-column:1 / -1;}
+  .slideover-foot{padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+  fieldset{border:none;padding:0;margin:0 0 18px;}
+  legend{font-size:11.5px;font-weight:700;letter-spacing:.4px;color:var(--text-secondary);margin-bottom:10px;padding:0;}
+
+  .unit-level-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .unit-level-row .ul-name{flex:1;}
+  .unit-level-row .ul-qty{width:120px;}
+  .unit-level-base{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#F7F8F9;border-radius:var(--radius);border:1px solid var(--border);}
+  .unit-level-base .ul-name{flex:1;}
+  .unit-level-base-tag{font-size:11px;color:var(--text-secondary);white-space:nowrap;}
+
+  #toast{position:fixed;bottom:22px;right:22px;background:#1C2124;color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;display:none;align-items:center;gap:10px;z-index:60;box-shadow:0 8px 20px rgba(0,0,0,.25);max-width:380px;}
+  #toast.show{display:flex;}
+  #toast i{color:#7ED8A4;font-size:16px;flex-shrink:0;}
+  #toast.error i{color:#F0A69E;}
+
+  .empty-state{text-align:center;padding:40px 20px;color:var(--text-secondary);}
+  .empty-state i{font-size:26px;display:block;margin-bottom:8px;opacity:.5;}
+  .count-input{width:130px;}
+  .count-helper{font-size:11px;color:var(--text-secondary);margin-top:3px;}
+  .count-note-input{width:100%;min-width:180px;font-size:12px;padding:6px 9px;}
+
+  /* LOGIN */
+  #login-screen{position:fixed;inset:0;background:var(--bg-app);display:flex;align-items:center;justify-content:center;z-index:100;}
+  .login-card{width:400px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:30px 30px 26px;box-shadow:0 12px 32px rgba(20,24,26,.08);}
+  .login-brand{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:24px;}
+  .login-brand .brand-mark{width:44px;height:44px;font-size:20px;border-radius:10px;}
+  .login-brand h1{font-size:17px;margin:4px 0 0;font-weight:700;}
+  .login-brand p{font-size:12.5px;color:var(--text-secondary);margin:2px 0 0;}
+  #login-error{display:none;color:var(--danger);font-size:12px;margin-top:8px;background:var(--danger-bg);padding:8px 10px;border-radius:var(--radius);}
+  #login-hint{display:none;margin-top:14px;font-size:11.5px;color:var(--text-secondary);background:#F7F8F9;border:1px solid var(--border);border-radius:var(--radius);padding:9px 11px;line-height:1.6;}
+
+  /* MODAL (replaces window.prompt — not supported in Electron) */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(20,24,26,.4);display:none;z-index:70;align-items:center;justify-content:center;}
+  .modal-backdrop.active{display:flex;}
+  .modal{width:380px;max-width:92vw;background:#fff;border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.2);overflow:hidden;}
+  .modal-head{padding:16px 20px 0;font-size:14.5px;font-weight:700;}
+  .modal-body{padding:14px 20px 4px;}
+  .modal-body .modal-field{margin-bottom:12px;}
+  .modal-foot{padding:14px 20px 18px;display:flex;justify-content:flex-end;gap:8px;}
+  .modal-error{display:none;color:var(--danger);font-size:12px;background:var(--danger-bg);padding:7px 10px;border-radius:var(--radius);margin-bottom:10px;}
+
+  .history-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  /* ===== ตรวจนับสต๊อก — redesign (Claude Design 1a) ===================
+     Darker borders/labels than the rest of the app on purpose: this screen is
+     keyed from paper for long stretches, so contrast beats subtlety. */
+  .st-panel{padding:0;}
+  .st-head{display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid var(--border);}
+  .st-title{font-size:20px;font-weight:700;}
+  .st-sub{font-size:13.5px;color:#5A6469;}
+  .st-btn{margin-left:auto;display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #C9D1D4;
+          border-radius:6px;padding:11px 16px;font-family:inherit;font-size:14px;font-weight:600;color:var(--text-primary);cursor:pointer;}
+  .st-btn:hover{background:#F4F6F7;}
+  .st-btn.ok{background:var(--ok);border-color:var(--ok);color:#fff;font-weight:700;}
+  .st-btn i{font-size:16px;}
+
+  .st-form{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:18px 22px;
+           border-bottom:1px solid var(--border);background:#FAFBFB;}
+  .st-f label{font-size:13px;font-weight:600;color:#3F4A4F;margin-bottom:6px;display:block;}
+  .st-in{width:100%;height:44px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;
+         font-family:inherit;font-size:15px;color:var(--text-primary);background:#fff;}
+  .st-in.mono{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-weight:500;}
+  .st-in:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+
+  .st-sum{display:flex;align-items:center;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border);background:var(--accent-soft);}
+  .st-chip{display:flex;align-items:baseline;gap:8px;padding:8px 14px;background:#fff;border:1px solid #EBD3B6;border-radius:6px;}
+  .st-chip-l{font-size:13px;font-weight:600;color:#3F4A4F;}
+  .st-chip-v{font-family:'JetBrains Mono',Consolas,monospace;font-size:20px;font-weight:700;color:var(--text-primary);}
+  .st-chip-v.danger{color:var(--danger);}
+  .st-chip-s{font-size:13px;font-weight:600;color:#5A6469;font-family:'JetBrains Mono',Consolas,monospace;}
+  .st-bar{flex:1;height:12px;background:#fff;border:1px solid #EBD3B6;border-radius:20px;overflow:hidden;}
+  .st-bar i{display:block;height:100%;background:var(--ok);border-radius:20px;transition:width .18s;}
+
+  .st-filter{display:flex;align-items:center;gap:10px;padding:14px 22px;border-bottom:1px solid var(--border);}
+  .st-filter .st-in{flex:1;height:46px;}
+  .st-fbtn{height:46px;padding:0 16px;border-radius:6px;border:1px solid #C9D1D4;background:#fff;
+           color:var(--text-primary);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  .st-fbtn:hover{background:#F4F6F7;}
+  .st-fbtn.active{background:var(--accent);border-color:var(--accent-dark);color:#fff;}
+
+  /* Row grid — one column per location, kept in sync between head and rows */
+  .st-cols{display:grid;grid-template-columns:56px minmax(260px,1fr) repeat(var(--loc-count,2),190px) 200px 132px;align-items:center;}
+  .st-grid-head{background:#F2F5F6;border-bottom:1px solid var(--border);padding:0 22px;}
+  .st-grid-head .st-cols > div{font-size:12px;font-weight:600;color:#3F4A4F;padding:11px 0;}
+  .st-row{border-bottom:1px solid var(--border);border-left:5px solid var(--border);padding:0 22px;}
+  .st-row .st-cols{padding:12px 0;}
+  .st-mark{font-size:22px;line-height:1;}
+  .st-name{font-size:16px;font-weight:700;line-height:1.35;}
+  .st-meta{display:flex;gap:10px;align-items:baseline;margin-top:3px;}
+  .st-code{font-family:'JetBrains Mono',Consolas,monospace;font-size:13px;font-weight:500;color:#5A6469;}
+  .st-unit{font-size:13px;color:#5A6469;}
+  .st-loc{padding:0 8px;}
+  .st-sysline{font-size:13px;color:#3F4A4F;text-align:center;margin-bottom:4px;}
+  .st-sysline b{font-family:'JetBrains Mono',Consolas,monospace;font-size:14px;font-weight:600;color:var(--text-primary);}
+  .st-cin{width:100%;height:52px;text-align:center;border:2px solid #C9D1D4;border-radius:6px;background:#fff;
+          font-family:'JetBrains Mono',Consolas,monospace;font-size:24px;font-weight:700;color:var(--text-primary);}
+  .st-cin:focus{outline:3px solid var(--accent-soft);border-color:var(--accent);}
+  .st-diff{text-align:center;margin-top:4px;font-size:13px;font-weight:600;color:#6D767B;min-height:18px;}
+  .st-tot{padding:8px 10px;background:#F7F8F9;border:1px solid #E4E9EB;border-radius:8px;text-align:center;}
+  .st-tot-sys{font-size:12.5px;color:#3F4A4F;}
+  .st-tot-v{font-family:'JetBrains Mono',Consolas,monospace;font-size:19px;font-weight:700;margin:2px 0;}
+  .st-tot-b{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:600;background:#EEF1F2;color:#6D767B;}
+  .st-extra-cell{text-align:right;}
+  .st-extra-btn{border:1px solid #C9D1D4;background:#fff;border-radius:6px;padding:9px 12px;
+                font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text-primary);cursor:pointer;}
+  .st-extra-btn:hover{background:#F4F6F7;}
+  .st-extra{display:grid;grid-template-columns:auto 150px 190px 1fr;gap:14px;align-items:end;padding:0 0 16px 51px;}
+  .st-extra label{font-size:13px;font-weight:600;color:#3F4A4F;margin-bottom:5px;display:block;}
+  .st-extra .st-in{height:46px;}
+  .st-recv-chk{display:flex;align-items:center;gap:9px;height:46px;padding:0 14px;border:1px solid #C9D1D4;
+               border-radius:6px;background:#fff;font-size:14px;font-weight:600;color:var(--text-primary);cursor:pointer;margin:0;}
+  .st-recv-chk input{width:20px;height:20px;accent-color:var(--accent);}
+  .st-qty{text-align:right;font-family:'JetBrains Mono',Consolas,monospace;font-size:17px;font-weight:700;}
+
+  .st-foot{display:flex;align-items:center;gap:16px;padding:18px 22px;background:#FAFBFB;border-top:1px solid var(--border);}
+  .st-check{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:var(--text-primary);cursor:pointer;margin:0;}
+  .st-check input{width:20px;height:20px;accent-color:var(--accent);}
+  .st-foot-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+  .st-remain{font-size:14px;color:#3F4A4F;}
+  .st-confirm{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--accent-soft);
+              border:1px solid var(--accent);border-radius:8px;}
+  .st-confirm span{font-size:14px;font-weight:600;color:var(--accent-dark);}
+  .st-save{height:52px;padding:0 28px;border:1px solid var(--accent-dark);background:var(--accent);color:#fff;
+           border-radius:6px;font-family:inherit;font-size:17px;font-weight:700;cursor:pointer;
+           display:inline-flex;align-items:center;gap:8px;}
+  .st-save:hover{background:var(--accent-dark);}
+  .st-save i{font-size:19px;}
+
+  @media (max-width:1200px){
+    .st-form{grid-template-columns:repeat(2,1fr);}
+    .st-cols{grid-template-columns:46px minmax(180px,1fr) repeat(var(--loc-count,2),160px) 170px 120px;}
+  }
+
+  .pv-overflow{outline:3px solid #C0392B !important;outline-offset:-3px;}
+  .pv-warn{display:none;align-items:center;gap:8px;padding:9px 12px;margin-bottom:12px;
+           background:var(--danger-bg);border:1px solid #E8B0A8;border-radius:6px;
+           color:var(--danger);font-size:13px;font-weight:600;}
+  .pv-warn.show{display:flex;}
+  .pv-scale-note{font-size:12.5px;color:var(--text-secondary);margin-top:10px;}
+  /* PREVIEW modal (on-screen check before printing) */
+  .preview-backdrop{position:fixed;inset:0;background:rgba(20,24,26,.45);display:none;z-index:80;align-items:center;justify-content:center;padding:24px;}
+  .preview-backdrop.active{display:flex;}
+  .preview-dialog{background:#fff;border-radius:12px;width:840px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 16px 40px rgba(0,0,0,.25);}
+  .preview-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;}
+  .preview-head h2{font-size:14.5px;margin:0;font-weight:600;}
+  .preview-body{padding:20px;overflow:auto;background:#EDEFF0;flex:1;}
+  /* Print dialog: options column beside a live paper preview */
+  .print-layout{display:flex;flex:1;min-height:0;}
+  .print-options{width:250px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 18px;overflow-y:auto;background:#fff;}
+  .print-options h3{font-size:12px;font-weight:700;color:var(--text-secondary);letter-spacing:.4px;margin:0 0 6px;}
+  .print-options .po-group{margin-bottom:16px;}
+  .print-options .ov-margins{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .print-options .ov-margins label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--text-secondary);}
+  .print-options .ov-margins input{width:100%;}
+  .print-options #ov-m-reset{margin-top:8px;width:100%;}
+  .print-options .po-total{font-size:12.5px;color:var(--text-secondary);margin-bottom:14px;padding-bottom:12px;border-top:none;border-bottom:1px solid var(--border);}
+  .print-options .po-total b{color:var(--text-primary);font-size:14px;}
+  .po-radio{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:7px;cursor:pointer;font-weight:500;color:var(--text-primary);}
+  .po-radio input{width:auto;margin:0;}
+  @media (max-width:900px){
+    .print-layout{flex-direction:column;}
+    .print-options{width:auto;border-right:none;border-bottom:1px solid var(--border);}
+  }
+  .preview-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .preview-hint{font-size:11.5px;color:var(--text-secondary);}
+
+  /* PRINT — stocktake count sheet */
+  #stocktake-print-area{display:none;}
+  /* On-screen preview: render the sheet as an A4 paper page (210mm wide) inside the modal */
+  /* A4 landscape — the sheet now carries every location plus the goods-in columns */
+  /* On-screen preview: every sheet is drawn at true A4 size (following the
+     chosen orientation) so what you see is what comes out of the printer. */
+  .preview-backdrop.active #stocktake-print-area{display:block;background:transparent;padding:0;margin:0;width:auto;max-width:none;box-shadow:none;zoom:var(--pv-zoom,1);}
+  .preview-backdrop.active #stocktake-print-area .pt-sheet{background:#fff;width:297mm;height:210mm;padding:10mm;margin:0 auto 18px;box-shadow:0 2px 10px rgba(0,0,0,.2);box-sizing:border-box;overflow:hidden;}
+  .preview-backdrop.active #stocktake-print-area.portrait .pt-sheet{width:210mm;height:297mm;}
+  #stocktake-print-area .pt-doc{color:#000;font-size:12px;}
+  #stocktake-print-area h1{font-size:18px;margin:0 0 4px;text-align:center;}
+  #stocktake-print-area .pt-subtitle{text-align:center;font-size:12px;margin:0 0 12px;color:#000;}
+  #stocktake-print-area .pt-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 24px;font-size:12px;margin-bottom:14px;}
+  #stocktake-print-area .pt-table{width:100%;border-collapse:collapse;}
+  #stocktake-print-area .pt-table{table-layout:fixed;}
+  #stocktake-print-area .pt-table th,#stocktake-print-area .pt-table td{border:1px solid #000;padding:3px 4px;font-size:9.5px;text-align:left;vertical-align:top;overflow:hidden;color:#000 !important;background:#fff !important;}
+  #stocktake-print-area .pt-table th{background:#fff !important;font-weight:700;color:#000 !important;}
+  #stocktake-print-area .pt-num{text-align:right;}
+  /* Blank cells are sized for handwriting, not for fitting more rows. */
+  #stocktake-print-area .pt-blank{height:30px;}
+  #stocktake-print-area .pt-table td{height:30px;}
+  #stocktake-print-area .pt-footer{display:flex;justify-content:space-between;gap:40px;margin-top:22px;font-size:12px;}
+  /* Fixed-width write-on lines in the header (wider than underscores allow) */
+  #stocktake-print-area .pt-write{display:inline-block;border-bottom:1px solid #000;height:15px;vertical-align:bottom;}
+  #stocktake-print-area .pt-w-date{width:150px;}
+  #stocktake-print-area .pt-w-time{width:120px;}
+  #stocktake-print-area .pt-w-name{width:190px;}
+  /* General notes for the counter — one box at the foot of each page */
+  #stocktake-print-area .pt-notes{margin-top:10px;border:1px solid #000;padding:5px 7px;font-size:11px;}
+  #stocktake-print-area .pt-notes-lines{height:52px;}
+  /* One printed page per sheet */
+  /* Sheets are separate white pages in the preview, so no divider is needed. */
+  /* ORDER TICKET (ใบสั่งสินค้า) — 9 x 5.5 inch continuous form */
+  #order-print-area{display:none;}
+  .preview-backdrop.active #order-print-area{display:block;background:#fff;padding:0;margin:0 auto;width:var(--ot-paper-w, 9in);box-shadow:0 2px 8px rgba(0,0,0,.12);zoom:var(--pv-zoom,1);}
+  /* Order ticket sheet — sized to fill the whole 8 x 5.5in form. The sheet is a
+     flex column: the item table absorbs the leftover height (so rows grow tall
+     enough to hand-write in) and the signature strip is pinned to the bottom. */
+  /* Margins live as padding ON THE SHEET so every page carries its own edges
+     (container padding would only pad the first and last page). All four are
+     user-set per machine: a continuous form never sits identically in two
+     tractor feeds, so the usable area belongs to the printer, not the document.
+     Content width is simply whatever is left over — the same model as the
+     margin handles in a spreadsheet's print view. Defaults are 0.2in top and
+     bottom, and 0.5in sides to clear the tractor strips on a full 9in sheet. */
+  #order-print-area .ot-sheet{height:5.5in;
+    padding:var(--ot-mt, 5.1mm) var(--ot-mr, 12.7mm) var(--ot-mb, 5.1mm) var(--ot-ml, 12.7mm);
+    display:flex;flex-direction:column;overflow:hidden;}
+  #order-print-area .ot-doc{color:#000;font-size:11px;line-height:1.4;display:flex;flex-direction:column;height:100%;}
+  #order-print-area .ot-head{display:flex;gap:10px;align-items:flex-start;margin-bottom:5px;flex-shrink:0;}
+  #order-print-area .ot-cust{flex:1;padding-top:2px;}
+  #order-print-area .ot-cust div{margin-bottom:7px;white-space:nowrap;overflow:hidden;}
+  #order-print-area .ot-fill{display:inline-block;min-width:60%;border-bottom:1.5px solid #000;padding:0 3px;}
+  #order-print-area .ot-right{width:262px;flex-shrink:0;}
+  #order-print-area .ot-title{border:1.5px solid #000;text-align:center;font-size:15px;font-weight:700;padding:3px 0;margin-bottom:5px;}
+  #order-print-area .ot-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px;font-size:11px;}
+  /* 3px, not 1.5px, ON PURPOSE. With border-collapse the outer frame is drawn
+     straddling the table edge, so only half of it is visible — a 1.5px setting
+     rendered as a 0.8px hairline (about 1.5 dots at the LQ-310's 180dpi) and
+     the right-hand line simply failed to print. Doubling it puts a full 1.5px
+     of ink on each outer edge, matching the shared inner lines. */
+  #order-print-area .ot-table{width:100%;border-collapse:collapse;table-layout:fixed;flex:1;border:3px solid #000;}
+  #order-print-area .ot-table th,#order-print-area .ot-table td{border:1.5px solid #000;padding:3px 5px;font-size:11px;text-align:left;vertical-align:top;overflow:hidden;color:#000 !important;background:#fff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #order-print-area .ot-table th{font-weight:700;text-align:center;padding:4px 5px;}
+  #order-print-area .ot-table td.ot-n{text-align:right;}
+  #order-print-area .ot-table td.ot-c{text-align:center;}
+  #order-print-area .ot-row{height:0.24in;}
+  #order-print-area .ot-bottom{display:flex;gap:10px;margin-top:5px;align-items:flex-start;flex-shrink:0;}
+  #order-print-area .ot-pay{flex:1;font-size:11px;line-height:2.1;}
+  #order-print-area .ot-u{display:inline-block;min-width:78px;border-bottom:1.5px solid #000;padding:0 3px;}
+  #order-print-area .ot-totals{width:262px;flex-shrink:0;}
+  #order-print-area .ot-totals div{display:flex;border:1.5px solid #000;border-top:none;font-size:13px;}
+  #order-print-area .ot-totals div:first-child{border-top:1.5px solid #000;}
+  #order-print-area .ot-totals span.l{flex:1;text-align:right;padding:7px 8px;font-weight:600;}
+  #order-print-area .ot-totals span.v{width:104px;text-align:right;padding:7px 8px;border-left:1.5px solid #000;}
+  /* Pinned to the bottom edge with real room to sign above each line */
+  #order-print-area .ot-totals div.ot-grand{font-size:15px;font-weight:700;}
+  #order-print-area .ot-totals div.ot-grand span.l,#order-print-area .ot-totals div.ot-grand span.v{padding:9px 8px;}
+  #order-print-area .ot-sign{display:flex;justify-content:space-between;gap:14px;margin-top:auto;
+                             padding-top:34px;font-size:11px;text-align:center;flex-shrink:0;}
+  #order-print-area .ot-sign div{flex:1;}
+  #order-print-area .ot-sign .ot-line{border-top:1.5px solid #000;margin-bottom:3px;}
+  /* Each sheet is one physical form; on screen they're separated by a gap. */
+  /* Screen-only tear line between forms. Must not touch padding-top — that is
+     the sheet's own 0.2in paper edge and has to survive on every sheet. */
+  #order-print-area .ot-sheet + .ot-sheet{margin-top:20px;border-top:1px dashed #999;}
+
+  /* Column chooser — the table carries more columns than fit on a laptop, so
+     each person picks the ones they actually work with. */
+  .col-picker-wrap{position:relative;}
+  .col-picker{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:20;background:#fff;
+    border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);
+    padding:10px 12px;min-width:210px;max-height:60vh;overflow-y:auto;}
+  .col-picker.show{display:block;}
+  .col-picker label{display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:14px;
+    font-weight:500;cursor:pointer;white-space:nowrap;}
+  .col-picker input{width:auto;height:auto;margin:0;}
+  .col-picker hr{border:none;border-top:1px solid var(--border);margin:7px 0;}
+
+  /* Horizontal scrolling is fine, losing track of WHICH row is not — so the
+     identifying columns stay pinned while the numbers scroll under them. */
+  #products-table th.sticky-col,#products-table td.sticky-col{position:sticky;z-index:2;background:#fff;}
+  #products-table thead th.sticky-col{z-index:3;background:var(--table-head-bg,#F5F7F8);}
+  #products-table tr:hover td.sticky-col{background:var(--row-hover,#FAFBFB);}
+  #products-table th.sticky-edge,#products-table td.sticky-edge{box-shadow:2px 0 0 var(--border);}
+
+  .unit-price-list{font-size:11.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px;}
+
+  .bulk-bar{display:none;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:10px 14px;
+    background:var(--accent-soft,#FFF3E8);border:1px solid var(--accent);border-radius:8px;font-size:14px;}
+  .bulk-bar.show{display:flex;}
+  .row-check{width:auto;height:auto;margin:0;cursor:pointer;}
+
+  /* Per-unit-level count boxes: one column per unit so "4 กล่อง / 2 ชิ้น" is
+     typed as it is counted instead of being multiplied out by hand. */
+  .st-unit-row{display:flex;gap:6px;}
+  .st-unit{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+  .st-unit > span{font-size:11px;color:var(--text-secondary);font-weight:600;text-align:center;}
+  .st-unit .st-cin{width:100%;}
+
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+  .seg-btn{border:none;background:#fff;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;
+    color:var(--text-secondary);font-family:inherit;}
+  .seg-btn.active{background:var(--accent);color:#fff;}
+
+  /* Counting keys คลัง and หน้าร้าน side by side, so reviewing should show them
+     side by side too rather than as two unrelated rows. */
+  .sd-grid th.loc-group{text-align:center;border-left:2px solid var(--border);}
+  .sd-grid td.loc-first{border-left:2px solid var(--border);}
+  .sd-grid input.sd-edit{width:82px;text-align:right;height:32px;padding:2px 6px;}
+  .sd-amended{background:var(--warn-bg,#FFF6E5);}
+
+  #history-print-area{display:none;}
+  body.printing-history #history-print-area{display:block !important;}
+  body.printing-history > *{display:none !important;}
+  body.printing-history > #history-print-area{display:block !important;}
+  .hp-sheet{font-family:inherit;color:#000;padding:10mm;}
+  .hp-sheet h1{font-size:16px;margin:0 0 2px;text-align:center;}
+  .hp-meta{font-size:11px;line-height:1.7;margin:8px 0 10px;}
+  .hp-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .hp-table th,.hp-table td{border:1px solid #000;padding:3px 5px;color:#000 !important;background:#fff !important;}
+  .hp-table th{font-weight:700;text-align:center;}
+  .hp-table td.n{text-align:right;}
+
+  .zone-check-grid{display:flex;flex-wrap:wrap;gap:6px;}
+  .zone-check{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);
+    border-radius:6px;padding:6px 10px;font-size:14px;font-weight:600;cursor:pointer;background:#fff;min-width:62px;}
+  .zone-check:hover{border-color:var(--accent);}
+  .zone-check input{width:auto;height:auto;margin:0;}
+  .text-muted{color:var(--text-secondary);}
+
+  /* ---------- ผังโกดัง (warehouse map) ---------- */
+  /* 40 columns because the top strip of the real plan divides into 5 cells and
+     the bottom strip into 8 — 40 is the smallest width that fits both exactly.
+     Cell positions come from the database so the plan can be re-arranged
+     without touching this file. */
+  .zone-layout{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;}
+  .zone-map-wrap{flex:1 1 460px;min-width:380px;}
+  .zone-detail{flex:1 1 340px;min-width:300px;border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:#fff;max-height:560px;overflow-y:auto;}
+  .zone-map{display:grid;grid-template-columns:repeat(40,1fr);grid-auto-rows:52px;gap:2px;
+    border:2px solid #3F4A4F;padding:4px;background:#F4F6F7;border-radius:var(--radius);}
+  .zone-cell{border:1.5px solid #3F4A4F;background:#fff;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#3F4A4F;overflow:hidden;}
+  .zone-cell.is-label{background:#fff;font-size:12.5px;font-weight:600;}
+  .zone-cell.is-space{background:#fff;}
+  .zone-cell.is-zone{cursor:pointer;background:#F4C7C3;}
+  .zone-cell.is-zone:hover{background:#EFAFA9;}
+  .zone-cell.is-zone.selected{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .zone-cell.is-zone.hit{background:#FFE08A;border-color:#B7891F;}
+  .zone-cell .zone-count{font-size:10.5px;font-weight:600;opacity:.75;}
+  .zone-detail h3{margin:0 0 4px;font-size:17px;}
+  .zone-detail .zone-detail-sub{color:var(--text-secondary);font-size:13px;margin-bottom:12px;}
+  .zone-prod{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;}
+  .zone-prod:last-child{border-bottom:none;}
+  .zone-prod .zp-desc{flex:1;}
+  .zone-prod .zp-bar{color:var(--text-secondary);font-size:12px;}
+  .zone-badge{display:inline-block;background:#F4C7C3;color:#7A2E28;border-radius:4px;
+    padding:1px 7px;font-size:12.5px;font-weight:700;margin-right:4px;}
+  .zone-badge.none{background:#EEE;color:#666;font-weight:600;}
+  @media (max-width:900px){
+    .zone-map{grid-auto-rows:40px;}
+    .zone-cell{font-size:13px;}
+  }
+
+  @media print{
+    /* The old rule only set visibility:hidden, which keeps every element in the
+       layout — and .preview-backdrop is position:fixed, which Chromium repeats
+       on EVERY printed page. On a 5.5in page that produced an endless job.
+       So: take the app out of flow completely and un-fix the dialog. */
+    html,body{height:auto !important;overflow:visible !important;margin:0 !important;padding:0 !important;background:#fff !important;}
+    body.printing-order > *,body.printing-stocktake > *{display:none !important;}
+    body.printing-order > #order-preview-modal,
+    body.printing-stocktake > #stocktake-preview-modal{
+      display:block !important;position:static !important;inset:auto !important;
+      background:none !important;padding:0 !important;margin:0 !important;z-index:auto !important;
+    }
+    /* Dialog shell becomes a plain wrapper — no frame, no scrolling, no chrome. */
+    body.printing-order .preview-dialog,body.printing-stocktake .preview-dialog{
+      display:block !important;width:auto !important;max-width:none !important;max-height:none !important;
+      border-radius:0 !important;box-shadow:none !important;background:#fff !important;
+    }
+    body.printing-order .preview-head,body.printing-order .preview-foot,body.printing-order .print-options,
+    body.printing-stocktake .preview-head,body.printing-stocktake .preview-foot,body.printing-stocktake .print-options{
+      display:none !important;
+    }
+    body.printing-order .print-layout,body.printing-stocktake .print-layout{display:block !important;}
+    body.printing-order .preview-body,body.printing-stocktake .preview-body{
+      display:block !important;padding:0 !important;margin:0 !important;background:#fff !important;
+      overflow:visible !important;flex:none !important;
+    }
+    /* The sheet containers themselves: plain blocks at full page width. */
+    body.printing-order #order-print-area,body.printing-stocktake #stocktake-print-area{
+      display:block !important;position:static !important;width:auto !important;max-width:none !important;
+      padding:0 !important;margin:0 !important;box-shadow:none !important;background:#fff !important;
+    }
+    /* One form per sheet of continuous paper; no screen-only separators. */
+    body.printing-order .ot-sheet{page-break-after:always;break-after:page;}
+    body.printing-order .ot-sheet:last-child{page-break-after:auto;break-after:auto;}
+    body.printing-order .ot-sheet + .ot-sheet{margin-top:0 !important;border-top:none !important;}
+    .pt-table{page-break-inside:auto;}
+    .pt-table tr{page-break-inside:avoid;}
+    /* Fixed 20 rows per sheet — each .pt-sheet is its own printed page, and the
+       on-screen paper frame is dropped (the printer supplies the real page). */
+    /* height MUST be reset too: the on-screen rule pins the sheet to a full
+       210mm A4 face, but the printable box is only 190mm (210mm less the two
+       10mm @page margins). Leaving it in made every sheet spill onto a second,
+       near-empty page — one count sheet always printed as two. */
+    body.printing-stocktake .pt-sheet{page-break-after:always;break-after:page;
+      width:auto !important;height:auto !important;min-height:0 !important;
+      padding:0 !important;margin:0 !important;
+      box-shadow:none !important;background:#fff !important;}
+    body.printing-stocktake .pt-sheet:last-child{page-break-after:auto;break-after:auto;}
+    @page{size:A4 landscape;margin:10mm;}
+  }
+
+
+  /* RESPONSIVE */
+  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  #btn-menu-toggle{display:none;background:none;border:none;cursor:pointer;color:var(--text-primary);padding:4px;margin-right:2px;flex-shrink:0;}
+  #btn-menu-toggle i{font-size:21px;}
+  #sidebar-overlay{position:fixed;inset:0;background:rgba(20,24,26,.4);z-index:50;display:none;}
+  #sidebar-overlay.active{display:block;}
+
+  @media (max-width:1024px){
+    .app{grid-template-columns:1fr;}
+    .sidebar{position:fixed;top:0;left:0;bottom:0;width:240px;z-index:55;transform:translateX(-100%);transition:transform .2s ease;}
+    .sidebar.open{transform:translateX(0);}
+    #btn-menu-toggle{display:flex;align-items:center;}
+    .slideover{width:94vw;}
+    .slideover-body{grid-template-columns:1fr;}
+  }
+  @media (max-width:768px){
+    .content{padding:16px;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);gap:10px;}
+    .field-row.c2,.field-row.c3,.field-row.c4{grid-template-columns:1fr;}
+    .topbar{padding:0 14px;gap:10px;}
+    .topbar-org{display:none;}
+    .panel-head{flex-wrap:wrap;row-gap:8px;}
+    .panel-actions{margin-left:0;width:100%;justify-content:flex-start;}
+  }
+  @media (max-width:480px){
+    .kpi-row{grid-template-columns:1fr;}
+    .slideover{width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0;}
+    .user-meta{display:none;}
+    .user-avatar{display:none;}
+    .user-chip{padding-left:8px;margin-left:8px;gap:6px;}
+    .topbar h1{font-size:14px;}
+    .login-card{width:92vw;padding:24px 20px 20px;}
+  }
+
+  /* ==========================================================================
+     DESIGN v2 — from Claude Design "StockKeep App Redesign"
+     Applied as a trailing override so every existing view picks it up without
+     rewriting its markup. Core moves: bigger base type, darker secondary text
+     (the old #6D767B was the "อ่านยาก" complaint), taller controls, stronger
+     input borders.
+     ========================================================================== */
+
+  :root{
+    --text-secondary:#3F4A4F;   /* was #6D767B — main readability fix */
+    --border:#DEE3E5;           /* panel borders */
+    --border-input:#C9D1D4;     /* controls: stronger than panel borders */
+    --muted:#5A6469;            /* only for genuinely de-emphasised text */
+  }
+
+  body{font-size:15px;}
+
+  /* ---- sidebar ---- */
+  .app{grid-template-columns:236px 1fr;}
+  .sidebar{padding:16px 12px;}
+  .brand{padding:6px 8px 18px;gap:10px;}
+  .brand-mark{width:32px;height:32px;border-radius:8px;font-size:17px;}
+  .brand-name{font-size:16px;font-weight:700;}
+  .nav-group-label{color:#7E8A90;font-size:12px;letter-spacing:.4px;padding:14px 10px 6px;font-weight:700;}
+  .nav-item{height:44px;padding:0 12px;border-radius:6px;color:#C6CFD3;font-size:15px;font-weight:600;margin-bottom:3px;}
+  .nav-item:hover{background:#262D31;color:#fff;}
+  .nav-item.active{background:var(--accent);color:#fff;}
+  .nav-item i{font-size:18px;width:18px;}
+  .sidebar-footer{color:#7E8A90;font-size:12.5px;border-top:1px solid #2A3034;padding:14px 10px 4px;line-height:1.7;}
+
+  /* ---- topbar ---- */
+  .topbar{height:60px;padding:0 24px;}
+  .topbar h1{font-size:19px;font-weight:700;}
+  .topbar-org{font-size:13px;color:var(--text-secondary);}
+  .topbar-org b{font-size:13.5px;}
+  .user-avatar{width:38px;height:38px;font-size:15px;}
+  .user-name{font-size:14px;font-weight:700;}
+  .user-role{font-size:12.5px;color:var(--text-secondary);}
+
+  .content{padding:22px 24px;}
+
+  /* ---- panels ---- */
+  .panel{border-radius:10px;margin-bottom:18px;}
+  .panel-head{padding:16px 20px;}
+  .panel-head h2{font-size:16.5px;font-weight:700;}
+  .panel-head-sub{font-size:14px;color:var(--text-secondary);}
+
+  /* ---- KPI cards ---- */
+  .kpi-card{border-radius:10px;padding:18px 20px;}
+  .kpi-label{font-size:13px;color:var(--text-secondary);font-weight:600;}
+  .kpi-value{font-size:26px;}
+  .kpi-sub{font-size:13px;color:var(--text-secondary);}
+
+  /* ---- tables ---- */
+  th{font-size:13.5px;font-weight:700;color:var(--text-secondary);background:#F2F5F6;
+     padding:12px 16px;letter-spacing:0;}
+  td{padding:12px 16px;font-size:15px;}
+  .num{font-size:14.5px;}
+  tbody tr:hover{background:#F7F9FA;}
+
+  /* ---- form controls ---- */
+  label{font-size:13.5px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+  input[type=text],input[type=number],input[type=date],input[type=time],input[type=password],select,textarea{
+    height:44px;padding:0 12px;border:1px solid var(--border-input);border-radius:6px;font-size:15px;
+  }
+  textarea{height:auto;padding:10px 12px;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .field-hint{font-size:12.5px;color:var(--text-secondary);margin-top:5px;}
+
+  /* ---- buttons ---- */
+  .btn{height:44px;padding:0 16px;border:1px solid var(--border-input);border-radius:6px;
+       font-size:15px;font-weight:600;}
+  .btn:hover{background:#F4F6F7;}
+  .btn.primary{background:var(--accent);border-color:var(--accent-dark);color:#fff;font-weight:700;font-size:15.5px;}
+  .btn.primary:hover{background:var(--accent-dark);}
+  .btn.small{height:36px;padding:0 12px;font-size:13.5px;}
+  .btn i{font-size:17px;}
+  .icon-btn{padding:8px;border-radius:6px;}
+  .icon-btn i{font-size:18px;}
+
+  /* ---- chips / badges ---- */
+  .chip{height:36px;padding:0 14px;border:1px solid var(--border-input);border-radius:6px;
+        font-size:13.5px;font-weight:600;color:var(--text-primary);display:inline-flex;align-items:center;}
+  .chip.active{background:var(--accent);border-color:var(--accent-dark);color:#fff;}
+  .badge{padding:4px 10px;font-size:12.5px;font-weight:600;}
+  .badge-lg{padding:6px 12px;font-size:13.5px;}
+  .badge.muted{background:#EDEFF0;color:var(--text-secondary);}
+
+  /* ---- filter bar ---- */
+  .filter-bar{padding:14px 20px;}
+  .filter-row-label{font-size:13px;font-weight:600;color:var(--text-secondary);min-width:80px;}
+  .filter-meta{font-size:13px;color:var(--text-secondary);}
+  .filter-clear{font-size:13px;}
+
+  /* ---- alerts ---- */
+  .alert-banner{padding:14px 18px;border-radius:10px;}
+  .alert-banner .alert-text{font-size:14.5px;}
+  .alert-banner .alert-jump{height:38px;padding:0 14px;font-size:13.5px;font-weight:600;}
+
+  /* ---- slide-over / modals ---- */
+  .slideover{width:min(1060px,94vw);}
+  .slideover-head{padding:18px 22px;}
+  .slideover-head h2{font-size:17px;font-weight:700;}
+  .slideover-body{padding:22px;}
+  .slideover-foot{padding:16px 22px;}
+  legend{font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:12px;}
+  .empty-state{padding:44px 20px;font-size:14.5px;color:var(--text-secondary);}
+  .empty-state i{font-size:30px;}
+
+  /* Small state dot beside each nav item (design v2) */
+  .nav-dot{width:7px;height:7px;border-radius:2px;background:#3A4348;flex-shrink:0;}
+  .nav-item:hover .nav-dot{background:#6E7B82;}
+  .nav-item.active .nav-dot{background:#fff;}
+
+  /* Print output keeps its own sizing — the design tokens above are screen-only. */
+  #stocktake-print-area label,#order-print-area label{color:#000;}
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-mark">S</div>
+      <h1>เข้าสู่ระบบ StockKeep</h1>
+      <p>ระบบจัดการสต๊อกสินค้า</p>
+    </div>
+    <form id="login-form">
+      <label>ชื่อผู้ใช้</label>
+      <input type="text" id="login-username" placeholder="เช่น somchai" autocomplete="off">
+      <div style="margin-top:12px;"></div>
+      <label>รหัสผ่าน</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="off">
+      <button type="submit" class="btn primary" style="width:100%;justify-content:center;margin-top:16px;">เข้าสู่ระบบ</button>
+      <div id="login-error"></div>
+    </form>
+    <div id="login-hint">
+      <b>ใช้งานครั้งแรก:</b> เข้าสู่ระบบด้วย <span class="mono">admin</span> / <span class="mono">admin123</span><br>
+      แล้วไปหน้า "ผู้ใช้งาน" เพื่อเพิ่มพนักงานและเปลี่ยนรหัสผ่าน
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app-root" style="display:none;">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div><div class="brand-name">StockKeep</div><div style="font-size:12px;color:#8A959B;">จัดการสต๊อกสินค้า</div></div>
+    </div>
+    <div id="sidebar-nav"></div>
+    <div class="sidebar-footer"><span id="app-version">StockKeep</span><br>ระบบสิทธิ์ผู้ใช้งาน 3 ระดับ</div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <button id="btn-menu-toggle" aria-label="เปิดเมนู"><i class="ti ti-menu-2"></i></button>
+      <h1 id="view-title">แดชบอร์ด</h1>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-org"><b>ระบบจัดการสต๊อกสินค้า</b><span id="topbar-date"></span></div>
+      <div class="user-chip">
+        <div class="user-avatar" id="user-avatar">-</div>
+        <div class="user-meta">
+          <div class="user-name" id="user-name-label">-</div>
+          <div class="user-role" id="user-role-label">-</div>
+        </div>
+        <button class="btn small" id="btn-logout"><i class="ti ti-logout"></i>ออกจากระบบ</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div id="dashboard-alert"></div>
+        <div class="kpi-row">
+          <div class="kpi-card"><div class="kpi-label">รายการสินค้าทั้งหมด</div><div class="kpi-value" id="kpi-total-skus">0</div><div class="kpi-sub" id="kpi-total-skus-sub"></div></div>
+          <div class="kpi-card" id="kpi-low-stock-card"><div class="kpi-label">ต่ำกว่าขั้นต่ำ</div><div class="kpi-value danger" id="kpi-low-stock">0</div><div class="kpi-sub">ต้องสั่งซื้อเพิ่ม</div></div>
+          <div class="kpi-card" id="kpi-stock-value-card" style="display:none;"></div>
+          <div class="kpi-card" id="kpi-zero-stock-card"><div class="kpi-label">ยังไม่มีสต๊อก</div><div class="kpi-value" id="kpi-zero-stock">0</div><div class="kpi-sub">ต้องพิมพ์จำนวนเข้าไป</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>สินค้าต่ำกว่าสต๊อกขั้นต่ำ</h2><span class="panel-head-sub">ควรสั่งซื้อรายการเหล่านี้ก่อน</span></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>สถานะ</th><th>บาร์โค้ด</th><th>คำอธิบาย</th><th>สต๊อก</th></tr></thead>
+            <tbody id="low-stock-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- PRODUCTS -->
+      <div class="view" id="view-products">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>สินค้า</h2><span class="panel-head-sub" id="product-count-sub"></span>
+            <div class="panel-actions" id="products-panel-actions"></div>
+          </div>
+          <div class="filter-bar">
+            <input type="text" id="product-search" class="filter-search" placeholder="ค้นหาด้วยบาร์โค้ดหรือคำอธิบายสินค้า...">
+            <div class="filter-row">
+              <span class="filter-row-label">หมวดหมู่</span>
+              <div class="chip-row" id="filter-category-chips"></div>
+            </div>
+            <div class="filter-row">
+              <span class="filter-row-label">สถานะสต๊อก</span>
+              <div class="chip-row" id="filter-status-chips"></div>
+            </div>
+            <div class="filter-row">
+              <span class="filter-row-label">โซนในโกดัง</span>
+              <div class="chip-row" id="filter-zone-chips"></div>
+            </div>
+            <div class="bulk-bar" id="bulk-bar">
+              <span><b id="bulk-count">0</b> รายการที่เลือก</span>
+              <select id="bulk-zone" style="width:auto;min-width:150px;"></select>
+              <button class="btn small primary" id="btn-bulk-add"><i class="ti ti-plus"></i>เพิ่มลงโซน</button>
+              <button class="btn small" id="btn-bulk-remove"><i class="ti ti-minus"></i>เอาออกจากโซน</button>
+              <button class="btn small ghost" id="btn-bulk-clear">ยกเลิกการเลือก</button>
+            </div>
+            <div class="filter-meta">
+              <span id="filter-result-count"></span>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <button class="filter-clear" id="btn-clear-filters" style="display:none;">ล้างตัวกรองทั้งหมด</button>
+                <div class="col-picker-wrap">
+                  <button class="btn small" id="btn-col-picker"><i class="ti ti-columns-3"></i>คอลัมน์</button>
+                  <div class="col-picker" id="col-picker"></div>
+                </div>
+                <select id="product-sort" style="width:auto;min-width:170px;">
+                  <option value="default">เรียงตามค่าเริ่มต้น</option>
+                  <option value="name">ชื่อ ก-ฮ</option>
+                  <option value="stock-asc">สต๊อกน้อยสุดก่อน</option>
+                  <option value="stock-desc">สต๊อกมากสุดก่อน</option>
+                  <option value="zone">เรียงตามโซน (1 → 13)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="table-scroll"><table id="products-table">
+            <thead><tr id="products-head-row"></tr></thead>
+            <tbody id="products-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- RECEIVING -->
+      <div class="view" id="view-receiving">
+        <div class="panel">
+          <div class="panel-head"><h2>รับสินค้าใหม่</h2><span class="panel-head-sub">บันทึกสินค้าที่รับเข้าจากผู้จำหน่าย</span></div>
+          <div style="padding:18px;">
+            <div class="field-row c4">
+              <div><label>เลขที่เอกสาร</label><input type="text" id="rec-doc-number" class="mono" readonly></div>
+              <div><label>วันที่</label><input type="date" id="rec-date"></div>
+              <div><label>ผู้จำหน่าย</label>
+                <div class="combobox" id="supplier-combobox">
+                  <input type="text" id="rec-supplier-input" placeholder="พิมพ์เพื่อค้นหาหรือเพิ่มผู้จำหน่าย..." autocomplete="off">
+                  <div class="combobox-list" id="supplier-list"></div>
+                </div>
+              </div>
+              <div><label>รับเข้าที่</label>
+                <select id="rec-location"></select>
+              </div>
+            </div>
+            <label>หมายเหตุ</label>
+            <input type="text" id="rec-notes" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)">
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>รายการสินค้า</h2></div>
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;">
+            <div style="margin-bottom:10px;">
+              <label>สินค้า</label>
+              <select id="rec-product-select"></select>
+            </div>
+            <div class="field-row c4" style="margin-bottom:0;align-items:end;">
+              <div><label>หน่วยที่รับ</label><select id="rec-unit-select"></select></div>
+              <div><label>จำนวน</label><input type="number" id="rec-qty" value="1" min="1"></div>
+              <div><label>ต้นทุนต่อหน่วยที่รับ</label><input type="number" id="rec-cost" step="0.01"></div>
+              <div><button class="btn primary" id="btn-add-line" style="width:100%;justify-content:center;"><i class="ti ti-plus"></i>เพิ่มรายการ</button></div>
+            </div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>บาร์โค้ด</th><th>คำอธิบาย</th><th>หน่วย</th><th class="num">จำนวน</th><th class="num">ต้นทุนต่อหน่วย</th><th class="num">รวม</th><th></th></tr></thead>
+            <tbody id="receiving-lines-body"></tbody>
+          </table></div>
+          <div style="padding:16px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+            <div style="width:260px;">
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-secondary);padding:4px 0;"><span>ยอดรวมก่อนภาษี</span><span class="num mono" id="rec-subtotal">฿0.00</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-secondary);padding:4px 0;"><span>ภาษีมูลค่าเพิ่ม 7%</span><span class="num mono" id="rec-vat">฿0.00</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:14.5px;font-weight:700;padding:8px 0 0;border-top:1px solid var(--border);margin-top:4px;"><span>ยอดรวมทั้งสิ้น</span><span class="num mono" id="rec-total">฿0.00</span></div>
+            </div>
+          </div>
+          <div style="padding:0 18px 18px;display:flex;justify-content:flex-end;">
+            <button class="btn primary" id="btn-post-receiving"><i class="ti ti-check"></i>บันทึกเอกสาร</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STOCK COUNT -->
+      <div class="view" id="view-stocktake">
+        <div class="panel st-panel">
+
+          <div class="st-head">
+            <div class="st-title">ตรวจนับสต๊อก</div>
+            <div class="st-sub">พิมพ์ใบตรวจนับ → นับจริงหน้างาน → คีย์ตัวเลขกลับเข้าระบบ</div>
+            <button class="st-btn" id="btn-print-stocktake"><i class="ti ti-printer"></i>พิมพ์ใบตรวจนับ</button>
+          </div>
+
+          <div class="st-form">
+            <div class="st-f"><label>เลขที่เอกสาร</label><input type="text" id="count-doc-number" class="st-in mono"></div>
+            <div class="st-f"><label>วันที่ตรวจนับ</label><input type="date" id="count-date" class="st-in mono"></div>
+            <div class="st-f"><label>เวลาที่นับจริง</label><input type="time" id="count-time" class="st-in mono"></div>
+            <div class="st-f"><label>ผู้นับ (คนที่เดินนับของ)</label><input type="text" id="count-counter-name" class="st-in" placeholder="เช่น สมชาย"></div>
+            <div class="st-f" style="grid-column:span 2;"><label>หมายเหตุการตรวจนับ</label><input type="text" id="count-note" class="st-in" placeholder="เช่น ตรวจนับประจำเดือน ส.ค. 2569"></div>
+            <div class="st-f"><label>หมวดหมู่</label><select id="count-category" class="st-in"></select></div>
+            <div class="st-f"><label>ใบที่พิมพ์ไว้ (กรอกย้อนหลัง)</label><select id="count-pending-sheet" class="st-in"></select></div>
+          </div>
+
+          <div class="st-sum">
+            <div class="st-chip"><span class="st-chip-l">คีย์แล้ว</span><span class="st-chip-v" id="stocktake-summary-counted">0</span><span class="st-chip-s" id="st-total-cells">/ 0 ช่อง</span></div>
+            <div class="st-bar"><i id="st-progress" style="width:0%"></i></div>
+            <div class="st-chip"><span class="st-chip-l">พบผลต่าง</span><span class="st-chip-v danger" id="stocktake-summary-variance">0</span><span class="st-chip-s">รายการ</span></div>
+            <div class="st-chip"><span class="st-chip-l">มูลค่าผลต่าง</span><span class="st-chip-v danger" id="stocktake-summary-value">฿0</span></div>
+          </div>
+
+          <div class="st-filter">
+            <input type="text" id="count-search" class="st-in" placeholder="ค้นหาบาร์โค้ดหรือชื่อสินค้า">
+            <button type="button" class="st-fbtn" id="count-only-uncounted">เฉพาะที่ยังไม่นับ</button>
+            <button type="button" class="st-fbtn" id="count-only-diff">เฉพาะที่มีผลต่าง</button>
+          </div>
+
+          <div class="st-grid-head" id="stocktake-head"></div>
+          <div id="stocktake-body"></div>
+
+          <div class="st-foot">
+            <label class="st-check"><input type="checkbox" id="count-no-serial"> บันทึกแบบไม่ออกเลขที่เอกสาร (ปรับด่วน)</label>
+            <div class="st-foot-right">
+              <div class="st-remain" id="st-remain"></div>
+              <div class="st-confirm" id="st-confirm" style="display:none;">
+                <span>ยืนยันบันทึกผลการตรวจนับ?</span>
+                <button class="st-btn" id="btn-cancel-save">ยกเลิก</button>
+                <button class="st-btn ok" id="btn-confirm-save">ยืนยัน บันทึกเลย</button>
+              </div>
+              <button class="st-save" id="btn-save-stocktake"><i class="ti ti-device-floppy"></i>บันทึกผลการตรวจนับ</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- TRANSFER -->
+      <div class="view" id="view-transfer">
+        <div class="panel">
+          <div class="panel-head"><h2>เบิกของ (โยกสต๊อกระหว่างสถานที่)</h2><span class="panel-head-sub">เช่น เบิกของจากคลังมาเติมหน้าร้าน</span></div>
+          <div style="padding:18px;">
+            <div class="field-row c3" style="align-items:end;">
+              <div><label>จากสถานที่</label>
+                <select id="transfer-from"></select>
+              </div>
+              <div style="display:flex;justify-content:center;padding-bottom:8px;">
+                <button class="icon-btn" id="btn-swap-transfer" title="สลับต้นทาง-ปลายทาง"><i class="ti ti-arrows-exchange" style="font-size:20px;"></i></button>
+              </div>
+              <div><label>ไปที่สถานที่</label>
+                <select id="transfer-to"></select>
+              </div>
+            </div>
+            <div style="margin-bottom:14px;">
+              <label>เอกสารเลขที่</label>
+              <input type="text" id="transfer-doc-number" class="mono" readonly style="max-width:220px;">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>รายการที่เบิก</h2></div>
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;">
+            <div style="margin-bottom:10px;">
+              <label>สินค้า</label>
+              <select id="transfer-product-select"></select>
+            </div>
+            <div class="field-row c3" style="margin-bottom:0;align-items:end;">
+              <div><label>หน่วยที่เบิก</label><select id="transfer-unit-select"></select></div>
+              <div><label>จำนวน</label><input type="number" id="transfer-qty" value="1" min="1"></div>
+              <div><button class="btn primary" id="btn-add-transfer-line" style="width:100%;justify-content:center;"><i class="ti ti-plus"></i>เพิ่มรายการ</button></div>
+            </div>
+            <div class="count-helper" id="transfer-available-hint" style="margin-top:8px;"></div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>บาร์โค้ด</th><th>คำอธิบาย</th><th>หน่วย</th><th class="num">จำนวน</th><th>คงเหลือต้นทางหลังเบิก</th><th></th></tr></thead>
+            <tbody id="transfer-lines-body"></tbody>
+          </table></div>
+          <div style="padding:16px 18px;display:flex;justify-content:flex-end;">
+            <button class="btn primary" id="btn-post-transfer"><i class="ti ti-check"></i>บันทึกการเบิกของ</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STOCK HISTORY (stock_manager+) -->
+      <div class="view" id="view-history">
+        <div class="panel">
+          <div class="panel-head"><h2>ประวัติสต๊อก</h2>
+            <div class="panel-actions">
+              <button class="btn small history-tab active" data-tab="sessions">รอบการตรวจนับ</button>
+              <button class="btn small history-tab" data-tab="movements">การเคลื่อนไหวทั้งหมด</button>
+            </div>
+          </div>
+
+          <!-- TAB: count rounds -->
+          <div id="history-sessions-tab">
+            <div class="filter-bar">
+              <span class="field-hint" style="margin:0;line-height:1.6;">แต่ละแถวคือการตรวจนับหนึ่งรอบ — เก็บรายการที่นับทั้งหมด (แม้ตรงกับระบบ) พร้อม <b>เวลาที่คนตรวจนับ</b> และ <b>เวลาที่บันทึกเข้าระบบ</b> · กด "ดูรายการ" เพื่อดูของที่นับในรอบนั้น</span>
+              <div class="filter-meta"><span id="sessions-result-count"></span></div>
+            </div>
+            <div class="table-scroll"><table>
+              <thead><tr><th>เวลาที่นับ (คนตรวจ)</th><th>บันทึกเข้าระบบ</th><th>เอกสาร</th><th>สถานที่</th><th>หมวดหมู่</th><th class="num">นับ</th><th class="num">เปลี่ยน</th><th>ผู้นับ (คนนับจริง)</th><th>ผู้บันทึกเข้าระบบ</th><th></th></tr></thead>
+              <tbody id="sessions-body"></tbody>
+            </table></div>
+          </div>
+
+          <!-- TAB: full ledger -->
+          <div id="history-movements-tab" style="display:none;">
+            <div class="filter-bar">
+              <input type="text" id="history-search" class="filter-search" placeholder="ค้นหาด้วยบาร์โค้ด, ชื่อสินค้า, หรือหมายเหตุ...">
+              <div class="filter-row">
+                <span class="filter-row-label">ประเภท</span>
+                <div class="chip-row" id="history-type-chips"></div>
+              </div>
+              <div class="filter-meta"><span id="history-result-count"></span></div>
+            </div>
+            <div class="table-scroll"><table>
+              <thead><tr><th>วันที่-เวลา</th><th>บาร์โค้ด</th><th>สินค้า</th><th>สถานที่</th><th>ประเภท</th><th class="num">จำนวนเปลี่ยน</th><th>เลขที่อ้างอิง</th><th>หมายเหตุ</th><th>ผู้ทำ</th></tr></thead>
+              <tbody id="history-body"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BILLKEEP EXCHANGE (stock_manager+) -->
+      <div class="view" id="view-exchange">
+        <div class="panel">
+          <div class="panel-head"><h2>นำเข้าผลการปิดวันจากระบบเก็บบิล</h2><span class="panel-head-sub">ตัดสต๊อกตามบิลที่ขายไป + สร้างสินค้าใหม่ที่ยังไม่มี</span>
+            <div class="panel-actions"><button class="btn primary" id="btn-pick-batch"><i class="ti ti-file-import"></i>เลือกไฟล์จากระบบบิล</button></div>
+          </div>
+          <div style="padding:18px;">
+            <div id="batch-preview" style="display:none;"></div>
+            <div id="batch-empty" class="field-hint" style="margin:0;line-height:1.8;">
+              ไฟล์ที่ใช้คือไฟล์ <span class="mono">.json</span> ที่กด "ส่งออกไฟล์" จากหน้า <b>ปิดวัน</b> ของโปรแกรม BillKeep<br>
+              ระบบจะสรุปให้ดูก่อนว่าจะตัดอะไรบ้าง แล้วค่อยกดยืนยัน — ไฟล์เดิมนำเข้าซ้ำไม่ได้ (กันสต๊อกถูกตัดสองรอบ)
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>ส่งรายการสินค้าให้ระบบเก็บบิล</h2><span class="panel-head-sub">ใช้เมื่อระบบบิลอยู่คนละเครื่อง</span>
+            <div class="panel-actions"><button class="btn" id="btn-export-catalog"><i class="ti ti-file-export"></i>ส่งออกรายการสินค้า</button></div>
+          </div>
+          <div style="padding:18px;">
+            <div class="field-hint" style="margin:0;line-height:1.8;">
+              ถ้า BillKeep อยู่<b>เครื่องเดียวกัน</b> ไม่ต้องใช้ปุ่มนี้ — BillKeep อ่านฐานข้อมูลนี้ได้โดยตรงแบบอ่านอย่างเดียว<br>
+              ถ้าอยู่<b>คนละเครื่อง</b> ให้กดส่งออกไฟล์นี้ไปให้ แล้วที่ BillKeep กด "นำเข้าจากไฟล์"
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>ประวัติการนำเข้า</h2></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>นำเข้าเมื่อ</th><th>วันที่ปิดการขาย</th><th class="num">ตัดสต๊อก</th><th class="num">ข้าม</th><th class="num">สินค้าใหม่</th><th class="num">จำนวนรวม</th><th>ผู้นำเข้า</th></tr></thead>
+            <tbody id="imports-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ORDER TICKET (ใบสั่งสินค้า) -->
+      <div class="view" id="view-orders">
+
+        <!-- MAIN: print blank numbered forms to fill in by hand -->
+        <div class="panel">
+          <div class="panel-head"><h2>พิมพ์ฟอร์มเปล่า</h2><span class="panel-head-sub">พิมพ์ใบสั่งสินค้าเปล่าพร้อมเลขที่ ไว้เขียนด้วยมือ (แทน Google Sheet)</span>
+            <div class="panel-actions">
+              <button class="btn primary" id="btn-blank-preview"><i class="ti ti-printer"></i>ดูตัวอย่าง / พิมพ์ฟอร์มเปล่า</button>
+            </div>
+          </div>
+          <div style="padding:18px;">
+            <div class="field-row c3">
+              <div><label>เล่มบิล</label>
+                <select id="blank-book">
+                  <option value="A">A</option><option value="B">B</option>
+                  <option value="C">C</option><option value="D">D</option>
+                </select>
+              </div>
+              <div><label>เลขที่เริ่มต้น (แก้ได้)</label><input type="text" id="blank-start" class="mono"></div>
+              <div><label>จำนวนใบที่จะพิมพ์</label><input type="number" id="blank-count" value="1" min="1" max="100"></div>
+            </div>
+            <div class="field-hint" style="margin:0;line-height:1.7;">
+              เลขที่รันแยกตามเล่มและเดือน (เช่น <span class="mono">A6908-001</span>) — พิมพ์แล้วระบบจะเดินเลขต่อให้อัตโนมัติ ไม่ซ้ำเดิม<br>
+              <b style="color:var(--warn);">ถ้าเล่มนี้ออกเลขจาก BillKeep อยู่ด้วย ให้ใช้คนละเล่มกัน หรือพิมพ์เลขเริ่มต้นเองเพื่อไม่ให้ชนกัน</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- OPTIONAL: fill the order in the app and print it filled -->
+        <div class="panel">
+          <div class="panel-head"><h2>หรือกรอกในระบบแล้วพิมพ์ (ไม่บังคับ)</h2><span class="panel-head-sub">ใช้เมื่ออยากได้ใบที่พิมพ์ข้อมูลมาให้เลย</span>
+            <div class="panel-actions">
+              <button class="btn" id="btn-order-preview"><i class="ti ti-eye"></i>ดูตัวอย่าง / พิมพ์</button>
+              <button class="btn" id="btn-order-save"><i class="ti ti-check"></i>บันทึกและพิมพ์</button>
+            </div>
+          </div>
+          <div style="padding:18px;">
+            <div class="field-row c4">
+              <div><label>เล่มบิล</label>
+                <select id="order-book">
+                  <option value="A">A</option><option value="B">B</option>
+                  <option value="C">C</option><option value="D">D</option>
+                </select>
+              </div>
+              <div><label>เลขที่เอกสาร (แก้ได้)</label><input type="text" id="order-doc-number" class="mono"></div>
+              <div><label>วันที่</label><input type="date" id="order-date"></div>
+              <div><label>เวลา</label><input type="time" id="order-time"></div>
+            </div>
+            <div class="field-hint" style="margin:-6px 0 14px;">
+              เลขที่รันแยกตามเล่มและเดือน (เช่น <span class="mono">A6907-001</span>) — ระบบเสนอเลขถัดไปให้ แต่พิมพ์ทับได้
+              <b style="color:var(--warn);">ถ้าเล่มนี้ออกเลขจาก BillKeep อยู่แล้ว ให้พิมพ์เลขเองเพื่อไม่ให้ซ้ำกัน</b>
+            </div>
+            <div class="field-row c3">
+              <div><label>รหัสลูกค้า</label><input type="text" id="order-cust-code"></div>
+              <div><label>ชื่อลูกค้า</label><input type="text" id="order-cust-name"></div>
+              <div><label>ที่อยู่ / โทร</label><input type="text" id="order-cust-contact"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>รายการสินค้า</h2><span class="panel-head-sub">เลือกจากสต๊อก หรือพิมพ์ชื่อสินค้าเองก็ได้</span></div>
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;">
+            <div style="margin-bottom:10px;">
+              <label>สินค้าจากสต๊อก (ไม่บังคับ)</label>
+              <select id="order-product-select"></select>
+            </div>
+            <div class="field-row c4" style="margin-bottom:0;align-items:end;">
+              <div><label>คลัง</label><select id="order-location"></select></div>
+              <div><label>จำนวน</label><input type="number" id="order-qty" value="1" step="any"></div>
+              <div><label>หน่วย</label><select id="order-unit"></select></div>
+              <div><button class="btn primary" id="btn-order-add-line" style="width:100%;justify-content:center;"><i class="ti ti-plus"></i>เพิ่มรายการ</button></div>
+            </div>
+            <div class="field-row c2" style="margin:12px 0 0;">
+              <div><label>ราคา/หน่วย</label><input type="number" id="order-price" step="0.01"></div>
+              <div><label>หรือพิมพ์ชื่อสินค้าเอง</label><input type="text" id="order-free-desc" placeholder="เว้นว่างถ้าเลือกจากสต๊อกด้านบน"></div>
+            </div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>NO</th><th>รายการสินค้า</th><th>คลัง</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th><th></th></tr></thead>
+            <tbody id="order-lines-body"></tbody>
+          </table></div>
+          <div style="padding:16px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+            <div style="width:280px;">
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-secondary);padding:4px 0;"><span>รวม</span><span class="num mono" id="order-subtotal">0.00</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--text-secondary);padding:4px 0;">
+                <span>ค่าจัดส่ง</span><input type="number" id="order-delivery-fee" step="0.01" value="0" style="width:120px;text-align:right;">
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:14.5px;font-weight:700;padding:8px 0 0;border-top:1px solid var(--border);margin-top:4px;"><span>รวมเป็นเงิน (บาท)</span><span class="num mono" id="order-grand-total">0.00</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>การรับของและชำระเงิน</h2></div>
+          <div style="padding:18px;">
+            <div class="field-row c2">
+              <div><label>วิธีรับสินค้า</label>
+                <select id="order-delivery-method">
+                  <option value="">— ไม่ระบุ —</option>
+                  <option value="DELIVER">จัดส่ง</option>
+                  <option value="PICKUP">รับที่ร้าน</option>
+                </select>
+              </div>
+              <div><label>ทะเบียนรถ</label><input type="text" id="order-plate"></div>
+            </div>
+            <div class="field-row c2">
+              <div><label>การชำระเงิน</label>
+                <select id="order-payment-method">
+                  <option value="">— ไม่ระบุ —</option>
+                  <option value="CASH">เงินสด</option>
+                  <option value="TRANSFER">โอน</option>
+                  <option value="CREDIT">เครดิต</option>
+                </select>
+              </div>
+              <div><label>หมายเหตุ</label><input type="text" id="order-note"></div>
+            </div>
+            <div class="field-row c2" id="order-cash-fields">
+              <div><label>รับเงินมา (บาท)</label><input type="number" id="order-cash-received" step="0.01"></div>
+              <div><label>เงินทอน (บาท)</label><input type="number" id="order-cash-change" step="0.01" readonly></div>
+            </div>
+            <div class="field-row c2" id="order-transfer-fields">
+              <div><label>ยอดโอน (บาท)</label><input type="number" id="order-transfer-amount" step="0.01"></div>
+              <div><label>เบอร์โทร / เลขบัญชี</label><input type="text" id="order-transfer-ref"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>ใบสั่งสินค้าที่บันทึกไว้</h2><span class="panel-head-sub">กดเพื่อพิมพ์ซ้ำ</span></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>เลขที่</th><th>วันที่-เวลา</th><th>ลูกค้า</th><th class="num">รายการ</th><th class="num">รวมเป็นเงิน</th><th>ผู้ออก</th><th></th></tr></thead>
+            <tbody id="order-history-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- USERS (admin only) -->
+      <div class="view" id="view-zones">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>ค้นหาที่เก็บสินค้า</h2>
+            <span class="panel-head-sub">พิมพ์ชื่อสินค้าแล้วดูว่าอยู่โซนไหน</span>
+          </div>
+          <div class="filter-bar">
+            <input type="text" id="zone-search" class="filter-search" placeholder="พิมพ์ชื่อสินค้าหรือบาร์โค้ด แล้วดูว่าอยู่โซนไหน...">
+          </div>
+          <div id="zone-search-results"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>ผังโกดัง</h2>
+            <span class="panel-head-sub">กดที่โซนเพื่อดูรายการสินค้าทั้งหมดในโซนนั้น</span>
+          </div>
+          <div class="zone-layout">
+            <div class="zone-map-wrap">
+              <div id="zone-map" class="zone-map"></div>
+              <div class="field-hint" style="margin-top:10px;">
+                ตัวเลขในช่อง = เลขโซน · ตัวเลขเล็กด้านล่าง = จำนวนรายการสินค้าในโซนนั้น
+              </div>
+            </div>
+            <div class="zone-detail" id="zone-detail">
+              <div class="empty-state"><i class="ti ti-map-search"></i>เลือกโซนจากผังด้านซ้าย</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-users">
+        <div class="panel">
+          <div class="panel-head"><h2>ผู้ใช้งานระบบ</h2><span class="panel-head-sub">จัดการสิทธิ์การเข้าถึงของพนักงาน</span>
+            <div class="panel-actions"><button class="btn primary" id="btn-add-user"><i class="ti ti-plus"></i>เพิ่มผู้ใช้งาน</button></div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อที่แสดง</th><th>สิทธิ์การใช้งาน</th><th>สถานะ</th><th></th></tr></thead>
+            <tbody id="users-body"></tbody>
+          </table></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>สำรองและกู้คืนข้อมูล</h2><span class="panel-head-sub">ป้องกันข้อมูลสูญหาย และใช้ย้ายข้อมูลข้ามเครื่อง</span></div>
+          <div style="padding:18px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+              <button class="btn" id="btn-export-db"><i class="ti ti-download"></i>สำรองข้อมูล (Export)</button>
+              <button class="btn" id="btn-import-db"><i class="ti ti-upload"></i>นำเข้าข้อมูล (Import)</button>
+            </div>
+            <div class="field-hint" style="margin:0;line-height:1.7;">
+              <b>สำรองข้อมูล</b> — บันทึกข้อมูลทั้งหมดเป็นไฟล์ <span class="mono">.db</span> เก็บไว้ในที่ปลอดภัย (เช่น USB, Google Drive) ควรทำเป็นประจำ<br>
+              <b>นำเข้าข้อมูล</b> — กู้คืนจากไฟล์สำรอง หรือย้ายข้อมูลมาจากอีกเครื่อง — <span style="color:var(--danger);">จะเขียนทับข้อมูลปัจจุบันทั้งหมด</span> (ระบบสำรองข้อมูลเดิมให้อัตโนมัติก่อนเขียนทับ)
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div id="sidebar-overlay"></div>
+
+<!-- PRODUCT SLIDE-OVER (add / edit) -->
+<div class="slideover" id="slideover">
+  <div class="slideover-head"><h2 id="slideover-title">เพิ่มสินค้า</h2><button class="icon-btn" id="btn-close-slideover" style="margin-left:auto;"><i class="ti ti-x" style="font-size:18px;"></i></button></div>
+  <div class="slideover-body">
+    <fieldset>
+      <legend>ข้อมูลสินค้า</legend>
+      <div class="field-row c2">
+        <div><label>บาร์โค้ด</label><input type="text" id="new-product-barcode" placeholder="000013"></div>
+        <div><label>บาร์โค้ดย่อย</label><input type="text" id="new-product-sub-barcode" placeholder="ไม่บังคับ"></div>
+      </div>
+      <label>คำอธิบาย</label>
+      <input type="text" id="new-product-desc" placeholder="เช่น เหล็กฉาก 50x50x5มม. 6ม.">
+    </fieldset>
+    <fieldset>
+      <legend>การจัดหมวดหมู่</legend>
+      <label>กลุ่ม</label>
+      <div style="display:flex;gap:8px;">
+        <select id="new-product-category" style="flex:1;"></select>
+        <button type="button" class="btn small" id="btn-add-category" title="เพิ่มหมวดหมู่ใหม่"><i class="ti ti-plus"></i></button>
+      </div>
+      <div class="field-hint">ถ้าไม่มีหมวดที่ต้องการ กดปุ่ม + เพื่อเพิ่มหมวดหมู่ใหม่ได้</div>
+    </fieldset>
+    <fieldset class="span-2">
+      <legend>โครงสร้างหน่วย</legend>
+      <div id="unit-levels-list"></div>
+      <datalist id="unit-name-options"></datalist>
+      <button type="button" class="btn ghost small" id="btn-add-unit-level"><i class="ti ti-plus"></i>เพิ่มระดับหน่วย (เช่น กล่อง, พาเลท)</button>
+      <div class="field-hint">แถวล่างสุดคือหน่วยฐาน (หน่วยเล็กสุดที่ใช้นับสต๊อกจริง) — ค่าคูณของมันคงที่ที่ 1 เสมอ</div>
+    </fieldset>
+    <fieldset>
+      <legend>ระดับสต๊อก</legend>
+      <div class="field-row c2">
+        <div><label>สต๊อกขั้นต่ำ</label><input type="number" id="new-product-min" value="0"></div>
+        <div><label>สต๊อกสูงสุด</label><input type="number" id="new-product-max" value="0"></div>
+      </div>
+      <div class="field-hint">นับเป็นหน่วยฐานตามที่กำหนดด้านบน</div>
+    </fieldset>
+    <fieldset>
+      <legend>โซนที่เก็บในโกดัง (ไม่บังคับ)</legend>
+      <div id="new-product-zones" class="zone-check-grid"></div>
+      <div class="field-hint">ติ๊กโซนที่ของชิ้นนี้อยู่ · เว้นว่างไว้ได้ถ้ายังไม่ได้จัดที่ · ติ๊กได้มากกว่าหนึ่งโซนถ้าแยกเก็บหลายที่</div>
+    </fieldset>
+    <fieldset class="span-2" id="fieldset-opening-stock">
+      <legend id="opening-stock-legend">สต๊อกเริ่มต้น (พิมพ์จำนวนที่นับได้จริงตอนนี้)</legend>
+      <div class="field-row c2" id="opening-stock-inputs"></div>
+      <div class="field-hint" id="opening-stock-hint">นับเป็นหน่วยฐาน — แยกจำนวนตามสถานที่เก็บ</div>
+    </fieldset>
+    <fieldset>
+      <legend>ราคา</legend>
+      <div class="field-row c2">
+        <div><label>ต้นทุน</label><input type="number" id="new-product-cost" step="0.01"></div>
+        <div><label>ราคาขายหน้าร้าน</label><input type="number" id="new-product-price-retail" step="0.01"></div>
+      </div>
+      <div class="field-row c2">
+        <div><label>ราคาช่าง</label><input type="number" id="new-product-price-tradesman" step="0.01"></div>
+        <div><label>ราคาส่ง</label><input type="number" id="new-product-price-wholesale" step="0.01"></div>
+      </div>
+      <div class="field-hint">ทุกราคาคิดต่อหน่วยฐาน — ราคาช่าง/ราคาส่งจะไม่แสดงให้พนักงานเห็น</div>
+    </fieldset>
+  </div>
+  <div class="slideover-foot">
+    <button class="btn" id="btn-cancel-product">ยกเลิก</button>
+    <button class="btn primary" id="btn-save-product"><i class="ti ti-check"></i>บันทึกสินค้า</button>
+  </div>
+</div>
+
+<!-- GENERIC PROMPT MODAL -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <div class="modal-head" id="modal-title"></div>
+    <div class="modal-body">
+      <div class="modal-error" id="modal-error"></div>
+      <div id="modal-fields"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="modal-cancel">ยกเลิก</button>
+      <button class="btn primary" id="modal-ok">ตกลง</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><i class="ti ti-circle-check"></i><span id="toast-msg"></span></div>
+
+<!-- Session detail: shows every counted line of one stocktake round -->
+<div class="preview-backdrop" id="session-detail-modal">
+  <div class="preview-dialog" style="width:min(1180px,95vw);">
+    <div class="preview-head">
+      <h2>รายการที่นับในรอบนี้</h2>
+      <div class="seg" id="session-view-toggle" style="margin-left:16px;">
+        <button type="button" class="seg-btn active" data-view="grid">แบบตาราง (เหมือนตอนคีย์)</button>
+        <button type="button" class="seg-btn" data-view="list">แบบรายการ</button>
+      </div>
+      <button class="icon-btn" id="btn-close-session-detail" style="margin-left:auto;" aria-label="ปิด"><i class="ti ti-x" style="font-size:18px;"></i></button>
+    </div>
+    <div class="preview-body" style="background:#fff;padding:0;">
+      <div id="session-detail-meta" style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:12.5px;line-height:1.7;"></div>
+      <div class="table-scroll" id="session-detail-wrap"></div>
+    </div>
+    <div class="preview-foot">
+      <span class="preview-hint" id="session-detail-summary"></span>
+      <button class="btn" id="btn-session-pdf"><i class="ti ti-file-type-pdf"></i>บันทึกเป็น PDF</button>
+      <button class="btn" id="btn-session-edit"><i class="ti ti-pencil"></i>แก้ไขตัวเลข</button>
+      <button class="btn primary" id="btn-session-save" style="display:none;"><i class="ti ti-check"></i>บันทึกการแก้ไข</button>
+      <button class="btn" id="btn-session-cancel-edit" style="display:none;">ยกเลิก</button>
+      <button class="btn" id="btn-close-session-detail-2">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<div id="history-print-area"></div>
+
+<!-- Order ticket preview — printed at 9 x 5.5 in (page size injected at print time) -->
+<div class="preview-backdrop" id="order-preview-modal">
+  <div class="preview-dialog" style="width:960px;">
+    <div class="preview-head">
+      <h2>ตัวอย่างใบสั่งสินค้าก่อนพิมพ์</h2>
+      <button class="icon-btn" id="btn-close-order-preview" style="margin-left:auto;" aria-label="ปิด"><i class="ti ti-x" style="font-size:18px;"></i></button>
+    </div>
+    <div class="print-layout">
+      <div class="print-options">
+        <div class="po-total">รวม <b id="ov-sheet-count">1</b> แผ่น</div>
+        <div class="po-group">
+          <h3>เครื่องพิมพ์</h3>
+          <select id="ov-printer"></select>
+        </div>
+        <div class="po-group">
+          <h3>จำนวนสำเนา</h3>
+          <input type="number" id="ov-copies" value="1" min="1" max="99">
+        </div>
+        <div class="po-group">
+          <h3>ขนาดกระดาษที่ส่งให้เครื่องพิมพ์</h3>
+          <select id="ov-paper">
+            <option value="9">9 × 5.5 นิ้ว — กระดาษเต็มแผ่น</option>
+            <option value="8">8 × 5.5 นิ้ว — เฉพาะพื้นที่พิมพ์</option>
+          </select>
+          <div class="field-hint" style="margin:6px 0 0;line-height:1.5;">
+            ไดรเวอร์บางตัวนับ "หน้ากระดาษ" เป็นพื้นที่ที่พิมพ์ได้<br>ไม่ใช่กระดาษจริง — ถ้าฟอร์มเยื้อง ลองสลับดู
+          </div>
+        </div>
+        <div class="po-group">
+          <h3>ระยะขอบกระดาษ (มม.)</h3>
+          <div class="ov-margins">
+            <label>บน<input type="number" id="ov-m-top" min="0" max="60" step="0.5"></label>
+            <label>ล่าง<input type="number" id="ov-m-bottom" min="0" max="60" step="0.5"></label>
+            <label>ซ้าย<input type="number" id="ov-m-left" min="0" max="60" step="0.5"></label>
+            <label>ขวา<input type="number" id="ov-m-right" min="0" max="60" step="0.5"></label>
+          </div>
+          <button type="button" class="btn-sm" id="ov-m-reset">คืนค่าเริ่มต้น</button>
+          <div class="field-hint" style="margin:6px 0 0;line-height:1.5;">
+            ปรับแล้วเห็นผลในตัวอย่างทันที<br><b>ค่านี้จำไว้เฉพาะเครื่องนี้</b>
+          </div>
+        </div>
+        <div class="field-hint" style="margin:0;line-height:1.6;">
+          หนึ่งใบต่อหนึ่งแผ่น
+          <div class="pv-scale-note" id="ov-print-area"></div>
+          <div class="pv-scale-note" id="ov-scale"></div>
+        </div>
+      </div>
+      <div class="preview-body">
+        <div class="pv-warn" id="ov-warn"><i class="ti ti-alert-triangle"></i><span></span></div>
+        <div id="order-print-area"></div>
+      </div>
+    </div>
+    <div class="preview-foot">
+      <span class="preview-hint">กด "พิมพ์" เพื่อพิมพ์ทันที — หรือเลือก Microsoft Print to PDF เพื่อบันทึกเป็นไฟล์</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="btn-cancel-order-preview">ยกเลิก</button>
+        <button class="btn primary" id="btn-do-order-print"><i class="ti ti-printer"></i>พิมพ์</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stocktake count sheet: previewed on-screen in this modal, then printed.
+     #stocktake-print-area is the only element visible during window.print(). -->
+<div class="preview-backdrop" id="stocktake-preview-modal">
+  <div class="preview-dialog" style="width:1180px;">
+    <div class="preview-head">
+      <h2>พิมพ์ใบตรวจนับสต๊อก</h2>
+      <button class="icon-btn" id="btn-close-preview" style="margin-left:auto;" aria-label="ปิด"><i class="ti ti-x" style="font-size:18px;"></i></button>
+    </div>
+    <div class="print-layout">
+      <div class="print-options">
+        <div class="po-total">รวม <b id="pv-sheet-count">1</b> แผ่น</div>
+        <div class="po-group">
+          <h3>เครื่องพิมพ์</h3>
+          <select id="pv-printer"></select>
+        </div>
+        <div class="po-group">
+          <h3>จำนวนสำเนา</h3>
+          <input type="number" id="pv-copies" value="1" min="1" max="99">
+        </div>
+        <div class="po-group">
+          <h3>แนวกระดาษ</h3>
+          <label class="po-radio"><input type="radio" name="pv-layout" value="portrait">แนวตั้ง</label>
+          <label class="po-radio"><input type="radio" name="pv-layout" value="landscape" checked>แนวนอน</label>
+        </div>
+        <div class="field-hint" style="margin:0;line-height:1.6;">
+          กระดาษ A4 · ใบละ 20 รายการ
+          <div class="pv-scale-note" id="pv-scale"></div>
+        </div>
+      </div>
+      <div class="preview-body">
+        <div class="pv-warn" id="pv-warn"><i class="ti ti-alert-triangle"></i><span></span></div>
+        <div id="stocktake-print-area"></div>
+      </div>
+    </div>
+    <div class="preview-foot">
+      <span class="preview-hint">กด "พิมพ์" เพื่อพิมพ์ทันที — หรือเลือกเครื่องพิมพ์เป็น Microsoft Print to PDF เพื่อบันทึกเป็นไฟล์</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="btn-cancel-preview">ยกเลิก</button>
+        <button class="btn primary" id="btn-do-print"><i class="ti ti-printer"></i>พิมพ์</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

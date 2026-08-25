@@ -1,0 +1,32 @@
+# --- build output ---------------------------------------------------------
+node_modules/
+out/
+release/
+dist/
+*.tsbuildinfo
+
+# --- databases ------------------------------------------------------------
+# The live database lives in %APPDATA%\stockkeep and must never reach this
+# repo: it holds the shop's real stock, prices and users. These patterns are
+# here so a debugging copy dropped in the project folder cannot be committed
+# by accident.
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# --- scratch files from debugging sessions --------------------------------
+*-tmp.js
+*-out.json
+
+# --- secrets --------------------------------------------------------------
+.env
+.env.*
+
+# --- editors / OS ---------------------------------------------------------
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+*.log

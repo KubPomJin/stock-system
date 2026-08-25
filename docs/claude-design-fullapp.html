@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box}html,body{margin:0;height:100%}body{font-family:"Noto Sans Thai","Leelawadee UI","Segoe UI",sans-serif;background:#EEF1F2;color:#1A1F22;font-size:15px}a{color:#B4620F}a:hover{color:#DC7A16}input::placeholder{color:#8A9296}input,select,button{font-family:inherit}::-webkit-scrollbar{width:12px;height:12px}::-webkit-scrollbar-thumb{background:#C3CBCE;border-radius:8px;border:3px solid #EEF1F2}</style></helmet>
+
+<div style="display:grid;grid-template-columns:236px 1fr;height:100vh;overflow:hidden">
+
+  <div style="background:#1C2124;display:flex;flex-direction:column;padding:16px 12px;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 8px 18px;color:#fff">
+      <div style="width:32px;height:32px;border-radius:8px;background:#DC7A16;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px">S</div>
+      <div><div style="font-weight:700;font-size:16px">StockKeep</div><div style="font-size:12px;color:#8A959B">จัดการสต๊อกสินค้า</div></div>
+    </div>
+    <sc-for list="{{ nav }}" as="n" hint-placeholder-count="10">
+      <sc-if value="{{ n.isLabel }}" hint-placeholder-val="{{ false }}">
+        <div style="color:#7E8A90;font-size:12px;letter-spacing:.4px;padding:14px 10px 6px;font-weight:700">{{ n.label }}</div>
+      </sc-if>
+      <sc-if value="{{ n.isItem }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ n.go }}" style="display:flex;align-items:center;gap:10px;padding:0 12px;height:44px;border-radius:6px;color:#C6CFD3;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:3px;border:0;background:transparent;width:100%;text-align:left;background:{{ n.bg }};color:{{ n.fg }}" style-hover="background:#262D31;color:#fff">
+          <span style="width:7px;height:7px;border-radius:2px;background:{{ n.dot }}"></span>{{ n.label }}
+        </button>
+      </sc-if>
+    </sc-for>
+    <div style="margin-top:auto;padding:14px 10px 4px;color:#7E8A90;font-size:12.5px;border-top:1px solid #2A3034;line-height:1.7">StockKeep v1.3.2<br>เข้าใช้งานเป็น <b style="color:#C6CFD3">{{ roleName }}</b></div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;min-width:0">
+    <div style="height:60px;background:#fff;border-bottom:1px solid #DEE3E5;display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0">
+      <h1 style="font-size:19px;font-weight:700;margin:0">{{ title }}</h1>
+      <span style="font-size:14px;color:#3F4A4F">{{ subtitle }}</span>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:6px;padding:4px;background:#F2F5F6;border:1px solid #DEE3E5;border-radius:8px">
+        <span style="font-size:13px;color:#3F4A4F;padding:0 6px;font-weight:600">ดูหน้าจอในสิทธิ์</span>
+        <sc-for list="{{ roles }}" as="r" hint-placeholder-count="3">
+          <button onClick="{{ r.go }}" style="height:34px;padding:0 12px;border-radius:6px;border:1px solid transparent;cursor:pointer;font-size:13.5px;font-weight:600;background:{{ r.bg }};color:{{ r.fg }};border-color:{{ r.bd }}">{{ r.label }}</button>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding-left:16px;border-left:1px solid #DEE3E5">
+        <div style="width:38px;height:38px;border-radius:50%;background:#FBEBD8;color:#B4620F;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px">ผ</div>
+        <div><div style="font-size:14px;font-weight:700">ผู้ดูแลระบบ</div><div style="font-size:12.5px;color:#3F4A4F">{{ roleName }}</div></div>
+      </div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:22px 24px 40px">
+
+    <sc-if value="{{ v.dashboard }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:10px;background:#FBEAE8;border:1.5px solid #E8B0A8;margin-bottom:18px">
+          <div style="width:34px;height:34px;border-radius:8px;background:#C0392B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700">!</div>
+          <div style="flex:1;font-size:16px;line-height:1.5;color:#1A1F22">มีสินค้า <b style="color:#C0392B">1 รายการ</b> ที่สต๊อกติดลบ และอีก <b style="color:#B8790F">2 รายการ</b> ต่ำกว่าขั้นต่ำ — ควรจัดการก่อนสั่งซื้อรอบถัดไป</div>
+          <button onClick="{{ goProducts }}" style="height:44px;padding:0 18px;border:1px solid #C0392B;background:#fff;color:#C0392B;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer" style-hover="background:#FDF1EF">ดูรายการที่ต้องแก้</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px">
+          <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;padding:18px 20px">
+            <div style="font-size:14px;color:#3F4A4F;font-weight:600;margin-bottom:10px">รายการสินค้าทั้งหมด</div>
+            <div style="font:700 34px 'JetBrains Mono',monospace;line-height:1">7</div>
+            <div style="font-size:13.5px;color:#3F4A4F;margin-top:8px">ใน 4 หมวดหมู่</div>
+          </div>
+          <div style="background:#FBEAE8;border:1.5px solid #E8B0A8;border-radius:10px;padding:18px 20px">
+            <div style="font-size:14px;color:#8E2E22;font-weight:700;margin-bottom:10px">ต่ำกว่าขั้นต่ำ</div>
+            <div style="font:700 34px 'JetBrains Mono',monospace;line-height:1;color:#C0392B">3</div>
+            <div style="font-size:13.5px;color:#8E2E22;margin-top:8px">ต้องสั่งซื้อเพิ่ม</div>
+          </div>
+          <sc-if value="{{ perm.money }}" hint-placeholder-val="{{ true }}">
+          <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;padding:18px 20px">
+            <div style="font-size:14px;color:#3F4A4F;font-weight:600;margin-bottom:10px">มูลค่าสต๊อก</div>
+            <div style="font:700 34px 'JetBrains Mono',monospace;line-height:1">฿48,320</div>
+            <div style="font-size:13.5px;color:#3F4A4F;margin-top:8px">ตามต้นทุนล่าสุด</div>
+          </div>
+          </sc-if>
+          <div style="background:#FDF3E2;border:1.5px solid #EBCF9C;border-radius:10px;padding:18px 20px">
+            <div style="font-size:14px;color:#8A5A08;font-weight:700;margin-bottom:10px">ยังไม่มีสต๊อก</div>
+            <div style="font:700 34px 'JetBrains Mono',monospace;line-height:1;color:#B8790F">1</div>
+            <div style="font-size:13.5px;color:#8A5A08;margin-top:8px">ต้องพิมพ์จำนวนเข้าไป</div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #DEE3E5">
+            <h2 style="font-size:17px;font-weight:700;margin:0">สินค้าต่ำกว่าสต๊อกขั้นต่ำ</h2>
+            <span style="font-size:14px;color:#3F4A4F">ควรสั่งซื้อรายการเหล่านี้ก่อน</span>
+            <button style="margin-left:auto;height:42px;padding:0 16px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:14.5px;font-weight:600;cursor:pointer" style-hover="background:#F4F6F7">พิมพ์รายการสั่งซื้อ</button>
+          </div>
+          <div style="display:grid;grid-template-columns:120px 110px 1fr 260px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+            <div style="padding:12px 0">สถานะ</div><div style="padding:12px 0">บาร์โค้ด</div><div style="padding:12px 0">คำอธิบาย</div><div style="padding:12px 0">สต๊อกคงเหลือ</div>
+          </div>
+          <sc-for list="{{ lowStock }}" as="p" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:120px 110px 1fr 260px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center;background:{{ p.zebra }}">
+              <div style="padding:14px 0"><span style="display:inline-flex;padding:5px 12px;border-radius:20px;font-size:13.5px;font-weight:700;background:{{ p.badgeBg }};color:{{ p.badgeFg }}">{{ p.statusText }}</span></div>
+              <div style="padding:14px 0;font:500 14.5px 'JetBrains Mono',monospace;color:#1A1F22">{{ p.code }}</div>
+              <div style="padding:14px 0;font-size:15.5px;font-weight:600">{{ p.name }}</div>
+              <div style="padding:12px 0">
+                <div style="height:8px;background:#E4E9EB;border-radius:4px;width:180px;overflow:hidden"><div style="height:100%;border-radius:4px;width:{{ p.barW }};background:{{ p.barColor }}"></div></div>
+                <div style="font:700 16px 'JetBrains Mono',monospace;margin-top:6px;color:{{ p.totalColor }}">{{ p.total }}</div>
+                <div style="font-size:13px;color:#3F4A4F;margin-top:2px">{{ p.split }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.products }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #DEE3E5">
+          <h2 style="font-size:17px;font-weight:700;margin:0">สินค้า</h2>
+          <span style="font-size:14px;color:#3F4A4F">ทั้งหมด 7 รายการ</span>
+          <button onClick="{{ openProduct }}" style="margin-left:auto;height:46px;padding:0 20px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:15.5px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">+ เพิ่มสินค้า</button>
+        </div>
+        <div style="padding:16px 20px;background:#FAFBFB;border-bottom:1px solid #DEE3E5;display:flex;flex-direction:column;gap:12px">
+          <input placeholder="🔍  ค้นหาด้วยบาร์โค้ดหรือชื่อสินค้า" style="width:100%;height:48px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font-size:15.5px;background:#fff;color:#1A1F22">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:14px;font-weight:700;color:#3F4A4F;width:92px">หมวดหมู่</span>
+            <sc-for list="{{ catChips }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.go }}" style="height:40px;padding:0 16px;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }}">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:14px;font-weight:700;color:#3F4A4F;width:92px">สถานะสต๊อก</span>
+            <sc-for list="{{ statChips }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.go }}" style="height:40px;padding:0 16px;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }}">{{ c.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:grid;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F;position:sticky;top:0;grid-template-columns:{{ tbl.prodCols }}">
+          <div style="padding:12px 0">บาร์โค้ด</div>
+          <div style="padding:12px 0">คำอธิบาย</div>
+          <div style="padding:12px 0">สต๊อก (คลัง / หน้าร้าน)</div>
+          <sc-if value="{{ perm.cost }}" hint-placeholder-val="{{ true }}"><div style="padding:12px 0;text-align:right">ต้นทุน</div></sc-if>
+          <div style="padding:12px 0;text-align:right">ราคา</div>
+          <div style="padding:12px 0">สถานะ</div>
+          <div style="padding:12px 0"></div>
+        </div>
+        <sc-for list="{{ products }}" as="p" hint-placeholder-count="6">
+          <div style="display:grid;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center;background:{{ p.zebra }};grid-template-columns:{{ tbl.prodCols }}">
+            <div style="padding:14px 0;font:500 14.5px 'JetBrains Mono',monospace">{{ p.code }}</div>
+            <div style="padding:14px 12px 14px 0">
+              <div style="font-size:15.5px;font-weight:600;line-height:1.35;text-wrap:pretty">{{ p.name }}</div>
+              <div style="font-size:13px;color:#3F4A4F;margin-top:2px">{{ p.cat }} · หน่วยฐาน: {{ p.unit }}</div>
+            </div>
+            <div style="padding:12px 12px 12px 0">
+              <div style="height:8px;background:#E4E9EB;border-radius:4px;width:150px;overflow:hidden"><div style="height:100%;border-radius:4px;width:{{ p.barW }};background:{{ p.barColor }}"></div></div>
+              <div style="font:700 15.5px 'JetBrains Mono',monospace;margin-top:6px;color:{{ p.totalColor }}">{{ p.total }}</div>
+              <div style="font-size:13px;color:#3F4A4F;margin-top:2px">{{ p.split }}</div>
+            </div>
+            <sc-if value="{{ perm.cost }}" hint-placeholder-val="{{ true }}">
+              <div style="padding:14px 0;text-align:right;font:500 15px 'JetBrains Mono',monospace">{{ p.cost }}</div>
+            </sc-if>
+            <div style="padding:12px 0;text-align:right">
+              <div style="font:700 16px 'JetBrains Mono',monospace">{{ p.sell }}</div>
+              <sc-if value="{{ perm.cost }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size:13px;color:#3F4A4F;margin-top:2px;font-family:'JetBrains Mono',monospace">ช่าง {{ p.tech }} · ส่ง {{ p.whole }}</div>
+              </sc-if>
+            </div>
+            <div style="padding:14px 0"><span style="display:inline-flex;padding:5px 12px;border-radius:20px;font-size:13.5px;font-weight:700;background:{{ p.badgeBg }};color:{{ p.badgeFg }}">{{ p.statusText }}</span></div>
+            <div style="padding:14px 0;text-align:right"><button onClick="{{ openProduct }}" style="height:40px;padding:0 14px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#F4F6F7">แก้ไข</button></div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.receiving }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;margin-bottom:18px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5;display:flex;align-items:center;gap:10px">
+            <h2 style="font-size:17px;font-weight:700;margin:0">หัวเอกสารรับสินค้า</h2><span style="font-size:14px;color:#3F4A4F">บันทึกสินค้าที่รับเข้าจากผู้จำหน่าย</span>
+          </div>
+          <div style="padding:18px 20px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">เลขที่เอกสาร</div><input value="REC-20260818-0001" readonly="true" style="width:100%;height:48px;padding:0 14px;border:1px solid #DEE3E5;border-radius:6px;background:#F2F5F6;font:700 16px 'JetBrains Mono',monospace;color:#1A1F22"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">วันที่รับ</div><input type="date" value="2026-08-18" style="width:100%;height:48px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font:500 15.5px 'JetBrains Mono',monospace;color:#1A1F22"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ผู้จำหน่าย</div><input placeholder="พิมพ์ชื่อเพื่อค้นหา หรือเพิ่มใหม่" style="width:100%;height:48px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font-size:15.5px;color:#1A1F22"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">รับเข้าที่</div><select style="width:100%;height:48px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font-size:15.5px;color:#1A1F22"><option>คลังสินค้า</option><option>หน้าร้าน</option></select></div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5"><h2 style="font-size:17px;font-weight:700;margin:0">เพิ่มรายการสินค้าที่รับ</h2></div>
+          <div style="padding:16px 20px;background:#FBEBD8;border-bottom:1px solid #EBD3B6;display:grid;grid-template-columns:2fr 1.2fr 1fr 1fr auto;gap:14px;align-items:end">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">สินค้า</div><select style="width:100%;height:50px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font-size:15.5px"><option>000010 — น็อตหกเหลี่ยม M10x40</option></select></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">หน่วยที่รับ</div><select style="width:100%;height:50px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font-size:15.5px"><option>กล่อง (1 กล่อง = 24 ชิ้น)</option></select></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">จำนวน</div><input value="5" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font:700 20px 'JetBrains Mono',monospace"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ต้นทุน/หน่วย</div><input value="84.00" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font:700 20px 'JetBrains Mono',monospace"></div>
+            <button style="height:50px;padding:0 22px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:15.5px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">+ เพิ่มรายการ</button>
+          </div>
+          <div style="display:grid;grid-template-columns:110px 1fr 120px 110px 140px 150px 80px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+            <div style="padding:12px 0">บาร์โค้ด</div><div style="padding:12px 0">คำอธิบาย</div><div style="padding:12px 0">หน่วย</div>
+            <div style="padding:12px 0;text-align:right">จำนวน</div><div style="padding:12px 0;text-align:right">ต้นทุน/หน่วย</div><div style="padding:12px 0;text-align:right">รวม</div><div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:110px 1fr 120px 110px 140px 150px 80px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center">
+            <div style="padding:14px 0;font:500 14.5px 'JetBrains Mono',monospace">000010</div>
+            <div style="padding:14px 0;font-size:15.5px;font-weight:600">น็อตหกเหลี่ยม M10x40</div>
+            <div style="padding:14px 0;font-size:15px">กล่อง</div>
+            <div style="padding:14px 0;text-align:right;font:700 16px 'JetBrains Mono',monospace">5</div>
+            <div style="padding:14px 0;text-align:right;font:500 15px 'JetBrains Mono',monospace">84.00</div>
+            <div style="padding:14px 0;text-align:right;font:700 16px 'JetBrains Mono',monospace">420.00</div>
+            <div style="padding:14px 0;text-align:right"><button style="height:38px;padding:0 12px;border:1px solid #E8B0A8;background:#fff;color:#C0392B;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer" style-hover="background:#FBEAE8">ลบ</button></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;padding:18px 20px;border-top:1px solid #DEE3E5">
+            <div style="width:320px">
+              <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:15px;color:#3F4A4F"><span>ยอดรวมก่อนภาษี</span><span style="font-family:'JetBrains Mono',monospace;color:#1A1F22">฿420.00</span></div>
+              <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:15px;color:#3F4A4F"><span>ภาษีมูลค่าเพิ่ม 7%</span><span style="font-family:'JetBrains Mono',monospace;color:#1A1F22">฿29.40</span></div>
+              <div style="display:flex;justify-content:space-between;padding:12px 0 0;border-top:2px solid #DEE3E5;margin-top:6px;font-size:17px;font-weight:700"><span>ยอดรวมทั้งสิ้น</span><span style="font:700 24px 'JetBrains Mono',monospace">฿449.40</span></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;padding:18px 20px;background:#FAFBFB;border-top:1px solid #DEE3E5;justify-content:flex-end">
+            <button style="height:48px;padding:0 18px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:15.5px;font-weight:600;cursor:pointer" style-hover="background:#F1F4F5">ยกเลิกเอกสาร</button>
+            <button style="height:54px;padding:0 28px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:17px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">💾 บันทึกเอกสารรับสินค้า</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.transfer }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;margin-bottom:18px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5;display:flex;align-items:center;gap:10px">
+            <h2 style="font-size:17px;font-weight:700;margin:0">เบิกของ (โยกสต๊อกระหว่างสถานที่)</h2><span style="font-size:14px;color:#3F4A4F">เช่น เบิกของจากคลังมาเติมหน้าร้าน</span>
+          </div>
+          <div style="padding:20px;display:flex;align-items:center;gap:18px">
+            <div style="flex:1;padding:16px 18px;border:2px solid #DEE3E5;border-radius:10px;background:#FAFBFB">
+              <div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:8px">เบิกออกจาก</div>
+              <div style="font-size:22px;font-weight:700">{{ trf.from }}</div>
+              <div style="font-size:14px;color:#3F4A4F;margin-top:4px">คงเหลือตอนนี้ 2 พาเลท 5 กล่อง</div>
+            </div>
+            <button onClick="{{ swapTrf }}" style="width:64px;height:64px;border-radius:50%;border:1px solid #B4620F;background:#DC7A16;color:#fff;font-size:24px;cursor:pointer;flex:none" style-hover="background:#B4620F">⇄</button>
+            <div style="flex:1;padding:16px 18px;border:2px solid #DC7A16;border-radius:10px;background:#FBEBD8">
+              <div style="font-size:14px;font-weight:700;color:#8A5A08;margin-bottom:8px">เข้าไปที่</div>
+              <div style="font-size:22px;font-weight:700">{{ trf.to }}</div>
+              <div style="font-size:14px;color:#8A5A08;margin-top:4px">คงเหลือตอนนี้ 140 ชิ้น</div>
+            </div>
+            <div style="width:250px">
+              <div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">เอกสารเลขที่</div>
+              <input value="TRF-20260818-0001" readonly="true" style="width:100%;height:48px;padding:0 14px;border:1px solid #DEE3E5;border-radius:6px;background:#F2F5F6;font:700 16px 'JetBrains Mono',monospace">
+            </div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5"><h2 style="font-size:17px;font-weight:700;margin:0">รายการที่เบิก</h2></div>
+          <div style="padding:16px 20px;background:#FBEBD8;border-bottom:1px solid #EBD3B6;display:grid;grid-template-columns:2fr 1.2fr 1fr auto;gap:14px;align-items:end">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">สินค้า</div><select style="width:100%;height:50px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font-size:15.5px"><option>000010 — น็อตหกเหลี่ยม M10x40</option></select></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">หน่วยที่เบิก</div><select style="width:100%;height:50px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font-size:15.5px"><option>กล่อง</option></select></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">จำนวน</div><input value="2" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font:700 20px 'JetBrains Mono',monospace"></div>
+            <button style="height:50px;padding:0 22px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:15.5px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">+ เพิ่มรายการ</button>
+          </div>
+          <div style="display:grid;grid-template-columns:110px 1fr 120px 110px 240px 80px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+            <div style="padding:12px 0">บาร์โค้ด</div><div style="padding:12px 0">คำอธิบาย</div><div style="padding:12px 0">หน่วย</div>
+            <div style="padding:12px 0;text-align:right">จำนวน</div><div style="padding:12px 0">คงเหลือต้นทางหลังเบิก</div><div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:110px 1fr 120px 110px 240px 80px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center">
+            <div style="padding:14px 0;font:500 14.5px 'JetBrains Mono',monospace">000010</div>
+            <div style="padding:14px 0;font-size:15.5px;font-weight:600">น็อตหกเหลี่ยม M10x40</div>
+            <div style="padding:14px 0;font-size:15px">กล่อง</div>
+            <div style="padding:14px 0;text-align:right;font:700 16px 'JetBrains Mono',monospace">2</div>
+            <div style="padding:14px 0;font:700 15.5px 'JetBrains Mono',monospace;color:#2F7D52">1 พาเลท 18 กล่อง</div>
+            <div style="padding:14px 0;text-align:right"><button style="height:38px;padding:0 12px;border:1px solid #E8B0A8;background:#fff;color:#C0392B;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer" style-hover="background:#FBEAE8">ลบ</button></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;padding:18px 20px;background:#FAFBFB;border-top:1px solid #DEE3E5">
+            <button style="height:54px;padding:0 28px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:17px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">💾 บันทึกการเบิกของ</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.stocktake }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid #DEE3E5">
+          <h2 style="font-size:17px;font-weight:700;margin:0">ตรวจนับสต๊อก</h2>
+          <span style="font-size:14px;color:#3F4A4F">พิมพ์ใบตรวจนับ → นับจริงหน้างาน → คีย์ตัวเลขกลับเข้าระบบ</span>
+          <button onClick="{{ openPrint }}" style="margin-left:auto;height:46px;padding:0 18px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:15.5px;font-weight:600;cursor:pointer" style-hover="background:#F4F6F7">🖨 พิมพ์ใบตรวจนับ</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:18px 20px;border-bottom:1px solid #DEE3E5;background:#FAFBFB">
+          <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">เลขที่เอกสาร</div><input value="STK-20260818-0001" style="width:100%;height:46px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;font:600 15.5px 'JetBrains Mono',monospace;background:#fff;color:#1A1F22"></div>
+          <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">วันที่ตรวจนับ</div><input type="date" value="2026-08-18" style="width:100%;height:46px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;font:500 15.5px 'JetBrains Mono',monospace;background:#fff;color:#1A1F22"></div>
+          <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">เวลาที่นับจริง</div><input type="time" value="16:32" style="width:100%;height:46px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;font:500 15.5px 'JetBrains Mono',monospace;background:#fff;color:#1A1F22"></div>
+          <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ผู้นับ (คนที่เดินนับของ)</div><input placeholder="เช่น สมชาย" style="width:100%;height:46px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;font-size:15.5px;background:#fff;color:#1A1F22"></div>
+          <div style="grid-column:span 2"><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">หมายเหตุการตรวจนับ</div><input placeholder="เช่น ตรวจนับประจำเดือน ส.ค. 2569" style="width:100%;height:46px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;font-size:15.5px;background:#fff;color:#1A1F22"></div>
+          <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">หมวดหมู่</div><select style="width:100%;height:46px;padding:0 10px;border:1px solid #C9D1D4;border-radius:6px;font-size:15.5px;background:#fff"><option>ทั้งหมด</option></select></div>
+          <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ใบที่พิมพ์ไว้ (กรอกย้อนหลัง)</div><select style="width:100%;height:46px;padding:0 10px;border:1px solid #C9D1D4;border-radius:6px;font-size:15.5px;background:#fff"><option>— ไม่ใช้ (ออกเลขใหม่) —</option></select></div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid #EBD3B6;background:#FBEBD8">
+          <div style="display:flex;align-items:baseline;gap:8px;padding:8px 14px;background:#fff;border:1px solid #EBD3B6;border-radius:6px">
+            <span style="font-size:14px;font-weight:600;color:#3F4A4F">คีย์แล้ว</span>
+            <span style="font:700 22px 'JetBrains Mono',monospace">{{ sum.doneCells }}</span>
+            <span style="font:600 15px 'JetBrains Mono',monospace;color:#3F4A4F">/ {{ sum.totalCells }} ช่อง</span>
+          </div>
+          <div style="flex:1;height:14px;background:#fff;border:1px solid #EBD3B6;border-radius:20px;overflow:hidden"><div style="height:100%;background:#2F7D52;border-radius:20px;transition:width .18s;width:{{ sum.pctW }}"></div></div>
+          <div style="display:flex;align-items:baseline;gap:8px;padding:8px 14px;background:#fff;border:1px solid #EBD3B6;border-radius:6px"><span style="font-size:14px;font-weight:600;color:#3F4A4F">พบผลต่าง</span><span style="font:700 22px 'JetBrains Mono',monospace;color:#C0392B">{{ sum.diffItems }}</span><span style="font-size:14px;color:#3F4A4F">รายการ</span></div>
+          <sc-if value="{{ perm.money }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:baseline;gap:8px;padding:8px 14px;background:#fff;border:1px solid #EBD3B6;border-radius:6px"><span style="font-size:14px;font-weight:600;color:#3F4A4F">มูลค่าผลต่าง</span><span style="font:700 22px 'JetBrains Mono',monospace;color:#C0392B">{{ sum.diffValue }}</span></div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid #DEE3E5">
+          <input placeholder="🔍  ค้นหาบาร์โค้ดหรือชื่อสินค้า" value="{{ query }}" onChange="{{ onQuery }}" style="flex:1;height:48px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font-size:15.5px;background:#fff;color:#1A1F22">
+          <button onClick="{{ toggleUncounted }}" style="height:48px;padding:0 18px;border-radius:6px;font-size:14.5px;font-weight:700;cursor:pointer;border:1px solid {{ f.uncountedBd }};background:{{ f.uncountedBg }};color:{{ f.uncountedFg }}">เฉพาะที่ยังไม่นับ</button>
+          <button onClick="{{ toggleDiff }}" style="height:48px;padding:0 18px;border-radius:6px;font-size:14.5px;font-weight:700;cursor:pointer;border:1px solid {{ f.diffBd }};background:{{ f.diffBg }};color:{{ f.diffFg }}">เฉพาะที่มีผลต่าง</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:48px minmax(220px,1fr) 172px 172px 190px 128px;align-items:center;background:#F2F5F6;border-bottom:1px solid #DEE3E5;padding:0 20px;font-size:13.5px;font-weight:700;color:#3F4A4F">
+          <div style="padding:12px 0">สถานะ</div><div style="padding:12px 0">สินค้า</div>
+          <div style="padding:12px 0;text-align:center">คลังสินค้า</div><div style="padding:12px 0;text-align:center">หน้าร้าน</div>
+          <div style="padding:12px 0;text-align:center">รวมทุกคลัง</div><div style="padding:12px 0;text-align:right">ของเข้า / หมายเหตุ</div>
+        </div>
+        <sc-for list="{{ rows }}" as="row" hint-placeholder-count="5">
+          <div style="border-bottom:1px solid #DEE3E5;border-left:5px solid #DEE3E5;padding:0 20px;border-left-color:{{ row.stripe }};background:{{ row.rowBg }}">
+            <div style="display:grid;grid-template-columns:43px minmax(220px,1fr) 172px 172px 190px 128px;align-items:center;padding:12px 0">
+              <div style="font-size:22px;line-height:1">{{ row.mark }}</div>
+              <div style="padding-right:14px">
+                <div style="font-size:16px;font-weight:700;line-height:1.35;text-wrap:pretty">{{ row.name }}</div>
+                <div style="display:flex;gap:10px;margin-top:3px;font-size:13.5px;color:#3F4A4F"><span style="font-family:'JetBrains Mono',monospace">{{ row.code }}</span><span>หน่วย: {{ row.unit }}</span></div>
+              </div>
+              <div style="padding:0 8px">
+                <div style="font-size:13.5px;color:#3F4A4F;text-align:center;margin-bottom:4px">ระบบ <b style="font-family:'JetBrains Mono',monospace;color:#1A1F22">{{ row.whSys }}</b></div>
+                <input data-count="1" value="{{ row.whVal }}" onChange="{{ row.onWh }}" onKeyDown="{{ onEnter }}" placeholder="นับได้" style="width:100%;text-align:center;border:2px solid #C9D1D4;border-radius:6px;background:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;color:#1A1F22;height:{{ ui.inH }};font-size:{{ ui.inF }};border-color:{{ row.whBd }}" style-focus="border-color:#DC7A16;outline:3px solid #FBEBD8">
+                <div style="text-align:center;margin-top:4px;font-size:13.5px;font-weight:700;color:{{ row.whDiffColor }}">{{ row.whDiffText }}</div>
+              </div>
+              <div style="padding:0 8px">
+                <div style="font-size:13.5px;color:#3F4A4F;text-align:center;margin-bottom:4px">ระบบ <b style="font-family:'JetBrains Mono',monospace;color:#1A1F22">{{ row.shSys }}</b></div>
+                <input data-count="1" value="{{ row.shVal }}" onChange="{{ row.onSh }}" onKeyDown="{{ onEnter }}" placeholder="นับได้" style="width:100%;text-align:center;border:2px solid #C9D1D4;border-radius:6px;background:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;color:#1A1F22;height:{{ ui.inH }};font-size:{{ ui.inF }};border-color:{{ row.shBd }}" style-focus="border-color:#DC7A16;outline:3px solid #FBEBD8">
+                <div style="text-align:center;margin-top:4px;font-size:13.5px;font-weight:700;color:{{ row.shDiffColor }}">{{ row.shDiffText }}</div>
+              </div>
+              <div style="padding:8px 10px;background:#F7F8F9;border:1px solid #E4E9EB;border-radius:8px;text-align:center">
+                <div style="font-size:13px;color:#3F4A4F">ระบบรวม {{ row.totSys }}</div>
+                <div style="font:700 19px 'JetBrains Mono',monospace;margin:2px 0">{{ row.totCount }}</div>
+                <div style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:13.5px;font-weight:700;background:{{ row.totBg }};color:{{ row.totFg }}">{{ row.totDiffText }}</div>
+              </div>
+              <div style="text-align:right"><button onClick="{{ row.onToggle }}" style="border:1px solid {{ row.extraBd }};background:{{ row.extraBg }};border-radius:6px;padding:10px 12px;font-size:14px;font-weight:600;color:#1A1F22;cursor:pointer">{{ row.extraLabel }}</button></div>
+            </div>
+            <sc-if value="{{ row.open }}" hint-placeholder-val="{{ false }}">
+              <div style="display:grid;grid-template-columns:auto 140px 180px 1fr;gap:14px;align-items:end;padding:0 0 16px 43px">
+                <label style="display:flex;align-items:center;gap:9px;height:46px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font-size:14.5px;font-weight:600;cursor:pointer"><input type="checkbox" checked="{{ row.recvOn }}" onChange="{{ row.onRecvOn }}" style="width:20px;height:20px;accent-color:#DC7A16"> มีของเข้าระหว่างนับ</label>
+                <div><div style="font-size:13.5px;font-weight:700;color:#3F4A4F;margin-bottom:5px">จำนวนของเข้า</div><input value="{{ row.recvQty }}" onChange="{{ row.onRecvQty }}" placeholder="0" style="width:100%;height:46px;padding:0 12px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font:700 17px 'JetBrains Mono',monospace"></div>
+                <div><div style="font-size:13.5px;font-weight:700;color:#3F4A4F;margin-bottom:5px">วันที่ของเข้า</div><input type="date" value="{{ row.recvDate }}" onChange="{{ row.onRecvDate }}" style="width:100%;height:46px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font:500 15px 'JetBrains Mono',monospace"></div>
+                <div><div style="font-size:13.5px;font-weight:700;color:#3F4A4F;margin-bottom:5px">หมายเหตุผู้นับ (เหตุผลของผลต่าง)</div><input value="{{ row.note }}" onChange="{{ row.onNote }}" placeholder="เช่น ของเสียหาย / ขายแล้วยังไม่บันทึก" style="width:100%;height:46px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;background:#fff;font-size:15px"></div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <div style="display:flex;align-items:center;gap:16px;padding:18px 20px;background:#FAFBFB;border-top:1px solid #DEE3E5">
+          <label style="display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:600;cursor:pointer"><input type="checkbox" style="width:20px;height:20px;accent-color:#DC7A16"> บันทึกแบบไม่ออกเลขที่เอกสาร (ปรับด่วน)</label>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+            <div style="font-size:15px;color:#3F4A4F">{{ sum.remainText }}</div>
+            <sc-if value="{{ confirmSave }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#FBEBD8;border:1px solid #DC7A16;border-radius:8px">
+                <span style="font-size:15px;font-weight:700;color:#B4620F">ยืนยันบันทึกผลการตรวจนับ?</span>
+                <button onClick="{{ cancelSave }}" style="height:46px;padding:0 16px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer">ยกเลิก</button>
+                <button onClick="{{ cancelSave }}" style="height:46px;padding:0 22px;border:1px solid #2F7D52;background:#2F7D52;color:#fff;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer">ยืนยัน บันทึกเลย</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ askSave }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ startSave }}" style="height:54px;padding:0 28px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:17px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">💾 บันทึกผลการตรวจนับ</button>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.history }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;padding:14px 20px;border-bottom:1px solid #DEE3E5">
+          <h2 style="font-size:17px;font-weight:700;margin:0;margin-right:8px">ประวัติสต๊อก</h2>
+          <sc-for list="{{ histTabs }}" as="t" hint-placeholder-count="2">
+            <button onClick="{{ t.go }}" style="height:44px;padding:0 18px;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer;border:1px solid {{ t.bd }};background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+          </sc-for>
+          <input placeholder="🔍  ค้นหาเลขที่เอกสาร / สินค้า / ผู้บันทึก" style="margin-left:auto;width:340px;height:44px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font-size:15px;background:#fff">
+        </div>
+        <sc-if value="{{ hist.isRounds }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <div style="padding:12px 20px;background:#FAFBFB;border-bottom:1px solid #DEE3E5;font-size:14px;color:#3F4A4F">แต่ละแถวคือการตรวจนับหนึ่งรอบ — เก็บทุกรายการที่นับ พร้อมเวลาที่คนตรวจนับและเวลาที่บันทึกเข้าระบบ</div>
+            <div style="display:grid;grid-template-columns:1fr 200px 210px 130px 110px 130px 160px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+              <div style="padding:12px 0">เอกสาร</div><div style="padding:12px 0">เวลาที่นับ (คนตรวจ)</div><div style="padding:12px 0">บันทึกเข้าระบบ</div>
+              <div style="padding:12px 0">สถานที่</div><div style="padding:12px 0;text-align:right">นับ</div><div style="padding:12px 0;text-align:right">เปลี่ยน</div><div style="padding:12px 0;text-align:right">ผู้บันทึก</div>
+            </div>
+            <sc-for list="{{ rounds }}" as="r" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:1fr 200px 210px 130px 110px 130px 160px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center;background:{{ r.zebra }}">
+                <div style="padding:14px 0"><span style="font:600 15px 'JetBrains Mono',monospace">{{ r.doc }}</span><div style="font-size:13px;color:#3F4A4F;margin-top:2px">{{ r.cat }}</div></div>
+                <div style="padding:14px 0;font-size:14.5px">{{ r.countedAt }}</div>
+                <div style="padding:14px 0;font-size:14.5px;color:#3F4A4F">{{ r.savedAt }}</div>
+                <div style="padding:14px 0;font-size:14.5px">{{ r.place }}</div>
+                <div style="padding:14px 0;text-align:right;font:600 16px 'JetBrains Mono',monospace">{{ r.counted }}</div>
+                <div style="padding:14px 0;text-align:right;font:700 16px 'JetBrains Mono',monospace;color:{{ r.changedColor }}">{{ r.changed }}</div>
+                <div style="padding:14px 0;text-align:right;display:flex;justify-content:flex-end;align-items:center;gap:10px"><span style="font-size:14px;color:#3F4A4F">{{ r.by }}</span><button onClick="{{ openRound }}" style="height:38px;padding:0 12px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">ดู</button></div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hist.isMoves }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;padding:14px 20px;background:#FAFBFB;border-bottom:1px solid #DEE3E5;flex-wrap:wrap">
+              <span style="font-size:14px;font-weight:700;color:#3F4A4F;width:92px">ประเภท</span>
+              <sc-for list="{{ moveChips }}" as="c" hint-placeholder-count="5">
+                <button onClick="{{ c.go }}" style="height:40px;padding:0 16px;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }}">{{ c.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:190px 150px 1fr 130px 120px 150px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+              <div style="padding:12px 0">วันที่-เวลา</div><div style="padding:12px 0">ประเภท</div><div style="padding:12px 0">สินค้า</div>
+              <div style="padding:12px 0">สถานที่</div><div style="padding:12px 0;text-align:right">จำนวน</div><div style="padding:12px 0;text-align:right">คงเหลือหลังรายการ</div>
+            </div>
+            <sc-for list="{{ moves }}" as="m" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:190px 150px 1fr 130px 120px 150px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center;background:{{ m.zebra }}">
+                <div style="padding:13px 0;font-size:14.5px">{{ m.at }}</div>
+                <div style="padding:13px 0"><span style="display:inline-flex;padding:4px 10px;border-radius:6px;font-size:13.5px;font-weight:700;background:{{ m.kindBg }};color:{{ m.kindFg }}">{{ m.kind }}</span></div>
+                <div style="padding:13px 0;font-size:15px;font-weight:600">{{ m.name }}</div>
+                <div style="padding:13px 0;font-size:14.5px">{{ m.place }}</div>
+                <div style="padding:13px 0;text-align:right;font:700 16px 'JetBrains Mono',monospace;color:{{ m.qtyColor }}">{{ m.qty }}</div>
+                <div style="padding:13px 0;text-align:right;font:500 15px 'JetBrains Mono',monospace;color:#3F4A4F">{{ m.after }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.exchange }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;margin-bottom:18px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5;display:flex;align-items:center;gap:10px">
+            <h2 style="font-size:17px;font-weight:700;margin:0">เชื่อมระบบบิล (BillKeep)</h2><span style="font-size:14px;color:#3F4A4F">นำเข้าผลปิดวันเพื่อตัดสต๊อก</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px">
+            <div style="border:2px solid #DC7A16;border-radius:10px;padding:20px;background:#FBEBD8">
+              <div style="font-size:17px;font-weight:700;margin-bottom:6px">1. นำเข้าไฟล์ปิดวัน</div>
+              <div style="font-size:15px;line-height:1.6;color:#3F4A4F;margin-bottom:16px">อ่านไฟล์ .json ที่ BillKeep ส่งมา แล้วตัดสต๊อกตามบิลที่ขายจริง — มีสรุปให้ตรวจก่อนยืนยันทุกครั้ง</div>
+              <button style="height:52px;padding:0 24px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:16px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">เลือกไฟล์ปิดวัน (.json)</button>
+            </div>
+            <div style="border:1px solid #DEE3E5;border-radius:10px;padding:20px;background:#FAFBFB">
+              <div style="font-size:17px;font-weight:700;margin-bottom:6px">2. ส่งออกรายการสินค้า</div>
+              <div style="font-size:15px;line-height:1.6;color:#3F4A4F;margin-bottom:16px">ส่งรายการสินค้าและยอดคงเหลือให้ BillKeep ใช้ — ใช้เมื่ออยู่คนละเครื่อง</div>
+              <button style="height:52px;padding:0 24px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:16px;font-weight:600;cursor:pointer" style-hover="background:#F1F4F5">ส่งออกให้ BillKeep</button>
+            </div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5"><h2 style="font-size:17px;font-weight:700;margin:0">ประวัติการนำเข้า</h2></div>
+          <div style="display:grid;grid-template-columns:210px 190px 1fr 140px 140px 120px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+            <div style="padding:12px 0">วันที่นำเข้า</div><div style="padding:12px 0">วันที่ปิดบิล</div><div style="padding:12px 0">ผู้นำเข้า</div>
+            <div style="padding:12px 0;text-align:right">ตัดสต๊อก</div><div style="padding:12px 0;text-align:right">สินค้าใหม่</div><div style="padding:12px 0;text-align:right">ข้าม</div>
+          </div>
+          <div style="display:grid;grid-template-columns:210px 190px 1fr 140px 140px 120px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center">
+            <div style="padding:14px 0;font-size:14.5px">17/08/2569 18:20</div><div style="padding:14px 0;font-size:14.5px">17/08/2569</div>
+            <div style="padding:14px 0;font-size:15px">ผู้ดูแลระบบ</div>
+            <div style="padding:14px 0;text-align:right;font:700 16px 'JetBrains Mono',monospace">24</div>
+            <div style="padding:14px 0;text-align:right;font:600 16px 'JetBrains Mono',monospace;color:#2F7D52">2</div>
+            <div style="padding:14px 0;text-align:right;font:500 16px 'JetBrains Mono',monospace;color:#3F4A4F">0</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.orders }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;margin-bottom:18px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5;display:flex;align-items:center;gap:10px">
+            <h2 style="font-size:17px;font-weight:700;margin:0">พิมพ์ฟอร์มเปล่า</h2><span style="font-size:14px;color:#3F4A4F">พิมพ์ใบสั่งสินค้าเปล่าพร้อมเลขที่ ไว้เขียนด้วยมือ</span>
+            <button onClick="{{ openPrint }}" style="margin-left:auto;height:50px;padding:0 22px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:16px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">🖨 ดูตัวอย่าง / พิมพ์</button>
+          </div>
+          <div style="padding:20px;display:grid;grid-template-columns:180px 260px 220px 1fr;gap:16px;align-items:end">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">เล่มบิล</div><select style="width:100%;height:50px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">เลขที่เริ่มต้น (แก้ได้)</div><input value="A6908-001" style="width:100%;height:50px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">จำนวนใบที่จะพิมพ์</div><input value="10" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 20px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div style="font-size:14.5px;color:#3F4A4F;line-height:1.6;padding-bottom:4px">เลขที่รันแยกตามเล่มและเดือน — พิมพ์แล้วระบบเดินเลขต่อให้เอง ไม่ซ้ำเดิม</div>
+          </div>
+        </div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5;display:flex;align-items:center;gap:10px"><h2 style="font-size:17px;font-weight:700;margin:0">ใบสั่งสินค้าที่บันทึกไว้</h2><span style="font-size:14px;color:#3F4A4F">กดเพื่อพิมพ์ซ้ำ</span></div>
+          <div style="display:grid;grid-template-columns:170px 200px 1fr 120px 170px 130px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+            <div style="padding:12px 0">เลขที่</div><div style="padding:12px 0">วันที่-เวลา</div><div style="padding:12px 0">ลูกค้า</div>
+            <div style="padding:12px 0;text-align:right">รายการ</div><div style="padding:12px 0;text-align:right">รวมเป็นเงิน</div><div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:170px 200px 1fr 120px 170px 130px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center">
+            <div style="padding:14px 0;font:600 15px 'JetBrains Mono',monospace">A6908-001</div>
+            <div style="padding:14px 0;font-size:14.5px">18/08/2569 14:20</div>
+            <div style="padding:14px 0;font-size:15px;font-weight:600">ร้านช่างสมชาย</div>
+            <div style="padding:14px 0;text-align:right;font:600 16px 'JetBrains Mono',monospace">3</div>
+            <div style="padding:14px 0;text-align:right;font:700 17px 'JetBrains Mono',monospace">2,450.00</div>
+            <div style="padding:14px 0;text-align:right"><button onClick="{{ openPrint }}" style="height:40px;padding:0 14px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">พิมพ์ซ้ำ</button></div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.users }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;margin-bottom:18px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5;display:flex;align-items:center;gap:10px">
+            <h2 style="font-size:17px;font-weight:700;margin:0">ผู้ใช้งานระบบ</h2><span style="font-size:14px;color:#3F4A4F">จัดการสิทธิ์การเข้าถึงของพนักงาน</span>
+            <button style="margin-left:auto;height:46px;padding:0 20px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:15.5px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">+ เพิ่มผู้ใช้งาน</button>
+          </div>
+          <div style="display:grid;grid-template-columns:170px 1fr 240px 150px 300px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+            <div style="padding:12px 0">ชื่อผู้ใช้</div><div style="padding:12px 0">ชื่อที่แสดง</div><div style="padding:12px 0">สิทธิ์การใช้งาน</div><div style="padding:12px 0">สถานะ</div><div></div>
+          </div>
+          <sc-for list="{{ users }}" as="u" hint-placeholder-count="3">
+            <div style="display:grid;grid-template-columns:170px 1fr 240px 150px 300px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center;background:{{ u.zebra }}">
+              <div style="padding:14px 0;font:600 15px 'JetBrains Mono',monospace">{{ u.login }}</div>
+              <div style="padding:14px 0;font-size:15.5px;font-weight:600">{{ u.name }}</div>
+              <div style="padding:14px 0"><span style="display:inline-flex;padding:5px 12px;border-radius:20px;font-size:13.5px;font-weight:700;background:#FBEBD8;color:#B4620F">{{ u.role }}</span></div>
+              <div style="padding:14px 0"><span style="display:inline-flex;padding:5px 12px;border-radius:20px;font-size:13.5px;font-weight:700;background:#E5F3EB;color:#2F7D52">ใช้งานอยู่</span></div>
+              <div style="padding:14px 0;display:flex;gap:8px;justify-content:flex-end">
+                <button style="height:40px;padding:0 14px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">รีเซ็ตรหัสผ่าน</button>
+                <button style="height:40px;padding:0 14px;border:1px solid #E8B0A8;background:#fff;color:#C0392B;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer" style-hover="background:#FBEAE8">ปิดการใช้งาน</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #DEE3E5;border-radius:10px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid #DEE3E5;display:flex;align-items:center;gap:10px"><h2 style="font-size:17px;font-weight:700;margin:0">สำรองและกู้คืนข้อมูล</h2><span style="font-size:14px;color:#3F4A4F">ป้องกันข้อมูลสูญหาย และใช้ย้ายข้อมูลข้ามเครื่อง</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px">
+            <div style="border:1px solid #DEE3E5;border-radius:10px;padding:18px;background:#FAFBFB">
+              <div style="font-size:16.5px;font-weight:700;margin-bottom:6px">สำรองข้อมูล</div>
+              <div style="font-size:15px;line-height:1.6;color:#3F4A4F;margin-bottom:14px">บันทึกข้อมูลทั้งหมดเป็นไฟล์ .db เก็บไว้ในที่ปลอดภัย</div>
+              <button style="height:50px;padding:0 22px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:15.5px;font-weight:600;cursor:pointer" style-hover="background:#F1F4F5">สำรองข้อมูลตอนนี้</button>
+            </div>
+            <div style="border:1.5px solid #E8B0A8;border-radius:10px;padding:18px;background:#FDF1EF">
+              <div style="font-size:16.5px;font-weight:700;margin-bottom:6px;color:#8E2E22">กู้คืนข้อมูล (เขียนทับทั้งหมด)</div>
+              <div style="font-size:15px;line-height:1.6;color:#8E2E22;margin-bottom:14px">กู้คืนจากไฟล์สำรอง — ข้อมูลปัจจุบันทั้งหมดจะถูกเขียนทับและกู้กลับไม่ได้</div>
+              <button style="height:50px;padding:0 22px;border:1px solid #C0392B;background:#fff;color:#C0392B;border-radius:6px;font-size:15.5px;font-weight:700;cursor:pointer" style-hover="background:#FBEAE8">เลือกไฟล์เพื่อกู้คืน</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ v.login }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;justify-content:center;padding:40px 20px">
+        <div style="width:460px;background:#fff;border:1px solid #DEE3E5;border-radius:14px;padding:36px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:26px">
+            <div style="width:56px;height:56px;border-radius:12px;background:#DC7A16;color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700">S</div>
+            <div style="font-size:22px;font-weight:700;margin-top:6px">เข้าสู่ระบบ StockKeep</div>
+            <div style="font-size:15px;color:#3F4A4F">ระบบจัดการสต๊อกสินค้า</div>
+          </div>
+          <div style="font-size:15px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ชื่อผู้ใช้</div>
+          <input placeholder="เช่น somchai" style="width:100%;height:56px;padding:0 16px;border:1px solid #C9D1D4;border-radius:6px;font-size:17px;background:#fff;margin-bottom:16px">
+          <div style="font-size:15px;font-weight:700;color:#3F4A4F;margin-bottom:6px">รหัสผ่าน</div>
+          <input type="password" placeholder="••••••••" style="width:100%;height:56px;padding:0 16px;border:1px solid #C9D1D4;border-radius:6px;font-size:17px;background:#fff">
+          <button onClick="{{ goDashboard }}" style="width:100%;height:60px;margin-top:22px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:19px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">เข้าสู่ระบบ</button>
+          <div style="text-align:center;font-size:14px;color:#3F4A4F;margin-top:16px">ลืมรหัสผ่าน? ให้เจ้าของร้านกดรีเซ็ตให้จากหน้า "ผู้ใช้งาน"</div>
+        </div>
+      </div>
+    </sc-if>
+
+    </div>
+  </div>
+
+  <sc-if value="{{ printOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(20,24,26,.55);display:flex;align-items:center;justify-content:center;padding:40px;z-index:50">
+      <div style="width:1040px;max-width:100%;background:#fff;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:100%">
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid #DEE3E5">
+          <h2 style="font-size:18px;font-weight:700;margin:0">พิมพ์เอกสาร</h2>
+          <span style="font-size:14.5px;color:#3F4A4F">รวม <b style="color:#1A1F22">2</b> แผ่น</span>
+          <button onClick="{{ closePrint }}" style="margin-left:auto;width:40px;height:40px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:flex;flex:1;min-height:0">
+          <div style="width:290px;border-right:1px solid #DEE3E5;padding:18px 20px;display:flex;flex-direction:column;gap:18px">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">เครื่องพิมพ์</div><select style="width:100%;height:48px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;font-size:15.5px;background:#fff"><option>EPSON LQ-310</option><option>Microsoft Print to PDF</option></select></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">จำนวนสำเนา</div><input value="1" style="width:100%;height:48px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 20px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">แนวกระดาษ</div>
+              <label style="display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font-size:15.5px;font-weight:600;margin-bottom:8px;cursor:pointer"><input type="radio" name="orient" style="width:20px;height:20px;accent-color:#DC7A16"> แนวตั้ง</label>
+              <label style="display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border:2px solid #DC7A16;background:#FBEBD8;border-radius:6px;font-size:15.5px;font-weight:700;cursor:pointer"><input type="radio" name="orient" checked="true" style="width:20px;height:20px;accent-color:#DC7A16"> แนวนอน</label>
+            </div>
+            <div style="font-size:14px;color:#3F4A4F;line-height:1.6;margin-top:auto">กระดาษ A4 · ใบละ 20 รายการ<br>ตัวอย่างด้านขวาคือหน้าที่จะพิมพ์จริง</div>
+          </div>
+          <div style="flex:1;background:#E4E8E9;padding:22px;overflow:auto">
+            <div style="background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.18);height:100%;min-height:360px;display:flex;align-items:center;justify-content:center;color:#5A6469;font-size:14px;background-image:repeating-linear-gradient(135deg,#fff 0 12px,#F4F6F7 12px 24px)">
+              <span style="font-family:'JetBrains Mono',monospace;background:#fff;padding:8px 14px;border:1px solid #DEE3E5;border-radius:6px">[ ตัวอย่างกระดาษ A4 ขนาดจริง ]</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-top:1px solid #DEE3E5;background:#FAFBFB">
+          <span style="font-size:14.5px;color:#3F4A4F">เลือก "Microsoft Print to PDF" เพื่อบันทึกเป็นไฟล์แทนการพิมพ์</span>
+          <button onClick="{{ closePrint }}" style="margin-left:auto;height:48px;padding:0 18px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:15.5px;font-weight:600;cursor:pointer">ยกเลิก</button>
+          <button onClick="{{ closePrint }}" style="height:52px;padding:0 26px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:17px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">🖨 พิมพ์</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ roundOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(20,24,26,.55);display:flex;align-items:center;justify-content:center;padding:40px;z-index:50">
+      <div style="width:900px;max-width:100%;background:#fff;border-radius:12px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid #DEE3E5">
+          <h2 style="font-size:18px;font-weight:700;margin:0">รอบตรวจนับ STK-20260818-0001</h2>
+          <span style="font-size:14.5px;color:#3F4A4F">นับเมื่อ 18/08/2569 16:32 น. · ผู้บันทึก ผู้ดูแลระบบ</span>
+          <button onClick="{{ closeRound }}" style="margin-left:auto;width:40px;height:40px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 160px 160px 180px;padding:0 20px;background:#F2F5F6;border-bottom:1px solid #DEE3E5;font-size:13.5px;font-weight:700;color:#3F4A4F">
+          <div style="padding:12px 0">สินค้า</div><div style="padding:12px 0;text-align:right">ยอดระบบ</div><div style="padding:12px 0;text-align:right">นับได้</div><div style="padding:12px 0;text-align:right">ผลต่าง</div>
+        </div>
+        <sc-for list="{{ roundLines }}" as="l" hint-placeholder-count="3">
+          <div style="display:grid;grid-template-columns:1fr 160px 160px 180px;padding:0 20px;border-bottom:1px solid #E7EBEC;align-items:center;background:{{ l.zebra }}">
+            <div style="padding:13px 0"><div style="font-size:15px;font-weight:600">{{ l.name }}</div><div style="font:500 13px 'JetBrains Mono',monospace;color:#3F4A4F;margin-top:2px">{{ l.code }}</div></div>
+            <div style="padding:13px 0;text-align:right;font:500 15.5px 'JetBrains Mono',monospace">{{ l.sys }}</div>
+            <div style="padding:13px 0;text-align:right;font:700 16px 'JetBrains Mono',monospace">{{ l.counted }}</div>
+            <div style="padding:13px 0;text-align:right"><span style="display:inline-flex;padding:4px 12px;border-radius:20px;font-size:13.5px;font-weight:700;background:{{ l.bg }};color:{{ l.fg }}">{{ l.diff }}</span></div>
+          </div>
+        </sc-for>
+        <div style="display:flex;justify-content:flex-end;gap:12px;padding:16px 20px;background:#FAFBFB;border-top:1px solid #DEE3E5">
+          <button onClick="{{ openPrint }}" style="height:48px;padding:0 18px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:15.5px;font-weight:600;cursor:pointer">🖨 พิมพ์รอบนี้</button>
+          <button onClick="{{ closeRound }}" style="height:48px;padding:0 22px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:16px;font-weight:700;cursor:pointer">ปิด</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ productOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(20,24,26,.55);display:flex;justify-content:flex-end;z-index:50">
+      <div style="width:720px;max-width:100%;background:#fff;display:flex;flex-direction:column;height:100%">
+        <div style="display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid #DEE3E5">
+          <h2 style="font-size:19px;font-weight:700;margin:0">เพิ่มสินค้าใหม่</h2>
+          <button onClick="{{ closeProduct }}" style="margin-left:auto;width:40px;height:40px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:22px">
+          <div style="font-size:15px;font-weight:700;color:#B4620F;margin-bottom:12px">1. ข้อมูลสินค้า</div>
+          <div style="display:grid;grid-template-columns:200px 1fr;gap:14px;margin-bottom:14px">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">บาร์โค้ด</div><input placeholder="000045" style="width:100%;height:50px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font:600 17px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ชื่อ / คำอธิบายสินค้า</div><input placeholder="เช่น ท่อ PVC 4 นิ้ว ชั้น 8.5" style="width:100%;height:50px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font-size:16px;background:#fff"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">หมวดหมู่</div><select style="width:100%;height:50px;padding:0 12px;border:1px solid #C9D1D4;border-radius:6px;font-size:16px;background:#fff"><option>ท่อเหล็ก</option><option>ตาข่ายเหล็ก</option><option>น็อตและสกรู</option></select></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">หน่วยฐาน (หน่วยเล็กสุด)</div><input placeholder="ชิ้น" style="width:100%;height:50px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font-size:16px;background:#fff"></div>
+          </div>
+          <div style="font-size:15px;font-weight:700;color:#B4620F;margin-bottom:12px">2. โครงสร้างหน่วย</div>
+          <div style="border:1px solid #DEE3E5;border-radius:8px;padding:14px 16px;background:#FAFBFB;margin-bottom:22px">
+            <div style="display:grid;grid-template-columns:1fr 40px 1fr 120px;gap:12px;align-items:center;margin-bottom:10px">
+              <input value="กล่อง" style="height:48px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font-size:16px;background:#fff">
+              <div style="text-align:center;font-size:16px;font-weight:700;color:#3F4A4F">=</div>
+              <input value="24" style="height:48px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff">
+              <div style="font-size:15px;color:#3F4A4F">ชิ้น</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 40px 1fr 120px;gap:12px;align-items:center">
+              <input value="พาเลท" style="height:48px;padding:0 14px;border:1px solid #C9D1D4;border-radius:6px;font-size:16px;background:#fff">
+              <div style="text-align:center;font-size:16px;font-weight:700;color:#3F4A4F">=</div>
+              <input value="20" style="height:48px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff">
+              <div style="font-size:15px;color:#3F4A4F">กล่อง</div>
+            </div>
+            <button style="margin-top:12px;height:44px;padding:0 16px;border:1px dashed #B4620F;background:#fff;color:#B4620F;border-radius:6px;font-size:14.5px;font-weight:700;cursor:pointer">+ เพิ่มหน่วยที่ใหญ่ขึ้น</button>
+          </div>
+          <div style="font-size:15px;font-weight:700;color:#B4620F;margin-bottom:12px">3. สต๊อกและราคา</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">สต๊อกขั้นต่ำ</div><input placeholder="0" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">สต๊อกสูงสุด</div><input placeholder="0" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ตั้งต้น — คลังสินค้า</div><input placeholder="0" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ตั้งต้น — หน้าร้าน</div><input placeholder="0" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ต้นทุน</div><input placeholder="0.00" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ราคาขาย</div><input placeholder="0.00" style="width:100%;height:50px;padding:0 14px;text-align:right;border:2px solid #DC7A16;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ราคาช่าง</div><input placeholder="0.00" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+            <div><div style="font-size:14px;font-weight:700;color:#3F4A4F;margin-bottom:6px">ราคาส่ง</div><input placeholder="0.00" style="width:100%;height:50px;padding:0 14px;text-align:right;border:1px solid #C9D1D4;border-radius:6px;font:700 18px 'JetBrains Mono',monospace;background:#fff"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;padding:18px 22px;border-top:1px solid #DEE3E5;background:#FAFBFB">
+          <button onClick="{{ closeProduct }}" style="height:52px;padding:0 20px;border:1px solid #C9D1D4;background:#fff;border-radius:6px;font-size:16px;font-weight:600;cursor:pointer">ยกเลิก</button>
+          <button onClick="{{ closeProduct }}" style="height:56px;padding:0 28px;border:1px solid #B4620F;background:#DC7A16;color:#fff;border-radius:6px;font-size:17px;font-weight:700;cursor:pointer" style-hover="background:#B4620F">💾 บันทึกสินค้า</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;inputSize&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ใหญ่&quot;,&quot;ใหญ่ที่สุด&quot;],&quot;default&quot;:&quot;ใหญ่&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;การใช้งาน&quot;},&quot;confirmBeforeSave&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;การใช้งาน&quot;}}">
+const C = {ok:'#2F7D52', okBg:'#E5F3EB', warn:'#B8790F', warnBg:'#FDF3E2', bad:'#C0392B', badBg:'#FBEAE8', mute:'#3F4A4F'};
+const ITEMS = [
+  {code:'000010', name:'น็อตหกเหลี่ยม M10x40 ชุบกัลวาไนซ์', unit:'ชิ้น', box:{name:'กล่อง',size:24}, price:12, sys:{wh:48, sh:10}},
+  {code:'000001', name:'ท่อแบน 5x2x2.7มม.', unit:'ชิ้น', price:125, sys:{wh:40, sh:6}},
+  {code:'000012', name:'เหล็กเส้นกลม SR24 6มม.', unit:'เส้น', price:98, sys:{wh:120, sh:14}},
+  {code:'000023', name:'ปูนซีเมนต์ถุง 50กก.', unit:'ถุง', price:145, sys:{wh:80, sh:12}},
+  {code:'000031', name:'สกรูปลายสว่าน #8x1"', unit:'ชิ้น', box:{name:'กล่อง',size:100}, price:2, sys:{wh:500, sh:150}}
+];
+const PRODUCTS = [
+  {code:'000010', name:'น็อตหกเหลี่ยม M10x40 ชุบกัลวาไนซ์', cat:'น็อตและสกรู', unit:'ชิ้น', total:'2 พาเลท 5 กล่อง', split:'คลัง 960 · หน้าร้าน 140', fill:55, status:'ok', cost:'3.50', sell:'5.00', tech:'4.50', whole:'4.00'},
+  {code:'000031', name:'สกรูปลายสว่าน #8x1"', cat:'น็อตและสกรู', unit:'ชิ้น', total:'6 กล่อง 50 ชิ้น', split:'คลัง 500 · หน้าร้าน 150', fill:72, status:'ok', cost:'1.20', sell:'2.00', tech:'1.80', whole:'1.50'},
+  {code:'000023', name:'ปูนซีเมนต์ถุง 50กก.', cat:'วัสดุก่อสร้าง', unit:'ถุง', total:'92 ถุง', split:'คลัง 80 · หน้าร้าน 12', fill:46, status:'ok', cost:'118.00', sell:'145.00', tech:'135.00', whole:'128.00'},
+  {code:'000012', name:'เหล็กเส้นกลม SR24 6มม.', cat:'เหล็กเส้น', unit:'เส้น', total:'0 เส้น', split:'คลัง 0 · หน้าร้าน 0', fill:0, status:'low', cost:'82.00', sell:'98.00', tech:'92.00', whole:'88.00'},
+  {code:'000001', name:'ท่อแบน 5x2x2.7มม.', cat:'ท่อเหล็ก', unit:'ชิ้น', total:'-2 ชิ้น', split:'คลัง 0 · หน้าร้าน -2', fill:0, status:'neg', cost:'960.00', sell:'1,058.00', tech:'1,015.00', whole:'985.00'},
+  {code:'000044', name:'ท่อ PVC 4" ชั้น 8.5', cat:'ท่อพีวีซี', unit:'เส้น', total:'45 เส้น', split:'คลัง 36 · หน้าร้าน 9', fill:38, status:'low', cost:'176.00', sell:'210.00', tech:'198.00', whole:'188.00'},
+  {code:'000052', name:'ตาข่ายเหล็ก 4มม. 2x1ม.', cat:'ตาข่ายเหล็ก', unit:'ผืน', total:'18 ผืน', split:'คลัง 14 · หน้าร้าน 4', fill:60, status:'ok', cost:'240.00', sell:'295.00', tech:'275.00', whole:'260.00'}
+];
+const STATUS = {ok:{text:'ปกติ', bg:C.okBg, fg:C.ok, bar:C.ok, total:'#1A1F22'}, low:{text:'ต่ำกว่าขั้นต่ำ', bg:C.warnBg, fg:'#8A5A08', bar:C.warn, total:C.warn}, neg:{text:'ติดลบ', bg:C.badBg, fg:'#8E2E22', bar:C.bad, total:C.bad}};
+const NAV = [
+  {label:'ภาพรวม', isLabel:true},
+  {id:'dashboard', label:'แดชบอร์ด'},
+  {label:'คลังสินค้า', isLabel:true},
+  {id:'products', label:'สินค้า'},
+  {id:'receiving', label:'รับสินค้า'},
+  {id:'transfer', label:'เบิกของ'},
+  {id:'stocktake', label:'ตรวจนับสต๊อก'},
+  {id:'history', label:'ประวัติสต๊อก'},
+  {id:'exchange', label:'เชื่อมระบบบิล', owner:true},
+  {label:'เอกสาร', isLabel:true},
+  {id:'orders', label:'ใบสั่งสินค้า'},
+  {label:'ระบบ', isLabel:true},
+  {id:'users', label:'ผู้ใช้งาน', ownerOnly:true},
+  {id:'login', label:'หน้าเข้าสู่ระบบ'}
+];
+const TITLES = {dashboard:['แดชบอร์ด','ภาพรวมสต๊อกวันนี้'], products:['สินค้า','รายการสินค้าทั้งหมดในระบบ'], receiving:['รับสินค้า','บันทึกของที่รับเข้าจากผู้จำหน่าย'], transfer:['เบิกของ','โยกสต๊อกระหว่างสถานที่'], stocktake:['ตรวจนับสต๊อก','คีย์ตัวเลขจากใบตรวจนับ'], history:['ประวัติสต๊อก','ย้อนดูรอบตรวจนับและการเคลื่อนไหว'], exchange:['เชื่อมระบบบิล','รับ-ส่งข้อมูลกับ BillKeep'], orders:['ใบสั่งสินค้า','พิมพ์ฟอร์มและดูใบที่บันทึกไว้'], users:['ผู้ใช้งาน','จัดการสิทธิ์และสำรองข้อมูล'], login:['หน้าเข้าสู่ระบบ','ตัวอย่างหน้าจอเข้าสู่ระบบ']};
+const ROLES = [{id:'owner', label:'เจ้าของร้าน'}, {id:'stock', label:'คนจัดสต็อก'}, {id:'staff', label:'พนักงานหน้าร้าน'}];
+const ROUNDS = [
+  {doc:'STK-20260818-0001', cat:'ทุกหมวดหมู่', countedAt:'18/08/2569 16:32 น.', savedAt:'18/08/2569 16:45', place:'คลังสินค้า', counted:'6', changed:'1', by:'ผู้ดูแลระบบ'},
+  {doc:'ปรับด่วน (ไม่ออกเลข)', cat:'น็อตและสกรู', countedAt:'17/08/2569 08:30 น.', savedAt:'17/08/2569 08:41', place:'หน้าร้าน', counted:'3', changed:'0', by:'อานงค์'},
+  {doc:'STK-20260814-0002', cat:'ท่อเหล็ก', countedAt:'14/08/2569 09:05 น.', savedAt:'14/08/2569 09:20', place:'คลังสินค้า', counted:'12', changed:'3', by:'สมชาย'},
+  {doc:'STK-20260810-0001', cat:'ทุกหมวดหมู่', countedAt:'10/08/2569 17:40 น.', savedAt:'10/08/2569 18:02', place:'ทั้ง 2 แห่ง', counted:'41', changed:'5', by:'ผู้ดูแลระบบ'}
+];
+const MOVES = [
+  {at:'18/08/2569 16:45', kind:'ตรวจนับ', name:'น็อตหกเหลี่ยม M10x40', place:'หน้าร้าน', qty:'-2', after:'8 ชิ้น'},
+  {at:'18/08/2569 14:12', kind:'รับเข้า', name:'ปูนซีเมนต์ถุง 50กก.', place:'คลังสินค้า', qty:'+50', after:'80 ถุง'},
+  {at:'18/08/2569 11:03', kind:'เบิกของ', name:'สกรูปลายสว่าน #8x1"', place:'คลัง → หน้าร้าน', qty:'200', after:'500 ชิ้น'},
+  {at:'17/08/2569 18:20', kind:'ตัดจากบิล', name:'ท่อแบน 5x2x2.7มม.', place:'หน้าร้าน', qty:'-4', after:'-2 ชิ้น'},
+  {at:'17/08/2569 09:30', kind:'แก้ไขมือ', name:'เหล็กเส้นกลม SR24 6มม.', place:'คลังสินค้า', qty:'0', after:'0 เส้น'}
+];
+const MOVE_KINDS = {'ตรวจนับ':{bg:'#FBEBD8', fg:'#B4620F'}, 'รับเข้า':{bg:C.okBg, fg:C.ok}, 'เบิกของ':{bg:'#E8EEF6', fg:'#2C5A8F'}, 'ตัดจากบิล':{bg:C.badBg, fg:'#8E2E22'}, 'แก้ไขมือ':{bg:'#EDEFF0', fg:'#3F4A4F'}};
+const USERS = [
+  {login:'admin', name:'ผู้ดูแลระบบ', role:'แอดมิน / เจ้าของร้าน'},
+  {login:'anong', name:'อานงค์ พูนทรัพย์', role:'คนจัดสต็อก'},
+  {login:'somchai', name:'สมชาย ใจดี', role:'พนักงานหน้าร้าน'}
+];
+const ROUND_LINES = [
+  {code:'000010', name:'น็อตหกเหลี่ยม M10x40', sys:'2 กล่อง 10 ชิ้น', counted:'2 กล่อง 8 ชิ้น', diff:'ขาด 2 ชิ้น', kind:'bad'},
+  {code:'000001', name:'ท่อแบน 5x2x2.7มม.', sys:'46 ชิ้น', counted:'46 ชิ้น', diff:'ตรงกัน', kind:'ok'},
+  {code:'000023', name:'ปูนซีเมนต์ถุง 50กก.', sys:'92 ถุง', counted:'94 ถุง', diff:'เกิน 2 ถุง', kind:'warn'}
+];
+
+class Component extends DCLogic {
+  state = {
+    view:'dashboard', role:'owner',
+    counts:{'000010:wh':'48','000010:sh':'8','000001:wh':'40'},
+    recv:{'000010':{on:true, qty:'24', date:'2026-08-18'}},
+    notes:{'000010':'ของเข้าเมื่อเช้า ยังไม่ได้บันทึก'},
+    open:{}, query:'', onlyUncounted:false, onlyDiff:false, confirmSave:false,
+    cat:'ทั้งหมด', stat:'ทั้งหมด', histTab:'rounds', moveKind:'ทั้งหมด',
+    trfSwapped:false, printOpen:false, roundOpen:false, productOpen:false
+  };
+
+  fmt(q, it) {
+    if (q === null || q === undefined || q === '') return '—';
+    const n = Number(q);
+    if (!isFinite(n)) return '—';
+    if (it.box && Math.abs(n) >= it.box.size) {
+      const b = Math.trunc(n / it.box.size), r = n % it.box.size;
+      return r ? b + ' ' + it.box.name + ' ' + r + ' ' + it.unit : b + ' ' + it.box.name;
+    }
+    return n.toLocaleString('en-US') + ' ' + it.unit;
+  }
+  val(code, loc) { const v = this.state.counts[code + ':' + loc]; return v === undefined ? '' : v; }
+  num(code, loc) { const v = this.val(code, loc); return v === '' ? null : Number(v); }
+  setCount(code, loc, v) {
+    v = String(v).replace(/[^0-9-]/g, '');
+    this.setState(s => ({counts: Object.assign({}, s.counts, {[code + ':' + loc]: v})}));
+  }
+  setRecv(code, patch) {
+    this.setState(s => ({recv: Object.assign({}, s.recv, {[code]: Object.assign({on:false, qty:'', date:''}, s.recv[code], patch)})}));
+  }
+  diff(counted, sys, it) {
+    if (counted === null) return {text:'ยังไม่นับ', color:C.mute, bg:'#EEF1F2', fg:C.mute, bd:'#C9D1D4', state:'none'};
+    const d = counted - sys;
+    if (d === 0) return {text:'✓ ตรงกัน', color:C.ok, bg:C.okBg, fg:C.ok, bd:C.ok, state:'ok'};
+    if (d > 0) return {text:'เกิน ' + this.fmt(d, it), color:C.warn, bg:C.warnBg, fg:'#8A5A08', bd:C.warn, state:'diff'};
+    return {text:'ขาด ' + this.fmt(-d, it), color:C.bad, bg:C.badBg, fg:'#8E2E22', bd:C.bad, state:'diff'};
+  }
+  onEnter = (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const all = Array.from(document.querySelectorAll('[data-count]'));
+    const i = all.indexOf(e.target);
+    if (i > -1 && all[i + 1]) { all[i + 1].focus(); all[i + 1].select && all[i + 1].select(); }
+  };
+  chip(label, active, go) {
+    return {label, go, bg: active ? '#DC7A16' : '#fff', fg: active ? '#fff' : '#1A1F22', bd: active ? '#B4620F' : '#C9D1D4'};
+  }
+
+  stRow(it, i) {
+    const wn = this.num(it.code, 'wh'), sn = this.num(it.code, 'sh');
+    const wd = this.diff(wn, it.sys.wh, it), sd = this.diff(sn, it.sys.sh, it);
+    const totSys = it.sys.wh + it.sys.sh, both = wn !== null && sn !== null;
+    const totCount = both ? wn + sn : null, td = this.diff(totCount, totSys, it);
+    const st = !both ? (wn === null && sn === null ? 'none' : 'partial') : (td.state === 'ok' ? 'ok' : 'diff');
+    const r = this.state.recv[it.code] || {}, open = !!this.state.open[it.code];
+    return {
+      code: it.code, name: it.name, unit: it.unit, item: it, status: st,
+      mark: st === 'ok' ? '✅' : st === 'diff' ? '⚠️' : st === 'partial' ? '◑' : '⬜',
+      stripe: st === 'ok' ? C.ok : st === 'diff' ? C.bad : '#DEE3E5',
+      rowBg: st === 'ok' ? '#F6FBF8' : st === 'diff' ? '#FEF8F7' : (i % 2 ? '#FCFDFD' : '#FFFFFF'),
+      whSys: this.fmt(it.sys.wh, it), shSys: this.fmt(it.sys.sh, it), totSys: this.fmt(totSys, it),
+      totCount: totCount === null ? '—' : this.fmt(totCount, it),
+      whVal: this.val(it.code, 'wh'), shVal: this.val(it.code, 'sh'),
+      whDiffText: wd.text, whDiffColor: wd.color, whBd: wd.bd,
+      shDiffText: sd.text, shDiffColor: sd.color, shBd: sd.bd,
+      totDiffText: both ? td.text : 'ยังไม่ครบ', totBg: both ? td.bg : '#EEF1F2', totFg: both ? td.fg : C.mute,
+      diffQty: both ? totCount - totSys : 0,
+      open, recvOn: !!r.on, recvQty: r.qty || '', recvDate: r.date || '', note: this.state.notes[it.code] || '',
+      extraLabel: open ? 'ปิด ▲' : (r.on || this.state.notes[it.code] ? '● ของเข้า/หมายเหตุ' : '+ ของเข้า/หมายเหตุ'),
+      extraBg: open ? '#FBEBD8' : '#fff', extraBd: (open || r.on) ? '#DC7A16' : '#C9D1D4',
+      onWh: (e) => this.setCount(it.code, 'wh', e.target.value),
+      onSh: (e) => this.setCount(it.code, 'sh', e.target.value),
+      onToggle: () => this.setState(s => ({open: Object.assign({}, s.open, {[it.code]: !s.open[it.code]})})),
+      onRecvOn: (e) => this.setRecv(it.code, {on: e.target.checked}),
+      onRecvQty: (e) => this.setRecv(it.code, {qty: e.target.value.replace(/[^0-9]/g, '')}),
+      onRecvDate: (e) => this.setRecv(it.code, {date: e.target.value}),
+      onNote: (e) => { const v = e.target.value; this.setState(s => ({notes: Object.assign({}, s.notes, {[it.code]: v})})); }
+    };
+  }
+
+  renderVals() {
+    const role = this.state.role;
+    const perm = {cost: role !== 'staff', money: role !== 'staff', users: role === 'owner'};
+    const view = this.state.view;
+    const t = TITLES[view] || ['', ''];
+    const scale = (this.props.inputSize ?? 'ใหญ่') === 'ใหญ่ที่สุด' ? 1.25 : 1;
+    const zebra = i => i % 2 ? '#FCFDFD' : '#FFFFFF';
+
+    const all = ITEMS.map((it, i) => this.stRow(it, i));
+    const q = this.state.query.trim().toLowerCase();
+    const rows = all.filter(r =>
+      (!q || r.name.toLowerCase().indexOf(q) > -1 || r.code.indexOf(q) > -1) &&
+      (!this.state.onlyUncounted || r.status === 'none' || r.status === 'partial') &&
+      (!this.state.onlyDiff || r.status === 'diff'));
+    const cells = all.length * 2;
+    const doneCells = all.reduce((n, r) => n + (r.whVal !== '' ? 1 : 0) + (r.shVal !== '' ? 1 : 0), 0);
+    const diffValue = all.reduce((v, r) => v + r.diffQty * r.item.price, 0);
+
+    const prodOf = (p, i) => {
+      const s = STATUS[p.status];
+      return Object.assign({}, p, {zebra: zebra(i), barW: p.fill + '%', barColor: s.bar, totalColor: s.total, badgeBg: s.bg, badgeFg: s.fg, statusText: s.text});
+    };
+    const filteredProducts = PRODUCTS.filter(p =>
+      (this.state.cat === 'ทั้งหมด' || p.cat === this.state.cat) &&
+      (this.state.stat === 'ทั้งหมด' || (this.state.stat === 'ปกติ' && p.status === 'ok') || (this.state.stat === 'ต่ำกว่าขั้นต่ำ' && p.status === 'low') || (this.state.stat === 'ติดลบ' && p.status === 'neg')));
+
+    const prodCols = perm.cost ? '110px minmax(240px,1fr) 200px 110px 190px 150px 100px' : '110px minmax(240px,1fr) 200px 190px 150px 100px';
+
+    return {
+      nav: NAV.filter(n => !(n.ownerOnly && !perm.users)).map(n => ({
+        isLabel: !!n.isLabel, isItem: !n.isLabel, label: n.label,
+        bg: view === n.id ? '#DC7A16' : 'transparent',
+        fg: view === n.id ? '#FFFFFF' : '#C6CFD3',
+        dot: view === n.id ? '#FFFFFF' : '#5C666B',
+        go: () => this.setState({view: n.id})
+      })),
+      title: t[0], subtitle: t[1],
+      roleName: (ROLES.find(r => r.id === role) || {}).label,
+      roles: ROLES.map(r => ({label: r.label, go: () => this.setState({role: r.id, view: (r.id !== 'owner' && this.state.view === 'users') ? 'dashboard' : this.state.view}),
+        bg: role === r.id ? '#DC7A16' : 'transparent', fg: role === r.id ? '#fff' : '#3F4A4F', bd: role === r.id ? '#B4620F' : 'transparent'})),
+      perm,
+      v: {dashboard: view === 'dashboard', products: view === 'products', receiving: view === 'receiving', transfer: view === 'transfer', stocktake: view === 'stocktake', history: view === 'history', exchange: view === 'exchange', orders: view === 'orders', users: view === 'users', login: view === 'login'},
+      goProducts: () => this.setState({view:'products', stat:'ติดลบ'}),
+      goDashboard: () => this.setState({view:'dashboard'}),
+      lowStock: PRODUCTS.filter(p => p.status !== 'ok').map(prodOf),
+      products: filteredProducts.map(prodOf),
+      tbl: {prodCols},
+      catChips: ['ทั้งหมด','ท่อเหล็ก','ตาข่ายเหล็ก','น็อตและสกรู','เหล็กเส้น'].map(c => this.chip(c, this.state.cat === c, () => this.setState({cat: c}))),
+      statChips: ['ทั้งหมด','ปกติ','ต่ำกว่าขั้นต่ำ','ติดลบ'].map(c => this.chip(c, this.state.stat === c, () => this.setState({stat: c}))),
+      rows, ui: {inH: Math.round(52 * scale) + 'px', inF: Math.round(24 * scale) + 'px'},
+      query: this.state.query,
+      onQuery: (e) => this.setState({query: e.target.value}),
+      toggleUncounted: () => this.setState(s => ({onlyUncounted: !s.onlyUncounted})),
+      toggleDiff: () => this.setState(s => ({onlyDiff: !s.onlyDiff})),
+      f: {
+        uncountedBg: this.state.onlyUncounted ? '#DC7A16' : '#fff', uncountedFg: this.state.onlyUncounted ? '#fff' : '#1A1F22', uncountedBd: this.state.onlyUncounted ? '#B4620F' : '#C9D1D4',
+        diffBg: this.state.onlyDiff ? '#DC7A16' : '#fff', diffFg: this.state.onlyDiff ? '#fff' : '#1A1F22', diffBd: this.state.onlyDiff ? '#B4620F' : '#C9D1D4'
+      },
+      sum: {
+        doneCells, totalCells: cells, pctW: Math.round(doneCells / cells * 100) + '%',
+        diffItems: all.filter(r => r.status === 'diff').length,
+        diffValue: (diffValue < 0 ? '-' : diffValue > 0 ? '+' : '') + '฿' + Math.abs(diffValue).toLocaleString('en-US'),
+        remainText: doneCells >= cells ? 'คีย์ครบทุกช่องแล้ว' : 'ยังเหลืออีก ' + (cells - doneCells) + ' ช่อง'
+      },
+      onEnter: this.onEnter,
+      askSave: !this.state.confirmSave, confirmSave: this.state.confirmSave,
+      startSave: () => this.setState({confirmSave: this.props.confirmBeforeSave ?? true}),
+      cancelSave: () => this.setState({confirmSave: false}),
+      histTabs: [{id:'rounds', label:'รอบการตรวจนับ'}, {id:'moves', label:'การเคลื่อนไหวทั้งหมด'}].map(x => ({
+        label: x.label, go: () => this.setState({histTab: x.id}),
+        bg: this.state.histTab === x.id ? '#DC7A16' : '#fff', fg: this.state.histTab === x.id ? '#fff' : '#1A1F22', bd: this.state.histTab === x.id ? '#B4620F' : '#C9D1D4'
+      })),
+      hist: {isRounds: this.state.histTab === 'rounds', isMoves: this.state.histTab === 'moves'},
+      rounds: ROUNDS.map((r, i) => Object.assign({}, r, {zebra: zebra(i), changedColor: r.changed === '0' ? C.mute : C.warn})),
+      moveChips: ['ทั้งหมด','ตรวจนับ','รับเข้า','เบิกของ','ตัดจากบิล'].map(c => this.chip(c, this.state.moveKind === c, () => this.setState({moveKind: c}))),
+      moves: MOVES.filter(m => this.state.moveKind === 'ทั้งหมด' || m.kind === this.state.moveKind).map((m, i) => Object.assign({}, m, {
+        zebra: zebra(i), kindBg: MOVE_KINDS[m.kind].bg, kindFg: MOVE_KINDS[m.kind].fg,
+        qtyColor: m.qty.charAt(0) === '-' ? C.bad : m.qty.charAt(0) === '+' ? C.ok : '#1A1F22'
+      })),
+      users: USERS.map((u, i) => Object.assign({}, u, {zebra: zebra(i)})),
+      roundLines: ROUND_LINES.map((l, i) => Object.assign({}, l, {zebra: zebra(i),
+        bg: l.kind === 'ok' ? C.okBg : l.kind === 'warn' ? C.warnBg : C.badBg,
+        fg: l.kind === 'ok' ? C.ok : l.kind === 'warn' ? '#8A5A08' : '#8E2E22'})),
+      trf: this.state.trfSwapped ? {from:'หน้าร้าน', to:'คลังสินค้า'} : {from:'คลังสินค้า', to:'หน้าร้าน'},
+      swapTrf: () => this.setState(s => ({trfSwapped: !s.trfSwapped})),
+      printOpen: this.state.printOpen, openPrint: () => this.setState({printOpen:true}), closePrint: () => this.setState({printOpen:false}),
+      roundOpen: this.state.roundOpen, openRound: () => this.setState({roundOpen:true}), closeRound: () => this.setState({roundOpen:false}),
+      productOpen: this.state.productOpen, openProduct: () => this.setState({productOpen:true}), closeProduct: () => this.setState({productOpen:false})
+    };
+  }
+}
+
+</script>
+</body>
+</html>
