@@ -435,9 +435,14 @@
   #order-print-area .ot-sheet + .ot-sheet{margin-top:20px;border-top:1px dashed #999;}
 
   /* Column chooser — the table carries more columns than fit on a laptop, so
-     each person picks the ones they actually work with. */
+     each person picks the ones they actually work with.
+     position:fixed, NOT absolute: the .panel this sits in is overflow:hidden
+     (that is what clips the table to the panel's rounded corners), and an
+     absolutely positioned menu is cut off at the panel edge. With only a few
+     products the panel is a few rows tall, which left most of the list
+     unreachable. Coordinates are set from the button in placeColPicker(). */
   .col-picker-wrap{position:relative;}
-  .col-picker{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:20;background:#fff;
+  .col-picker{display:none;position:fixed;z-index:35;background:#fff;
     border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14);
     padding:10px 12px;min-width:210px;max-height:60vh;overflow-y:auto;}
   .col-picker.show{display:block;}

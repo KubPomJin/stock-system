@@ -177,6 +177,23 @@ function renderColPicker(lvl: number): void {
   })
 }
 
+// The menu is position:fixed so the panel's overflow:hidden cannot clip it.
+// The trade-off is placing it by hand in viewport coordinates, and keeping it
+// inside the window: with the button low on screen "below the button" can run
+// off the bottom edge, so the height is capped at whatever room is left and the
+// menu scrolls inside itself rather than disappearing.
+function placeColPicker(): void {
+  const r = $('btn-col-picker').getBoundingClientRect()
+  const picker = $('col-picker')
+  picker.style.top = `${r.bottom + 6}px`
+  picker.style.right = `${Math.max(8, window.innerWidth - r.right)}px`
+  picker.style.maxHeight = `${Math.max(140, window.innerHeight - r.bottom - 18)}px`
+}
+
+function closeColPicker(): void {
+  $('col-picker').classList.remove('show')
+}
+
 export function renderProducts(): void {
   const lvl = level()
   const showAction = lvl >= 2
@@ -627,12 +644,23 @@ export function initProducts(refresh: () => Promise<void>): void {
   })
   loadVisibleCols()
   // Column chooser opens on click and closes when you click anywhere else.
+  // It is position:fixed (see the CSS note) so it cannot be clipped by the
+  // panel, which means its coordinates have to be measured from the button on
+  // every open — and it has to close on scroll, because fixed does not follow.
   $('btn-col-picker').addEventListener('click', (e) => {
     e.stopPropagation()
-    $('col-picker').classList.toggle('show')
+    const picker = $('col-picker')
+    if (picker.classList.contains('show')) {
+      picker.classList.remove('show')
+      return
+    }
+    placeColPicker()
+    picker.classList.add('show')
   })
   $('col-picker').addEventListener('click', (e) => e.stopPropagation())
-  document.addEventListener('click', () => $('col-picker').classList.remove('show'))
+  document.addEventListener('click', closeColPicker)
+  document.querySelector('.content')?.addEventListener('scroll', closeColPicker)
+  window.addEventListener('resize', closeColPicker)
 
   void fillBulkZoneOptions()
   $('btn-bulk-add').addEventListener('click', () => void applyBulkZone('add'))

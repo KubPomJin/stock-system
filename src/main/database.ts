@@ -350,42 +350,79 @@ function runMigrations(): void {
   d.exec(`CREATE INDEX IF NOT EXISTS idx_product_zones_zone ON product_zones(zone_id);`)
 
   seedZoneLayout()
+  migrateZoneLayout()
 }
 
-// Seeds the floor plan drawn by the owner: doors along the top, bays 1-5 down
-// the right-hand wall, bays 6-13 along the bottom, back door bottom-left.
-// The grid is 40 columns wide because the top strip divides into 5 cells and the
-// bottom strip into 8 — 40 is the smallest width both fit exactly.
+// The floor plan the owner drew, oriented the way it is actually seen when
+// standing in a doorway looking in: the doors run along the BOTTOM, bays 6-13
+// across the top wall, bays 1-5 down the left-hand wall (1 nearest the office),
+// office bottom-left, back door top-right.
+//
+// This is the same sketch turned 180 degrees. It was first entered the other
+// way up, which matched the paper drawing but read backwards to anyone standing
+// at the door — left on screen was right in the building.
+//
+// The grid is 40 columns wide because the door strip divides into 5 cells and
+// the top strip into 8 — 40 is the smallest width both fit exactly.
+type ZoneCell = [string, string, string, number, number, number, number, number]
+
+function zoneLayout(): ZoneCell[] {
+  const rows: ZoneCell[] = [
+    // code, label, kind, col, row, w, h, sort
+    ['OFFICE', 'Office', 'label', 1, 8, 8, 2, 104],
+    ['DOOR2', 'Door 2', 'label', 9, 9, 8, 1, 103],
+    ['DOOR3', 'Door 3', 'label', 17, 9, 8, 1, 102],
+    ['DOOR4', 'Door 4', 'label', 25, 9, 8, 1, 101],
+    ['DOOR5', 'Door 5', 'label', 33, 9, 8, 1, 100],
+    ['BACKDOOR', 'Back Door', 'label', 33, 2, 8, 1, 105]
+  ]
+
+  // Right-hand wall: six unnumbered cells, exactly as drawn. The codes stay
+  // W2..W7 so every row keeps its identity across the re-orientation below.
+  for (let r = 2; r <= 7; r++) rows.push([`W${r}`, '', 'space', 33, 10 - r, 8, 1, 200 + r])
+
+  // Bays 1-5 stacked up the left-hand wall, 1 nearest the office.
+  for (let i = 1; i <= 5; i++) rows.push([String(i), String(i), 'zone', 9, 8 - i, 4, 1, i])
+
+  // Bays 6-13 along the top, left to right as drawn.
+  for (let n = 6; n <= 13; n++) rows.push([String(n), String(n), 'zone', 9 + (n - 6) * 4, 1, 4, 1, n])
+
+  return rows
+}
+
 function seedZoneLayout(): void {
   const d = getDb()
   const existing = (d.prepare('SELECT COUNT(*) AS c FROM zones').get() as { c: number }).c
   if (existing > 0) return
 
-  const rows: [string, string, string, number, number, number, number, number][] = [
-    // code, label, kind, col, row, w, h, sort
-    ['DOOR5', 'Door 5', 'label', 1, 1, 8, 1, 100],
-    ['DOOR4', 'Door 4', 'label', 9, 1, 8, 1, 101],
-    ['DOOR3', 'Door 3', 'label', 17, 1, 8, 1, 102],
-    ['DOOR2', 'Door 2', 'label', 25, 1, 8, 1, 103],
-    ['OFFICE', 'Office', 'label', 33, 1, 8, 2, 104],
-    ['BACKDOOR', 'Back Door', 'label', 1, 8, 8, 1, 105]
-  ]
-
-  // Left-hand wall: six unnumbered cells, exactly as drawn.
-  for (let r = 2; r <= 7; r++) rows.push([`W${r}`, '', 'space', 1, r, 8, 1, 200 + r])
-
-  // Bays 1-5 stacked down the right-hand wall.
-  for (let i = 1; i <= 5; i++) rows.push([String(i), String(i), 'zone', 29, i + 2, 4, 1, i])
-
-  // Bays 6-13 along the bottom, numbered right-to-left as drawn.
-  const bottom = [13, 12, 11, 10, 9, 8, 7, 6]
-  bottom.forEach((n, idx) => rows.push([String(n), String(n), 'zone', 1 + idx * 4, 9, 4, 1, n]))
-
   const ins = d.prepare(
     `INSERT INTO zones (code, label, kind, grid_col, grid_row, grid_w, grid_h, sort_order)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
-  d.transaction(() => rows.forEach((r) => ins.run(...r)))()
+  d.transaction(() => zoneLayout().forEach((r) => ins.run(...r)))()
+}
+
+// Re-orients an install that still carries the original upside-down plan.
+// Cells are UPDATEd in place, keyed by code — rows are never deleted and
+// re-inserted, so product_zones assignments survive the move untouched.
+//
+// The back door is the marker: it sat bottom-left in the old plan and sits
+// top-right now, so its row says which way round this database is. That makes
+// the migration self-limiting — it can run on every launch, fires at most once,
+// and leaves a plan that has been re-arranged by hand alone.
+function migrateZoneLayout(): void {
+  const d = getDb()
+  const back = d.prepare("SELECT grid_row FROM zones WHERE code = 'BACKDOOR'").get() as
+    | { grid_row: number }
+    | undefined
+  if (!back || back.grid_row !== 8) return
+
+  const upd = d.prepare(
+    'UPDATE zones SET grid_col = ?, grid_row = ?, grid_w = ?, grid_h = ?, sort_order = ? WHERE code = ?'
+  )
+  d.transaction(() => {
+    for (const [code, , , col, row, w, h, sort] of zoneLayout()) upd.run(col, row, w, h, sort, code)
+  })()
 }
 
 function seedDefaultAdmin(): void {
