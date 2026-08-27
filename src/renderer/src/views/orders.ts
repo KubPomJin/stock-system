@@ -337,22 +337,6 @@ function paperWidthIn(): number {
   return select('ov-paper').value === '8' ? 8 : 9
 }
 
-const TRIM_KEY = 'print.orderPageTrimMm'
-
-// Continuous forms drift when the length the printer advances does not exactly
-// match the page we send. That difference is a property of the printer (its
-// form length / skip-over-perforation setting), and the software cannot read
-// it — but sending a page shortened by the same amount cancels it out.
-// Verified separately that our own output has no drift: ten sheets render with
-// an identical MediaBox and identical margins, so any creep is mechanical.
-function pageTrimMm(): number {
-  const v = parseFloat(input('ov-page-trim').value)
-  return isNaN(v) ? 0 : Math.max(-15, Math.min(15, v))
-}
-
-function pageHeightIn(): number {
-  return 5.5 + pageTrimMm() / 25.4
-}
 
 function readMargins(): Margins {
   const n = (id: string, fallback: number): number => {
@@ -387,18 +371,12 @@ function applyMargins(): void {
 }
 
 function applyPaperChoice(): void {
-  const area = $('order-print-area')
-  area.style.setProperty('--ot-paper-w', `${paperWidthIn()}in`)
-  area.style.setProperty('--ot-page-h', `${pageHeightIn()}in`)
-  const trim = pageTrimMm()
-  $('ov-scale').textContent =
-    `แสดงขนาดจริง 100% · ${paperWidthIn()} × ${(pageHeightIn() * 25.4).toFixed(1)} มม.` +
-    (trim ? ` (ปรับ ${trim > 0 ? '+' : ''}${trim} มม.)` : '')
+  $('order-print-area').style.setProperty('--ot-paper-w', `${paperWidthIn()}in`)
+  $('ov-scale').textContent = `แสดงขนาดจริง 100% · ${paperWidthIn()} × 5.5 นิ้ว`
 }
 
 function restorePrintSettings(): void {
   select('ov-paper').value = localStorage.getItem(PAPER_KEY) ?? '9'
-  input('ov-page-trim').value = localStorage.getItem(TRIM_KEY) ?? '0'
   applyPaperChoice()
   let m = defaultMargins(paperWidthIn())
   try {
@@ -461,7 +439,7 @@ async function doPrint(): Promise<void> {
       copies: parseInt(input('ov-copies').value, 10) || 1,
       landscape: false,
       pageCount: $('order-print-area').querySelectorAll('.ot-sheet').length,
-      pageSize: { widthIn: paperWidthIn(), heightIn: pageHeightIn() },
+      pageSize: { widthIn: paperWidthIn(), heightIn: 5.5 },
       defaultFileName: 'ใบสั่งสินค้า.pdf',
       // Only this document asks for a zero edge: the LQ-310 continuous form is
       // defined in the driver with margin 0.00 on all sides, and each .ot-sheet
@@ -469,7 +447,7 @@ async function doPrint(): Promise<void> {
       margins: { marginType: 'none' },
       // margin:0 here — the 0.2/0.5in edges live as padding on each .ot-sheet so
       // they repeat on every page (container padding only pads first/last page).
-      pageCss: `@media print{@page{size:${paperWidthIn()}in ${pageHeightIn()}in;margin:0;}}`
+      pageCss: `@media print{@page{size:${paperWidthIn()}in 5.5in;margin:0;}}`
     })
     if (res.ok) {
       closePreview()
@@ -689,11 +667,6 @@ export function initOrders(): void {
   ;['ov-m-top', 'ov-m-right', 'ov-m-bottom', 'ov-m-left'].forEach((id) =>
     input(id).addEventListener('input', applyMargins)
   )
-  input('ov-page-trim').addEventListener('input', () => {
-    localStorage.setItem(TRIM_KEY, input('ov-page-trim').value)
-    applyPaperChoice()
-    applyMargins()
-  })
   $('ov-m-reset').addEventListener('click', () => {
     writeMarginInputs(defaultMargins(paperWidthIn()))
     applyMargins()
