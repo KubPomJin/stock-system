@@ -1289,6 +1289,32 @@
             </div>
           </div>
         </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>นำเข้ารายการสินค้าจากระบบเดิม (4POS)</h2><span class="panel-head-sub">เติมสินค้าที่ยังไม่มีจากไฟล์ Excel &mdash; เลือกได้ว่าจะตั้งยอดคงเหลือตามไฟล์ด้วยหรือไม่</span></div>
+          <div style="padding:18px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+              <button class="btn" id="btn-pick-catalog"><i class="ti ti-file-spreadsheet"></i>เลือกไฟล์ .xls / .xlsx</button>
+              <span class="field-hint" style="margin:0;" id="catalog-file-name"></span>
+            </div>
+            <div class="field-hint" style="margin:0 0 14px;line-height:1.7;">
+              ใช้ไฟล์ <b>&ldquo;รายงานสินค้าคงคลัง&rdquo;</b> ที่ส่งออกจาก 4POS ได้เลย ไม่ต้องแปลงไฟล์ก่อน<br>
+              จับคู่ด้วย<b>บาร์โค้ด</b> &middot; บาร์โค้ดที่มีอยู่แล้ว <b>ชื่อ ราคา ทุน หน่วย ไม่ถูกแตะ</b> &middot; เพิ่มเฉพาะตัวที่ยังไม่มี<br>
+              ถ้าติ๊ก &ldquo;นำเข้ายอดคงเหลือ&rdquo; <b>ยอดของสถานที่ที่เลือกจะถูกตั้งให้เท่ากับไฟล์</b> (ยอดเดิมถูกทับ)<br>
+              นำเข้าไฟล์เดิมซ้ำได้ ไม่เกิดของซ้ำ
+            </div>
+
+            <div id="catalog-preview" style="display:none;"></div>
+
+            <div class="panel" style="margin:16px 0 0;">
+              <div class="panel-head"><h2>ประวัติการนำเข้า</h2></div>
+              <div class="table-scroll"><table>
+                <thead><tr><th>เวลา</th><th>ไฟล์</th><th class="num">ในไฟล์</th><th class="num">เพิ่มใหม่</th><th class="num">มีอยู่แล้ว</th><th>ยอดคงเหลือ</th><th>ผู้นำเข้า</th></tr></thead>
+                <tbody id="catalog-history-body"></tbody>
+              </table></div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -1352,10 +1378,10 @@
         <div><label>ราคาขายหน้าร้าน</label><input type="number" id="new-product-price-retail" step="0.01"></div>
       </div>
       <div class="field-row c2">
-        <div><label>ราคาช่าง</label><input type="number" id="new-product-price-tradesman" step="0.01"></div>
-        <div><label>ราคาส่ง</label><input type="number" id="new-product-price-wholesale" step="0.01"></div>
+        <div><label>ราคาเพิ่มเติม 1</label><input type="number" id="new-product-price-tradesman" step="0.01"></div>
+        <div><label>ราคาเพิ่มเติม 2</label><input type="number" id="new-product-price-wholesale" step="0.01"></div>
       </div>
-      <div class="field-hint">ทุกราคาคิดต่อหน่วยฐาน — ราคาช่าง/ราคาส่งจะไม่แสดงให้พนักงานเห็น</div>
+      <div class="field-hint">ทุกราคาคิดต่อหน่วยฐาน · ราคาเพิ่มเติม 1 และ 2 คือ Price_2 / Price_5 ที่ยกมาจาก 4POS ซึ่งยังไม่ยืนยันว่าเป็นราคาช่างหรือราคาส่ง — พนักงานไม่เห็นทั้งคู่</div>
     </fieldset>
   </div>
   <div class="slideover-foot">

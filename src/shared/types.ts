@@ -282,6 +282,38 @@ export interface ZoneSearchHit extends ZoneProductView {
 }
 
 // Typed surface of window.api exposed by the preload script.
+// ---- นำเข้ารายการสินค้าจากระบบเดิม (4POS) ---------------------------------
+
+export interface CatalogPreview {
+  filePath: string
+  fileName: string
+  rowCount: number
+  addedCount: number      // บาร์โค้ดที่ยังไม่มี — จะถูกเพิ่ม
+  existingCount: number   // บาร์โค้ดที่มีอยู่แล้ว — จะไม่แตะ
+  newCategories: string[]
+  newUnits: string[]
+  withStockCount: number  // จำนวนรายการในไฟล์ที่มียอดคงเหลือไม่เป็นศูนย์
+  locations: { id: number; name: string }[]  // ให้เลือกว่าจะลงยอดที่ไหน
+  // บาร์โค้ดที่ตรงกันทั้งสองฝั่ง พร้อมชื่อของทั้งคู่ — บาร์โค้ดตรงไม่ได้แปลว่า
+  // เป็นสินค้าตัวเดียวกันเสมอ ต้องให้คนดูก่อน
+  matches: { barcode: string; mine: string; theirs: string; qty: number }[]
+  problems: string[]
+  lastImportedAt: string | null
+}
+
+export interface CatalogImportView {
+  id: number
+  fileName: string
+  rowCount: number
+  addedCount: number
+  existingCount: number
+  stockRows: number
+  withStock: boolean
+  locationName: string | null
+  importedAt: string
+  userName: string | null
+}
+
 export interface Api {
   auth: {
     login(username: string, password: string): Promise<SessionUser>
@@ -346,6 +378,15 @@ export interface Api {
     pickBatch(): Promise<{ canceled: boolean; preview?: BillBatchPreview }>
     apply(filePath: string): Promise<{ imported: number; skipped: number; created: number }>
     history(): Promise<BillImportView[]>
+  }
+  catalog: {
+    pickFile(): Promise<{ canceled: boolean; preview?: CatalogPreview }>
+    apply(payload: { filePath: string; withStock: boolean; locationId: number }): Promise<{
+      added: number
+      skipped: number
+      stockRows: number
+    }>
+    history(): Promise<CatalogImportView[]>
   }
   print: {
     listPrinters(): Promise<PrinterInfo[]>

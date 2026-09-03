@@ -108,8 +108,8 @@ const OPTIONAL_COLS: { key: string; label: string; minLevel?: number }[] = [
   { key: 'unitBreakdown', label: 'แยกตามหน่วย (จำนวน + ราคา)' },
   { key: 'cost', label: 'ต้นทุน', minLevel: 2 },
   { key: 'retail', label: 'ราคาขายหน้าร้าน' },
-  { key: 'tradesman', label: 'ราคาช่าง', minLevel: 2 },
-  { key: 'wholesale', label: 'ราคาส่ง', minLevel: 2 },
+  { key: 'tradesman', label: 'ราคาเพิ่มเติม 1', minLevel: 2 },
+  { key: 'wholesale', label: 'ราคาเพิ่มเติม 2', minLevel: 2 },
   { key: 'status', label: 'สถานะ' }
 ]
 
@@ -244,12 +244,15 @@ export function renderProducts(): void {
   add(colOn('zone', lvl), `<th>โซน</th>`)
   add(colOn('category', lvl), `<th>หมวดหมู่</th>`)
   add(colOn('unit', lvl), `<th>หน่วยฐาน</th>`)
-  add(colOn('stock', lvl), `<th>สต๊อก (คลัง / หน้าร้าน)</th>`)
+  // Location names come from the table, not a fixed string — the shop gained a
+  // third location when the 4POS balances were carried over, and a hard-coded
+  // "(คลัง / หน้าร้าน)" would then be describing columns that are not there.
+  add(colOn("stock", lvl), `<th>สต๊อก (${esc(state.locations.map((l) => l.short).join(" / "))})</th>`)
   add(colOn('unitBreakdown', lvl), `<th>แยกตามหน่วย</th>`)
   add(colOn('cost', lvl), `<th class="num">ต้นทุน/หน่วยฐาน</th>`)
   add(colOn('retail', lvl), `<th class="num">ราคาขายหน้าร้าน</th>`)
-  add(colOn('tradesman', lvl), `<th class="num">ราคาช่าง</th>`)
-  add(colOn('wholesale', lvl), `<th class="num">ราคาส่ง</th>`)
+  add(colOn("tradesman", lvl), `<th class="num">ราคาเพิ่มเติม 1</th>`)
+  add(colOn("wholesale", lvl), `<th class="num">ราคาเพิ่มเติม 2</th>`)
   add(colOn('status', lvl), `<th>สถานะ</th>`)
   if (showAction) {
     head += `<th></th>`

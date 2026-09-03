@@ -252,6 +252,33 @@ function runMigrations(): void {
     d.exec('ALTER TABLE products ADD COLUMN barcode_pending INTEGER NOT NULL DEFAULT 0')
   }
 
+  // ---- Catalogue import from the old POS (v1.5.5) ------------------------
+  // The shop still runs Real 4POS alongside StockKeep, so its product list
+  // keeps growing. One row per spreadsheet imported, purely as a record of
+  // what was brought in and when — the import itself is safe to repeat
+  // because it only ever ADDS barcodes that are not here yet.
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS catalog_imports (
+      id INTEGER PRIMARY KEY,
+      file_name TEXT,
+      file_path TEXT,
+      row_count INTEGER NOT NULL DEFAULT 0,
+      added_count INTEGER NOT NULL DEFAULT 0,
+      existing_count INTEGER NOT NULL DEFAULT 0,
+      stock_rows INTEGER NOT NULL DEFAULT 0,
+      with_stock INTEGER NOT NULL DEFAULT 0,
+      location_id INTEGER REFERENCES locations(id),
+      imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      imported_by INTEGER REFERENCES users(id)
+    );
+  `)
+  // location_id came a little after the table itself, while the feature was
+  // still being built — add it where the table already exists.
+  const catalogCols = (d.prepare('PRAGMA table_info(catalog_imports)').all() as { name: string }[]).map((c) => c.name)
+  if (!catalogCols.includes('location_id')) {
+    d.exec('ALTER TABLE catalog_imports ADD COLUMN location_id INTEGER REFERENCES locations(id)')
+  }
+
   // ---- Order tickets / ใบสั่งสินค้า (v1.3.0) ------------------------------
   // Printable customer order form (9 x 5.5 in continuous paper), replacing the
   // old Google Sheets + Apps Script setup.

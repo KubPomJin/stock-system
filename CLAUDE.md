@@ -1,6 +1,6 @@
 # CLAUDE.md — StockKeep (ระบบจัดการสต๊อกสินค้า)
 
-> สถานะ: โปรแกรมนี้ **สร้างเสร็จและใช้งานจริงแล้ว** (ปัจจุบัน v1.5.3) — ไฟล์นี้อธิบาย
+> สถานะ: โปรแกรมนี้ **สร้างเสร็จและใช้งานจริงแล้ว** (ปัจจุบัน v1.5.5) — ไฟล์นี้อธิบาย
 > โครงสร้างและการทำงานจริงของระบบ ณ ปัจจุบัน (ไม่ใช่เอกสารช่วงออกแบบแล้ว)
 > ใช้เป็น context เมื่อจะแก้ StockKeep ต่อ หรือสร้าง **โปรแกรมใหม่ที่เชื่อมโยงกับข้อมูลของ StockKeep**
 > โครงสร้างฐานข้อมูลปัจจุบันทั้งหมดอยู่ใน `schema.sql` (ในโฟลเดอร์นี้)
@@ -55,6 +55,9 @@ stock-system/
 │   │       ├── exchange.ts        # เชื่อมกับ BillKeep (ส่งออกสินค้า / นำเข้าผลปิดวัน)
 │   │       ├── users.ts           # จัดการผู้ใช้ (admin)
 │   │       ├── zones.ts           # ผังโกดัง + ค้นหาที่เก็บสินค้า (ไม่แตะ ledger)
+│   │       ├── orders.ts          # ใบสั่งสินค้า + เลขรันต่อเล่ม (order_counters)
+│   │       ├── print.ts           # สั่งพิมพ์ / printToPDF / รายชื่อเครื่องพิมพ์
+│   │       ├── catalog.ts         # นำเข้ารายการสินค้าจาก Excel ของ 4POS
 │   │       └── backup.ts          # export / import ฐานข้อมูล (dialog)
 │   ├── preload/index.ts           # contextBridge — expose window.api (typed)
 │   ├── renderer/
@@ -63,7 +66,8 @@ stock-system/
 │   │       ├── main.ts            # nav (role-aware), login flow, refreshData()
 │   │       ├── state.ts, format.ts, ui.ts
 │   │       └── views/             # dashboard, products, receiving, stocktake,
-│   │                              #   transfer, history, users
+│   │                              #   transfer, history, zones, orders,
+│   │                              #   exchange, catalog, users
 │   └── shared/types.ts            # types ใช้ร่วม main + renderer (รวม Api surface)
 ├── schema.sql                     # โครงสร้าง DB ปัจจุบันทั้งหมด (ไฟล์อ้างอิงนี้)
 ├── CHANGELOG.md
@@ -85,7 +89,8 @@ stock-system/
 
 ตารางหลัก: `categories`, `units`, `suppliers`, `locations`, `products`, `product_units`,
 `stock_movements`, `stock_receiving(+_lines)`, `stocktake_sessions(+ _lines)`,
-`bill_imports`, `roles`, `users`, `price_tiers`, `product_prices`, `zones`, `product_zones`
+`bill_imports`, `catalog_imports`, `roles`, `users`, `price_tiers`, `product_prices`,
+`zones`, `product_zones`, `order_docs(+ _lines)`, `order_counters`
 Views: `current_stock`, `low_stock_alert`
 
 **หัวใจ 3 อย่างที่ต้องไม่พลาด:**
@@ -109,7 +114,7 @@ Views: `current_stock`, `low_stock_alert`
 | ประวัติสต๊อก | stock_manager | แท็บ "รอบการตรวจนับ" (แต่ละรอบเก็บรายการที่นับครบ + 2 เวลา + ดูรายการ) และ "การเคลื่อนไหวทั้งหมด" (ledger) |
 | เชื่อมระบบบิล | stock_manager | นำเข้าไฟล์ปิดวันจาก BillKeep → ISSUE movements + สร้างสินค้าใหม่ (บาร์โค้ดชั่วคราว), ส่งออกรายการสินค้าเป็น .json, ประวัติการนำเข้า |
 | ผังโกดัง | staff | ค้นหาสินค้าว่าอยู่โซนไหน + ผังกดได้โชว์รายการในโซนนั้น (เพิ่ม/เอาออกจากโซนต้อง lvl 2+) |
-| ผู้ใช้งาน | admin | จัดการผู้ใช้ + สำรอง/กู้คืนฐานข้อมูล (export/import .db) |
+| ผู้ใช้งาน | admin | จัดการผู้ใช้ + สำรอง/กู้คืนฐานข้อมูล (export/import .db) + **นำเข้ารายการสินค้าจาก 4POS** |
 
 **การตรวจนับ (สำคัญ):** ทุกครั้งที่บันทึก = 1 รอบ (session) เก็บ **ทุกรายการที่นับ** ลง `stocktake_lines`
 (แม้ตรงกับระบบ) + เก็บ 2 เวลา: `count_date`/`count_time` = เวลาที่คนนับ, `created_at` = เวลาที่บันทึกเข้าระบบ
@@ -121,7 +126,13 @@ Views: `current_stock`, `low_stock_alert`
 
 ## 6. สิ่งที่ตัดสินใจไว้ (อย่าเปลี่ยนโดยไม่ถาม)
 
-- ไม่มี import CSV (พิมพ์มือทีละรายการ)
+- **นำเข้ารายการสินค้าจากไฟล์ Excel ของ 4POS ได้** (v1.5.5, หน้าผู้ใช้งาน) — เดิมตั้งใจไม่ทำ import
+  ให้พิมพ์มือทีละรายการ แต่ไฟล์จริงมี 4,660 รายการ และ 4POS ยังใช้งานอยู่ เจ้าของร้านขอเอง
+  · รับทั้ง `.xls` (4POS ส่งออกมาแบบนี้) และ `.xlsx` ผ่าน SheetJS — dependency ตัวเดียวที่เพิ่มมา
+  · จับคู่ด้วย**บาร์โค้ด**เท่านั้น · **ชื่อ/ราคา/ทุน/หน่วย ของที่มีอยู่แล้วห้ามทับ** (ที่คนแก้ไว้เองต้องไม่หาย)
+  · **ยอดคงเหลือเป็นตัวเลือก** ติ๊กแล้วเลือกสถานที่ → ตั้งยอดให้เท่ากับไฟล์ (ยอดเดิมถูกทับ)
+    แต่ลงเป็น movement ตามส่วนต่างเสมอ **ไม่มี UPDATE ยอด** · สินค้าที่ไม่มีในไฟล์ไม่ถูกแตะ
+  · นำเข้าไฟล์เดิมซ้ำแล้วยอดไม่บวกทบ เพราะคิดเป็นส่วนต่าง
 - สต๊อกเป็น ledger เสมอ, ทุกอย่างหน่วยฐาน, กรองราคาที่ main process
 - UI ไทย / โค้ดอังกฤษ, standalone
 - migration เพิ่มตาราง/คอลัมน์ใหม่ทำใน `runMigrations()` แบบ idempotent (ห้ามพึ่ง `schema.sql` เพราะรันแค่ตอน DB ใหม่)

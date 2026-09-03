@@ -79,6 +79,11 @@ const api: Api = {
     unassign: (payload) => call('zones:unassign', payload),
     setNote: (payload) => call('zones:setNote', payload)
   },
+  catalog: {
+    pickFile: () => call('catalog:pickFile'),
+    apply: (payload) => call('catalog:apply', payload),
+    history: () => call('catalog:history')
+  },
   orders: {
     nextNumber: (bookType) => call('orders:nextNumber', bookType),
     reserveNumbers: (payload) => call('orders:reserveNumbers', payload),

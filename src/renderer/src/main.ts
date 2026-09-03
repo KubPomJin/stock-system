@@ -23,6 +23,7 @@ import {
 } from './views/orders'
 import { initUsers, renderUsersView } from './views/users'
 import { initZones, renderZonesView } from './views/zones'
+import { initCatalog, renderCatalogHistory } from './views/catalog'
 
 /* ---------- navigation (role-aware) ---------- */
 
@@ -71,7 +72,10 @@ function switchView(view: string): void {
   const item = NAV_ITEMS.find((n) => n.view === view)
   $('view-title').textContent = item ? item.label : ''
   closeSidebarDrawer()
-  if (view === 'users') void renderUsersView()
+  if (view === 'users') {
+    void renderUsersView()
+    void renderCatalogHistory()
+  }
   if (view === 'history') void renderHistory()
   if (view === 'exchange') void renderImportHistory()
   if (view === 'orders') void renderOrderHistory()
@@ -199,6 +203,7 @@ function bootstrap(): void {
   initOrders()
   initZones()
   initUsers()
+  initCatalog(refreshData)
 
   input('login-username').focus()
 }

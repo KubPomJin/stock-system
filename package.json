@@ -1,7 +1,7 @@
 {
   "name": "stockkeep",
   "productName": "StockKeep",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "ระบบจัดการสต๊อกสินค้า — Stock Management System",
   "main": "./out/main/index.js",
   "private": true,
@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^11.10.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@tabler/icons-webfont": "^2.47.0",

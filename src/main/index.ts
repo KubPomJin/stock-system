@@ -12,6 +12,7 @@ import { registerExchangeHandlers } from './ipc/exchange'
 import { registerOrderHandlers } from './ipc/orders'
 import { registerPrintHandlers } from './ipc/print'
 import { registerZoneHandlers } from './ipc/zones'
+import { registerCatalogHandlers } from './ipc/catalog'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
@@ -66,6 +67,7 @@ if (!gotLock) {
     registerOrderHandlers()
     registerPrintHandlers()
     registerZoneHandlers()
+    registerCatalogHandlers()
     createWindow()
 
     app.on('activate', () => {
