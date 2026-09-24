@@ -34,6 +34,28 @@ function validateBookType(bookType: string): string {
   return t
 }
 
+export { BOOK_TYPES, yearPart, counterKey, readCounter, formatDocNumber }
+
+// Keep the counter in step with whatever number was actually used, even when
+// it was typed by hand — so the next suggestion continues correctly instead of
+// handing back a number already printed on paper. Shared with sales.ts, which
+// keys in tickets that were printed blank and filled in by hand.
+export function syncCounterWithUsedNumber(bookType: string, docNumber: string): void {
+  const yy = yearPart()
+  const match = docNumber.match(new RegExp(`^${bookType}${yy}-(\\d{1,5})$`))
+  if (!match) return
+  const used = Number(match[1])
+  const key = counterKey(bookType, yy)
+  if (used > readCounter(key)) {
+    getDb()
+      .prepare(
+        `INSERT INTO order_counters (key, counter) VALUES (?, ?)
+         ON CONFLICT(key) DO UPDATE SET counter = excluded.counter`
+      )
+      .run(key, used)
+  }
+}
+
 export function registerOrderHandlers(): void {
   // Suggest the next number WITHOUT consuming it — the number is only locked in
   // when the ticket is saved, so previewing a book never burns a number.
@@ -149,21 +171,7 @@ export function registerOrderHandlers(): void {
         )
       })
 
-      // Keep the counter in step with whatever number was actually used, even
-      // when it was typed by hand — so the next suggestion continues correctly
-      // instead of handing back a number already printed on paper.
-      const yy = yearPart()
-      const match = docNumber.match(new RegExp(`^${bookType}${yy}-(\\d{1,5})$`))
-      if (match) {
-        const used = Number(match[1])
-        const key = counterKey(bookType, yy)
-        if (used > readCounter(key)) {
-          db.prepare(
-            `INSERT INTO order_counters (key, counter) VALUES (?, ?)
-             ON CONFLICT(key) DO UPDATE SET counter = excluded.counter`
-          ).run(key, used)
-        }
-      }
+      syncCounterWithUsedNumber(bookType, docNumber)
 
       return { id: orderId, docNumber }
     })
@@ -193,7 +201,8 @@ export function registerOrderHandlers(): void {
                 o.subtotal, o.delivery_fee AS deliveryFee, o.grand_total AS grandTotal,
                 o.created_at      AS createdAt,
                 u.display_name    AS userName,
-                (SELECT COUNT(*) FROM order_doc_lines l WHERE l.order_id = o.id) AS lineCount
+                (SELECT COUNT(*) FROM order_doc_lines l WHERE l.order_id = o.id) AS lineCount,
+                o.voided
          FROM order_docs o
          LEFT JOIN users u ON u.id = o.created_by
          ORDER BY o.id DESC

@@ -378,6 +378,75 @@ function runMigrations(): void {
 
   seedZoneLayout()
   migrateZoneLayout()
+
+  migrateSales()
+}
+
+// ---------------------------------------------------------------------------
+// ขายหน้าร้าน / POS (v1.6.0)
+// ---------------------------------------------------------------------------
+// A sale IS a keyed-in order ticket: the paper form the shop writes by hand
+// (A69-0001) is typed into order_docs, so the ticket number stays the one key
+// that links paper and system. Money only — sales deliberately do NOT post
+// stock movements; stock is still corrected by the daily count (owner's call).
+//
+// Cash / transfer / credit split is derived from payment_method + grand_total
+// in SQL (see sales.ts) instead of being stored, so it can never drift from
+// the bill it describes. Only facts that can't be derived are stored here.
+function migrateSales(): void {
+  const d = getDb()
+
+  const cols = (d.prepare('PRAGMA table_info(order_docs)').all() as { name: string }[]).map((c) => c.name)
+  const add = (name: string, ddl: string): void => {
+    if (!cols.includes(name)) d.exec(`ALTER TABLE order_docs ADD COLUMN ${name} ${ddl}`)
+  }
+  // Transfer check against the bank statement. NULL on a bill that carries a
+  // transfer means "not checked yet" (= PENDING).
+  add('transfer_status', 'TEXT')
+  add('transfer_verified_at', 'TEXT')
+  add('transfer_verified_by', 'INTEGER REFERENCES users(id)')
+  add('transfer_note', 'TEXT')
+  // Voiding keeps the row — a spoiled paper ticket still has to be accounted
+  // for when the owner checks the book for missing numbers.
+  add('voided', 'INTEGER NOT NULL DEFAULT 0')
+  add('void_reason', 'TEXT')
+  add('voided_at', 'TEXT')
+  add('voided_by', 'INTEGER REFERENCES users(id)')
+  add('updated_at', 'TEXT')
+  add('updated_by', 'INTEGER REFERENCES users(id)')
+
+  d.exec('CREATE INDEX IF NOT EXISTS idx_order_docs_date ON order_docs(doc_date);')
+  d.exec('CREATE INDEX IF NOT EXISTS idx_order_doc_lines_order ON order_doc_lines(order_id);')
+
+  // One cash-up per day. The day's figures are SNAPSHOTTED at save time so the
+  // printed A4 sheet can be compared against the live figures later — if a
+  // bill is added or edited after closing, the page shows that it changed.
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS cash_closes (
+      id INTEGER PRIMARY KEY,
+      close_date TEXT NOT NULL UNIQUE,
+      opening_float REAL NOT NULL DEFAULT 0,
+      cash_in_other REAL NOT NULL DEFAULT 0,
+      cash_out REAL NOT NULL DEFAULT 0,
+      adjust_note TEXT,
+      counts_json TEXT,
+      coins_other REAL NOT NULL DEFAULT 0,
+      counted_total REAL NOT NULL DEFAULT 0,
+      bill_count INTEGER NOT NULL DEFAULT 0,
+      grand_total REAL NOT NULL DEFAULT 0,
+      cash_total REAL NOT NULL DEFAULT 0,
+      transfer_total REAL NOT NULL DEFAULT 0,
+      credit_total REAL NOT NULL DEFAULT 0,
+      expected_cash REAL NOT NULL DEFAULT 0,
+      difference REAL NOT NULL DEFAULT 0,
+      note TEXT,
+      closed_by INTEGER REFERENCES users(id),
+      closed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      owner_checked_by INTEGER REFERENCES users(id),
+      owner_checked_at TEXT,
+      owner_note TEXT
+    );
+  `)
 }
 
 // The floor plan the owner drew, oriented the way it is actually seen when

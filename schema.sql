@@ -282,6 +282,102 @@ GROUP BY p.id
 HAVING qty_on_hand_base < p.min_stock;
 
 -- ----------------------------------------------------------------------------
+-- Order tickets (ใบสั่งสินค้า) + front-counter sales  [added via migration]
+-- ----------------------------------------------------------------------------
+-- order_docs was added in v1.3.0 for printing the paper order form. Since
+-- v1.6.0 every keyed-in SALE is also an order_docs row: the number printed on
+-- the hand-written ticket (A69-0012) is the key between paper and system.
+-- Sales are MONEY ONLY — they never post stock_movements (owner's decision).
+-- Cash / transfer / credit amounts are derived in SQL from payment_method +
+-- grand_total (see src/main/ipc/sales.ts), not stored.
+
+CREATE TABLE order_docs (
+    id INTEGER PRIMARY KEY,
+    doc_number TEXT NOT NULL UNIQUE,   -- 'A69-0012' (book letter + BE year + running no.)
+    book_type TEXT,                    -- 'A' | 'B' | 'C' | 'D'
+    doc_date TEXT,                     -- date on the ticket (YYYY-MM-DD) = the sales day
+    doc_time TEXT,                     -- 'HH:MM'
+    customer_code TEXT,
+    customer_name TEXT,
+    customer_contact TEXT,             -- ที่อยู่ / โทร
+    delivery_method TEXT,              -- 'DELIVER' | 'PICKUP'
+    vehicle_plate TEXT,
+    payment_method TEXT,               -- 'CASH' | 'TRANSFER' | 'MIXED' | 'CREDIT' (MIXED since v1.6.0)
+    cash_received REAL,
+    cash_change REAL,
+    transfer_amount REAL,              -- MIXED: the transferred part; TRANSFER: the whole bill
+    transfer_ref TEXT,                 -- account / reference written on the ticket
+    note TEXT,
+    subtotal REAL NOT NULL DEFAULT 0,
+    delivery_fee REAL NOT NULL DEFAULT 0,
+    grand_total REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by INTEGER REFERENCES users(id),
+    -- v1.6.0: bank-statement check. NULL on a bill that has a transfer = PENDING.
+    transfer_status TEXT,              -- 'PENDING' | 'VERIFIED' | 'NOT_FOUND'
+    transfer_verified_at TEXT,
+    transfer_verified_by INTEGER REFERENCES users(id),
+    transfer_note TEXT,
+    -- v1.6.0: a voided ticket stays on record (the paper still has to be accounted for)
+    voided INTEGER NOT NULL DEFAULT 0,
+    void_reason TEXT,
+    voided_at TEXT,
+    voided_by INTEGER REFERENCES users(id),
+    updated_at TEXT,
+    updated_by INTEGER REFERENCES users(id)
+);
+CREATE INDEX idx_order_docs_date ON order_docs(doc_date);
+
+-- Lines mirror the paper columns. product_id is NULL for free-text items.
+CREATE TABLE order_doc_lines (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES order_docs(id),
+    line_no INTEGER NOT NULL,
+    product_id INTEGER REFERENCES products(id),
+    description TEXT NOT NULL,
+    location_name TEXT,
+    qty REAL,
+    unit_name TEXT,                    -- the unit it was SOLD in (not converted to base)
+    unit_price REAL,
+    amount REAL
+);
+CREATE INDEX idx_order_doc_lines_order ON order_doc_lines(order_id);
+
+-- Last number handed out per book per BE year: key 'A-69' -> counter 12.
+CREATE TABLE order_counters (
+    key TEXT PRIMARY KEY,
+    counter INTEGER NOT NULL DEFAULT 0
+);
+
+-- One daily cash-up per date (v1.6.0). The day's totals are a SNAPSHOT taken
+-- at save time, so a bill changed afterwards shows up as a mismatch.
+-- owner_checked_at set = the owner signed the day off and its bills are locked.
+CREATE TABLE cash_closes (
+    id INTEGER PRIMARY KEY,
+    close_date TEXT NOT NULL UNIQUE,
+    opening_float REAL NOT NULL DEFAULT 0,   -- เงินทอนตั้งต้น
+    cash_in_other REAL NOT NULL DEFAULT 0,   -- เงินเข้าอื่นๆ
+    cash_out REAL NOT NULL DEFAULT 0,        -- จ่ายออกจากลิ้นชัก
+    adjust_note TEXT,
+    counts_json TEXT,                        -- {"1000":3,"500":2,...} banknotes/coins counted
+    coins_other REAL NOT NULL DEFAULT 0,     -- เศษสตางค์ / อื่นๆ (baht)
+    counted_total REAL NOT NULL DEFAULT 0,
+    bill_count INTEGER NOT NULL DEFAULT 0,   -- snapshot
+    grand_total REAL NOT NULL DEFAULT 0,     -- snapshot
+    cash_total REAL NOT NULL DEFAULT 0,      -- snapshot
+    transfer_total REAL NOT NULL DEFAULT 0,  -- snapshot
+    credit_total REAL NOT NULL DEFAULT 0,    -- snapshot
+    expected_cash REAL NOT NULL DEFAULT 0,   -- float + cash sales + in - out
+    difference REAL NOT NULL DEFAULT 0,      -- counted - expected (+ over / - short)
+    note TEXT,
+    closed_by INTEGER REFERENCES users(id),
+    closed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    owner_checked_by INTEGER REFERENCES users(id),
+    owner_checked_at TEXT,
+    owner_note TEXT
+);
+
+-- ----------------------------------------------------------------------------
 -- Trigger
 -- ----------------------------------------------------------------------------
 

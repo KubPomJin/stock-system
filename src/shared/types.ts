@@ -427,6 +427,190 @@ export interface Api {
     list(): Promise<OrderDocView[]>
     get(id: number): Promise<{ doc: OrderDocView; lines: OrderLineView[] }>
   }
+  sales: {
+    nextNumbers(): Promise<BookNextNumber[]>
+    list(filter: SaleFilter): Promise<SaleView[]>
+    get(id: number): Promise<{ sale: SaleView; lines: SaleLineView[] }>
+    save(payload: SalePayload): Promise<{ id: number; docNumber: string }>
+    void(payload: { id: number; reason: string }): Promise<void>
+    restore(id: number): Promise<void>
+    transfers(filter: SaleFilter): Promise<SaleView[]>
+    setTransferStatus(payload: { ids: number[]; status: TransferStatus; note: string }): Promise<{ changed: number }>
+    day(date: string): Promise<DaySummary>
+    saveClose(payload: CashClosePayload): Promise<CashCloseView>
+    ownerCheck(payload: { date: string; checked: boolean; note: string }): Promise<void>
+    years(): Promise<number[]>
+    monthly(year: number): Promise<MonthlyRow[]>
+    topProducts(payload: { dateFrom: string; dateTo: string; limit?: number }): Promise<ProductSalesRow[]>
+    productTrend(payload: { year: number; key: string }): Promise<ProductTrendRow[]>
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ขายหน้าร้าน / POS (v1.6.0) — a sale is a keyed-in order ticket (order_docs)
+// ---------------------------------------------------------------------------
+
+// MIXED = part cash, part transfer on the same ticket (common at the counter).
+export type SalePayMethod = 'CASH' | 'TRANSFER' | 'MIXED' | 'CREDIT'
+// PENDING = not yet seen in the bank statement.
+export type TransferStatus = 'PENDING' | 'VERIFIED' | 'NOT_FOUND'
+
+export interface BookNextNumber {
+  book: string // 'A'
+  next: string // next number not yet keyed, e.g. 'A69-0013'
+  lastKeyed: string | null
+  lastPrinted: string | null // highest number handed out on printed blank forms
+}
+
+export interface SaleLinePayload {
+  productId: number | null // null = free text, not in the catalogue
+  description: string
+  qty: number
+  unitName: string
+  unitPrice: number
+}
+
+export interface SalePayload {
+  id?: number // set = edit an existing bill
+  docNumber: string
+  docDate: string
+  docTime: string
+  customerName: string
+  customerContact: string
+  paymentMethod: SalePayMethod
+  cashReceived: number | null
+  transferAmount: number | null // only read for MIXED; TRANSFER = the whole bill
+  transferRef: string
+  deliveryFee: number
+  note: string
+  lines: SaleLinePayload[]
+}
+
+export interface SaleView {
+  id: number
+  docNumber: string
+  bookType: string | null
+  docDate: string // falls back to the save date for old tickets without one
+  docTime: string | null
+  customerName: string | null
+  customerContact: string | null
+  paymentMethod: string | null // null/'' on tickets filled from the old order page
+  cashReceived: number | null
+  cashChange: number | null
+  cashAmount: number // cash part of the bill
+  transferAmount: number // transfer part of the bill
+  creditAmount: number // not paid yet
+  transferRef: string | null
+  transferStatus: TransferStatus | null // null = bill has no transfer
+  transferVerifiedAt: string | null
+  transferVerifiedBy: string | null
+  transferNote: string | null
+  subtotal: number
+  deliveryFee: number
+  grandTotal: number
+  note: string | null
+  voided: boolean
+  voidReason: string | null
+  lineCount: number
+  createdAt: string
+  createdBy: string | null
+  updatedAt: string | null
+}
+
+export interface SaleLineView {
+  lineNo: number
+  productId: number | null
+  description: string
+  qty: number | null
+  unitName: string | null
+  unitPrice: number | null
+  amount: number | null
+}
+
+export interface SaleFilter {
+  dateFrom?: string
+  dateTo?: string
+  transferStatus?: TransferStatus | 'ALL'
+  includeVoided?: boolean
+  search?: string
+  limit?: number
+}
+
+// Banknote/coin face value -> how many were counted.
+export type CashCounts = Record<string, number>
+
+export interface CashClosePayload {
+  date: string
+  openingFloat: number // เงินทอนตั้งต้น
+  cashInOther: number // เงินเข้าอื่นๆ เช่น ลูกค้าเครดิตมาชำระ
+  cashOut: number // จ่ายออกจากลิ้นชัก
+  adjustNote: string
+  counts: CashCounts
+  coinsOther: number // เศษสตางค์ / อื่นๆ (บาท)
+  note: string
+}
+
+export interface CashCloseView extends CashClosePayload {
+  id: number
+  countedTotal: number
+  billCount: number
+  grandTotal: number
+  cashTotal: number
+  transferTotal: number
+  creditTotal: number
+  expectedCash: number
+  difference: number // counted − expected: + = เกิน, − = ขาด
+  closedBy: string | null
+  closedAt: string
+  ownerCheckedBy: string | null
+  ownerCheckedAt: string | null
+  ownerNote: string | null
+}
+
+export interface DaySummary {
+  date: string
+  billCount: number // excludes voided
+  voidCount: number
+  grandTotal: number
+  cashTotal: number
+  transferTotal: number
+  transferVerified: number
+  transferPending: number
+  transferNotFound: number
+  creditTotal: number
+  unspecifiedTotal: number // old tickets with no payment method
+  deliveryFeeTotal: number
+  sales: SaleView[] // every ticket of the day, voided included
+  gaps: { book: string; numbers: string[]; more: number }[]
+  close: CashCloseView | null
+  closeStale: boolean // bills changed after the cash-up was saved
+  locked: boolean // owner has checked the day — bills are read-only
+}
+
+export interface MonthlyRow {
+  month: number // 1-12
+  billCount: number
+  grandTotal: number
+  cashTotal: number
+  transferTotal: number
+  creditTotal: number
+}
+
+export interface ProductSalesRow {
+  key: string // 'p:<id>' for catalogue items, 't:<text>' for free text
+  productId: number | null
+  barcode: string | null
+  description: string
+  billCount: number
+  amount: number
+  qtyByUnit: { unit: string; qty: number }[]
+}
+
+export interface ProductTrendRow {
+  month: number
+  billCount: number
+  amount: number
+  qtyByUnit: { unit: string; qty: number }[]
 }
 
 // ---------------------------------------------------------------------------
@@ -491,6 +675,7 @@ export interface OrderDocView {
   createdAt: string
   userName: string | null
   lineCount: number
+  voided?: number // 1 = cancelled on the sales page (v1.6.0)
 }
 
 export interface OrderLineView {

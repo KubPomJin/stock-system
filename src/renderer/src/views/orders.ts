@@ -579,7 +579,7 @@ export async function renderOrderHistory(): Promise<void> {
     history
       .map(
         (o) => `<tr>
-      <td class="mono">${esc(o.docNumber)}</td>
+      <td class="mono">${esc(o.docNumber)}${o.voided ? ' <span class="badge danger">ยกเลิก</span>' : ''}</td>
       <td>${esc(thaiDateParts(o.docDate ?? ''))} ${esc(o.docTime ?? '')}</td>
       <td>${esc(o.customerName ?? '—')}</td>
       <td class="num">${o.lineCount}</td>

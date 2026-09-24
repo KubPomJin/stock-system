@@ -84,6 +84,23 @@ const api: Api = {
     apply: (payload) => call('catalog:apply', payload),
     history: () => call('catalog:history')
   },
+  sales: {
+    nextNumbers: () => call('sales:nextNumbers'),
+    list: (filter) => call('sales:list', filter),
+    get: (id) => call('sales:get', id),
+    save: (payload) => call('sales:save', payload),
+    void: (payload) => call('sales:void', payload),
+    restore: (id) => call('sales:restore', id),
+    transfers: (filter) => call('sales:transfers', filter),
+    setTransferStatus: (payload) => call('sales:setTransferStatus', payload),
+    day: (date) => call('sales:day', date),
+    saveClose: (payload) => call('sales:saveClose', payload),
+    ownerCheck: (payload) => call('sales:ownerCheck', payload),
+    years: () => call('sales:years'),
+    monthly: (year) => call('sales:monthly', year),
+    topProducts: (payload) => call('sales:topProducts', payload),
+    productTrend: (payload) => call('sales:productTrend', payload)
+  },
   orders: {
     nextNumber: (bookType) => call('orders:nextNumber', bookType),
     reserveNumbers: (payload) => call('orders:reserveNumbers', payload),

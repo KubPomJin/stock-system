@@ -24,6 +24,10 @@ import {
 import { initUsers, renderUsersView } from './views/users'
 import { initZones, renderZonesView } from './views/zones'
 import { initCatalog, renderCatalogHistory } from './views/catalog'
+import { initSales, renderSalesView } from './views/sales'
+import { initCashup, renderCashup } from './views/cashup'
+import { initTransfers, renderTransfers } from './views/transfers'
+import { initSalesReport, renderSalesReport } from './views/salesreport'
 
 /* ---------- navigation (role-aware) ---------- */
 
@@ -37,6 +41,10 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { view: 'dashboard', label: 'แดชบอร์ด', icon: 'ti-layout-dashboard', minRoleLevel: 1, group: 'ภาพรวม' },
+  { view: 'sales', label: 'คีย์บิลขาย', icon: 'ti-receipt', minRoleLevel: 1, group: 'ขายหน้าร้าน' },
+  { view: 'cashup', label: 'ปิดยอดประจำวัน', icon: 'ti-calculator', minRoleLevel: 1, group: 'ขายหน้าร้าน' },
+  { view: 'transfers', label: 'ตรวจยอดโอน', icon: 'ti-building-bank', minRoleLevel: 2, group: 'ขายหน้าร้าน' },
+  { view: 'salesreport', label: 'สรุปยอดขาย', icon: 'ti-chart-bar', minRoleLevel: 2, group: 'ขายหน้าร้าน' },
   { view: 'products', label: 'สินค้า', icon: 'ti-box', minRoleLevel: 1, group: 'คลังสินค้า' },
   { view: 'zones', label: 'ผังโกดัง', icon: 'ti-map-2', minRoleLevel: 1, group: 'คลังสินค้า' },
   { view: 'receiving', label: 'รับสินค้า', icon: 'ti-truck-delivery', minRoleLevel: 2, group: 'คลังสินค้า' },
@@ -80,6 +88,10 @@ function switchView(view: string): void {
   if (view === 'exchange') void renderImportHistory()
   if (view === 'orders') void renderOrderHistory()
   if (view === 'zones') void renderZonesView()
+  if (view === 'sales') void renderSalesView()
+  if (view === 'cashup') void renderCashup()
+  if (view === 'transfers') void renderTransfers()
+  if (view === 'salesreport') void renderSalesReport()
 }
 
 /* ---------- mobile sidebar drawer ---------- */
@@ -204,6 +216,10 @@ function bootstrap(): void {
   initZones()
   initUsers()
   initCatalog(refreshData)
+  initSales(switchView)
+  initCashup(switchView)
+  initTransfers()
+  initSalesReport()
 
   input('login-username').focus()
 }

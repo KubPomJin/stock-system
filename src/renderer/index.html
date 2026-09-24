@@ -739,6 +739,109 @@
   /* Print output keeps its own sizing — the design tokens above are screen-only. */
   #stocktake-print-area label,#order-print-area label{color:#000;}
 
+  /* ==========================================================================
+     ขายหน้าร้าน / POS (v1.6.0)
+     ========================================================================== */
+  .pos-doc-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;}
+  .pos-doc-row .seg{height:44px;}
+  .pos-doc-row .seg-btn{min-width:46px;font-size:16px;font-weight:800;}
+  #pos-doc{width:190px;font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:.5px;}
+  .pos-hint{font-size:13.5px;color:var(--text-secondary);margin-top:8px;min-height:19px;}
+  .pos-hint.bad{color:var(--danger);font-weight:700;}
+  table.pos-lines th{padding:10px 8px;}
+  table.pos-lines td{padding:6px 8px;vertical-align:top;border-bottom:1px solid #EEF1F2;}
+  table.pos-lines input{height:40px;}
+  .pos-lines .pl-no{width:40px;text-align:center;padding-top:16px !important;color:var(--text-secondary);font-weight:700;}
+  .pos-lines .pl-item-cell{min-width:320px;}
+  .pos-lines .pl-qty{width:96px;text-align:right;}
+  .pos-lines .pl-unit{width:104px;}
+  .pos-lines .pl-price{width:124px;text-align:right;}
+  .pos-lines td.pl-amount{width:124px;text-align:right;padding-top:16px !important;font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-weight:700;}
+  .pl-tag{font-size:12px;margin-top:3px;color:var(--text-secondary);text-decoration:none;}
+  .pl-tag.free{color:var(--warn);}
+  #pos-suggest{position:fixed;z-index:90;background:#fff;border:1px solid var(--border-input);border-radius:8px;
+    box-shadow:0 10px 26px rgba(20,24,26,.18);max-height:380px;overflow-y:auto;display:none;}
+  #pos-suggest.open{display:block;}
+  .ps-opt{padding:9px 12px;display:flex;gap:10px;align-items:baseline;cursor:pointer;border-bottom:1px solid #F0F2F3;}
+  .ps-opt.active,.ps-opt:hover{background:var(--accent-soft);}
+  .ps-opt .ps-bar{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-size:12.5px;color:var(--text-secondary);min-width:100px;}
+  .ps-opt .ps-desc{flex:1;font-size:15px;}
+  .ps-opt .ps-price{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-size:13.5px;font-weight:700;white-space:nowrap;}
+  .ps-opt.ps-free{color:var(--warn);font-weight:600;font-size:14px;}
+  .pos-pay{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .pos-pay-btn{height:52px;min-width:130px;padding:0 18px;border:2px solid var(--border-input);border-radius:8px;background:#fff;
+    font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px;color:var(--text-primary);}
+  .pos-pay-btn i{font-size:20px;}
+  .pos-pay-btn:hover{border-color:var(--accent);}
+  .pos-pay-btn.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-dark);}
+  .pos-bottom{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start;}
+  .pos-total-box{border:2px solid #3F4A4F;border-radius:10px;padding:14px 18px;background:#fff;}
+  .pos-total-row{display:flex;justify-content:space-between;align-items:center;font-size:15px;padding:4px 0;gap:10px;}
+  .pos-total-row input{width:130px;text-align:right;height:38px;}
+  .pos-total-row.grand{font-size:25px;font-weight:800;border-top:1px solid var(--border);margin-top:6px;padding-top:10px;}
+  .pos-total-row.change{font-size:18px;font-weight:700;color:var(--ok);}
+  .pos-total-row.change.short{color:var(--danger);}
+  .pos-day-sum{display:flex;gap:22px;flex-wrap:wrap;font-size:15px;}
+  .pos-day-sum b{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;}
+  tr.is-void td{color:#9AA3A8;text-decoration:line-through;}
+  tr.is-void td .pl-tag,tr.is-void td .btn{text-decoration:none;}
+  @media (max-width:1150px){.pos-bottom{grid-template-columns:1fr;}}
+
+  /* ---- ปิดยอดประจำวัน ---- */
+  .cu-grid{display:grid;grid-template-columns:minmax(320px,1fr) minmax(340px,1fr);gap:24px;align-items:start;}
+  table.cu-denoms th,table.cu-denoms td{padding:6px 10px;}
+  table.cu-denoms input{height:38px;width:110px;text-align:right;}
+  .cu-calc{border:1px solid var(--border);border-radius:10px;padding:12px 18px;}
+  .cu-calc-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:15px;gap:10px;}
+  .cu-calc-row input[type=number]{width:150px;text-align:right;height:38px;}
+  .cu-calc-row input[type=text]{height:38px;}
+  .cu-calc-row.total{font-weight:700;border-top:1px solid var(--border);margin-top:4px;padding-top:10px;}
+  .cu-diff{margin-top:12px;border-radius:10px;padding:16px;text-align:center;font-size:24px;font-weight:800;}
+  .cu-diff.ok{background:var(--ok-bg);color:var(--ok);}
+  .cu-diff.short{background:var(--danger-bg);color:var(--danger);}
+  .cu-diff.over{background:var(--warn-bg);color:var(--warn);}
+  @media (max-width:1000px){.cu-grid{grid-template-columns:1fr;}}
+
+  /* ---- ตรวจยอดโอน ---- */
+  .tr-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-top:1px solid var(--border);background:#FAFBFB;}
+  tr.tr-day td{background:#F2F5F6;font-size:14px;padding:8px 16px;}
+
+  /* ---- สรุปยอดขาย ---- */
+  .sr-bar{height:12px;background:var(--accent);border-radius:3px;}
+  td.sr-bar-cell{width:26%;}
+  tr.sr-click{cursor:pointer;}
+  tr.sr-click.selected td{background:var(--accent-soft);}
+  tr.sr-total td{background:#F2F5F6;}
+
+  /* ---- ใบสรุปยอดขาย A4 ----
+     The printed copy sits in #cashup-print-area, a direct child of <body>, and
+     is revealed by body.printing-cashup — same pattern as the history PDF, and
+     never inside the position:fixed preview (the endless-print-job trap). */
+  #cashup-print-area{display:none;}
+  body.printing-cashup > *{display:none !important;}
+  body.printing-cashup > #cashup-print-area{display:block !important;}
+  #cashup-preview-paper{background:#fff;width:210mm;padding:12mm;margin:0 auto;box-shadow:0 2px 10px rgba(0,0,0,.15);}
+  .cu-sheet{width:186mm;color:#000;font-size:11.5px;line-height:1.45;font-family:'Noto Sans Thai','Leelawadee UI','Segoe UI',Tahoma,sans-serif;}
+  .cu-sheet h1{font-size:19px;margin:0;text-align:center;color:#000;}
+  .cu-sheet h2{font-size:13px;margin:12px 0 5px;color:#000;}
+  .cu-sheet .cu-sub{text-align:center;font-size:13px;margin:2px 0 6px;}
+  .cu-sheet .cu-meta{font-size:10.5px;margin-bottom:8px;}
+  .cu-sheet table{width:100%;border-collapse:collapse;}
+  .cu-sheet th,.cu-sheet td{border:1px solid #000;padding:3px 6px;font-size:11px;color:#000 !important;background:#fff !important;
+    line-height:1.35;vertical-align:top;}
+  .cu-sheet th{font-weight:700;text-align:center;}
+  /* the app-wide "tr:last-child td{border-bottom:none}" would open the bottom
+     edge of every table on the paper */
+  .cu-sheet tr:last-child td{border-bottom:1px solid #000;}
+  .cu-sheet .n{text-align:right;white-space:nowrap;}
+  .cu-sheet .cu-big td{font-size:13px;font-weight:700;}
+  .cu-sheet .cu-two{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
+  .cu-sheet .cu-notebox{border:1px solid #000;min-height:52px;padding:5px 7px;font-size:11px;}
+  .cu-sheet .cu-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:30px;text-align:center;font-size:11.5px;}
+  .cu-sheet .cu-line{border-bottom:1px dotted #000;height:30px;margin-bottom:4px;}
+  .cu-sheet tr{page-break-inside:avoid;break-inside:avoid;}
+  .cu-sheet .cu-sign{page-break-inside:avoid;break-inside:avoid;}
+
 </style>
 </head>
 <body>
@@ -1234,6 +1337,213 @@
       </div>
 
       <!-- USERS (admin only) -->
+      <!-- ===== ขายหน้าร้าน: คีย์บิลขาย (v1.6.0) ===== -->
+      <div class="view" id="view-sales">
+        <div id="pos-lock-banner"></div>
+        <div class="panel" style="overflow:visible;">
+          <div class="panel-head"><h2 id="pos-title">คีย์บิลขาย</h2><span class="panel-head-sub" id="pos-subtitle"></span>
+            <div class="panel-actions">
+              <button class="btn small" id="pos-btn-cancel-edit" style="display:none;"><i class="ti ti-x"></i>ยกเลิกการแก้ไข</button>
+              <button class="btn small" id="pos-btn-clear"><i class="ti ti-eraser"></i>ล้างฟอร์ม</button>
+            </div>
+          </div>
+          <div style="padding:18px 20px 10px;">
+            <div class="pos-doc-row">
+              <div><label>เล่ม</label><div class="seg" id="pos-books"></div></div>
+              <div><label>เลขที่ใบสั่งสินค้า</label><input type="text" id="pos-doc" autocomplete="off" placeholder="A69-0001"></div>
+              <div><label>วันที่ขาย</label><input type="date" id="pos-date"></div>
+              <div><label>เวลา (ถ้ามี)</label><input type="time" id="pos-time"></div>
+              <div style="flex:1;min-width:190px;"><label>ชื่อลูกค้า (ถ้ามี)</label><input type="text" id="pos-customer" autocomplete="off"></div>
+              <div style="flex:1;min-width:170px;"><label>โทร / ที่อยู่ (ถ้ามี)</label><input type="text" id="pos-contact" autocomplete="off"></div>
+            </div>
+            <div class="pos-hint" id="pos-doc-hint"></div>
+          </div>
+          <div class="table-scroll"><table class="pos-lines">
+            <thead><tr><th>#</th><th>รายการสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th><th></th></tr></thead>
+            <tbody id="pos-lines-body"></tbody>
+          </table></div>
+          <div style="padding:10px 20px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <button class="btn small" id="pos-btn-add-line"><i class="ti ti-plus"></i>เพิ่มบรรทัด</button>
+            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · <b>Ctrl+S</b> = บันทึก</span>
+          </div>
+          <div class="pos-bottom" style="padding:18px 20px 20px;">
+            <div>
+              <label>วิธีชำระเงิน</label>
+              <div class="pos-pay" id="pos-pay">
+                <button type="button" class="pos-pay-btn" data-pay="CASH"><i class="ti ti-cash"></i>เงินสด</button>
+                <button type="button" class="pos-pay-btn" data-pay="TRANSFER"><i class="ti ti-building-bank"></i>โอน</button>
+                <button type="button" class="pos-pay-btn" data-pay="MIXED"><i class="ti ti-arrows-split-2"></i>เงินสด + โอน</button>
+                <button type="button" class="pos-pay-btn" data-pay="CREDIT"><i class="ti ti-clock-dollar"></i>เครดิต</button>
+              </div>
+              <div class="field-row c3" style="margin-bottom:6px;">
+                <div id="pos-f-transfer"><label>ยอดโอน (บาท)</label><input type="number" id="pos-transfer-amount" step="0.01" min="0"></div>
+                <div id="pos-f-received"><label>รับเงินสดมา (บาท)</label>
+                  <div style="display:flex;gap:6px;"><input type="number" id="pos-cash-received" step="0.01" min="0" style="flex:1;min-width:0;">
+                    <button type="button" class="btn small" id="pos-btn-exact" style="height:44px;">พอดี</button></div></div>
+                <div id="pos-f-ref"><label>โอนเข้าบัญชี / อ้างอิง (ถ้ามี)</label><input type="text" id="pos-transfer-ref" placeholder="เช่น กสิกร 14:32"></div>
+              </div>
+              <div class="field-hint" id="pos-pay-hint" style="margin:0 0 12px;"></div>
+              <label>หมายเหตุ</label>
+              <input type="text" id="pos-note">
+            </div>
+            <div>
+              <div class="pos-total-box">
+                <div class="pos-total-row"><span>รวมค่าสินค้า</span><b class="mono" id="pos-subtotal">฿0.00</b></div>
+                <div class="pos-total-row"><span>ค่าจัดส่ง</span><input type="number" id="pos-delivery" step="0.01" min="0" value="0"></div>
+                <div class="pos-total-row grand"><span>รวมเป็นเงิน</span><span class="mono" id="pos-grand">฿0.00</span></div>
+                <div class="pos-total-row" id="pos-split-row" style="display:none;"><span id="pos-split-label"></span><b class="mono" id="pos-split"></b></div>
+                <div class="pos-total-row change" id="pos-change-row" style="display:none;"><span>เงินทอน</span><span class="mono" id="pos-change">฿0.00</span></div>
+              </div>
+              <button class="btn primary" id="pos-btn-save" style="width:100%;justify-content:center;height:54px;font-size:17px;margin-top:12px;"><i class="ti ti-device-floppy"></i>บันทึกบิล (Ctrl+S)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2 id="pos-day-title">บิลของวันนี้</h2>
+            <div class="panel-actions"><button class="btn small" id="pos-btn-goto-cashup"><i class="ti ti-calculator"></i>ไปปิดยอดวันนี้</button></div>
+          </div>
+          <div class="filter-bar"><div class="pos-day-sum" id="pos-day-sum"></div></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th class="num">รายการ</th><th class="num">ยอดรวม</th><th>ชำระ</th><th>ตรวจโอน</th><th>คีย์โดย</th><th></th></tr></thead>
+            <tbody id="pos-day-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ===== ขายหน้าร้าน: ปิดยอดประจำวัน ===== -->
+      <div class="view" id="view-cashup">
+        <div class="panel">
+          <div class="panel-head"><h2>ปิดยอดประจำวัน</h2><span class="panel-head-sub">นับเงินในลิ้นชัก เทียบกับบิลที่คีย์ แล้วพิมพ์ใบสรุป A4 ให้เจ้าของตรวจ</span>
+            <div class="panel-actions">
+              <input type="date" id="cu-date" style="width:auto;">
+              <button class="btn" id="cu-btn-print"><i class="ti ti-printer"></i>พิมพ์ใบสรุป A4</button>
+            </div>
+          </div>
+          <div style="padding:16px 20px 0;"><div id="cu-alerts"></div><div class="kpi-row" id="cu-kpis"></div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>1. นับเงินสดในลิ้นชัก</h2><span class="panel-head-sub" id="cu-count-sub"></span></div>
+          <div class="cu-grid" style="padding:18px 20px;">
+            <div>
+              <table class="cu-denoms">
+                <thead><tr><th>ธนบัตร / เหรียญ</th><th class="num">จำนวน</th><th class="num">เป็นเงิน</th></tr></thead>
+                <tbody id="cu-denom-body"></tbody>
+                <tfoot><tr><th style="text-align:left;">นับได้รวม</th><th></th><th class="num mono" id="cu-counted">฿0.00</th></tr></tfoot>
+              </table>
+            </div>
+            <div>
+              <div class="cu-calc">
+                <div class="cu-calc-row"><span>เงินทอนตั้งต้น (ตอนเปิดร้าน)</span><input type="number" id="cu-float" step="0.01" min="0"></div>
+                <div class="cu-calc-row"><span>+ ขายเป็นเงินสด (จากบิล)</span><b class="mono" id="cu-cash-sales">฿0.00</b></div>
+                <div class="cu-calc-row"><span>+ เงินเข้าอื่นๆ (เช่น ลูกค้าเครดิตมาจ่าย)</span><input type="number" id="cu-in" step="0.01" min="0"></div>
+                <div class="cu-calc-row"><span>− จ่ายออกจากลิ้นชัก</span><input type="number" id="cu-out" step="0.01" min="0"></div>
+                <div class="cu-calc-row"><input type="text" id="cu-adjust-note" placeholder="รายละเอียดเงินเข้า/จ่ายออก เช่น ซื้อน้ำแข็ง 40"></div>
+                <div class="cu-calc-row total"><span>ควรมีเงินสดในลิ้นชัก</span><b class="mono" id="cu-expected">฿0.00</b></div>
+                <div class="cu-calc-row total"><span>นับได้จริง</span><b class="mono" id="cu-counted-2">฿0.00</b></div>
+              </div>
+              <div class="cu-diff" id="cu-diff">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>2. เงินโอน</h2><span class="panel-head-sub" id="cu-transfer-sub"></span>
+            <div class="panel-actions"><button class="btn small" id="cu-btn-goto-transfers"><i class="ti ti-building-bank"></i>ไปตรวจยอดโอน</button></div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>อ้างอิง</th><th>สถานะ</th></tr></thead>
+            <tbody id="cu-transfer-body"></tbody>
+          </table></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>3. เครดิต / บิลยกเลิก / เลขที่ใบที่ขาดหาย</h2></div>
+          <div style="padding:16px 20px;" id="cu-others"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>4. บันทึกปิดยอด</h2><span class="panel-head-sub" id="cu-close-sub"></span></div>
+          <div style="padding:18px 20px;">
+            <label>หมายเหตุของวันนี้ (ถ้าเงินขาด/เกิน ให้เขียนเหตุผลไว้)</label>
+            <textarea id="cu-note" rows="2"></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+              <button class="btn primary" id="cu-btn-save"><i class="ti ti-device-floppy"></i>บันทึกปิดยอด</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" id="cu-owner-panel">
+          <div class="panel-head"><h2>5. เจ้าของตรวจ</h2><span class="panel-head-sub" id="cu-owner-sub"></span></div>
+          <div style="padding:18px 20px;">
+            <label>ความเห็นเจ้าของ (ถ้ามี)</label>
+            <input type="text" id="cu-owner-note">
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+              <button class="btn" id="cu-btn-owner-undo" style="display:none;"><i class="ti ti-lock-open"></i>ยกเลิกการตรวจ</button>
+              <button class="btn primary" id="cu-btn-owner-check"><i class="ti ti-circle-check"></i>ยืนยันว่าตรวจแล้ว</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ขายหน้าร้าน: ตรวจยอดโอน ===== -->
+      <div class="view" id="view-transfers">
+        <div class="panel">
+          <div class="panel-head"><h2>ตรวจยอดโอน</h2><span class="panel-head-sub">เปิดบัญชีธนาคาร แล้วติ๊กบิลที่เห็นยอดเข้าแล้ว — ทยอยเช็กได้ ไม่ต้องจบในวันเดียว</span></div>
+          <div class="filter-bar">
+            <div class="filter-row"><span class="filter-row-label">สถานะ</span><div class="chip-row" id="tr-status-chips"></div></div>
+            <div class="filter-row" style="gap:10px;">
+              <span class="filter-row-label">ช่วงวันที่</span>
+              <input type="date" id="tr-from" style="width:auto;"><span>ถึง</span><input type="date" id="tr-to" style="width:auto;">
+              <input type="text" id="tr-search" placeholder="ค้นหา เลขที่ / ลูกค้า / อ้างอิง" style="flex:1;min-width:220px;">
+            </div>
+            <div class="filter-meta"><span id="tr-count"></span></div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th style="width:44px;"><input type="checkbox" id="tr-check-all" style="width:auto;height:auto;"></th><th>วันที่</th><th>เลขที่</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>อ้างอิง</th><th>สถานะ</th><th>ตรวจโดย</th><th>หมายเหตุการตรวจ</th></tr></thead>
+            <tbody id="tr-body"></tbody>
+          </table></div>
+          <div class="tr-foot">
+            <span id="tr-selected"></span>
+            <input type="text" id="tr-note" placeholder="หมายเหตุ (ถ้ามี) เช่น เข้าบัญชีกสิกร 14:32" style="flex:1;min-width:220px;">
+            <button class="btn primary" id="tr-btn-verify"><i class="ti ti-check"></i>พบยอดในบัญชีแล้ว</button>
+            <button class="btn" id="tr-btn-notfound"><i class="ti ti-alert-triangle"></i>ไม่พบยอด</button>
+            <button class="btn" id="tr-btn-pending"><i class="ti ti-arrow-back-up"></i>กลับเป็นรอตรวจ</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ขายหน้าร้าน: สรุปยอดขาย ===== -->
+      <div class="view" id="view-salesreport">
+        <div class="panel">
+          <div class="panel-head"><h2>ยอดขายรายเดือน</h2><span class="panel-head-sub">กดที่เดือนเพื่อดูว่าเดือนนั้นขายอะไรดี</span>
+            <div class="panel-actions"><select id="sr-year" style="width:auto;min-width:130px;"></select></div>
+          </div>
+          <div style="padding:16px 20px 0;"><div class="kpi-row" id="sr-kpis"></div></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>เดือน</th><th class="num">จำนวนบิล</th><th class="num">ยอดขาย</th><th class="num">เงินสด</th><th class="num">โอน</th><th class="num">เครดิต</th><th class="num">เฉลี่ย/บิล</th><th></th></tr></thead>
+            <tbody id="sr-month-body"></tbody>
+          </table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2 id="sr-top-title">สินค้าขายดี</h2><span class="panel-head-sub">กดที่สินค้าเพื่อดูว่าขายดีเดือนไหน</span>
+            <div class="panel-actions"><button class="btn small" id="sr-btn-year">ดูทั้งปี</button></div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th class="num">#</th><th>สินค้า</th><th>จำนวนที่ขาย</th><th class="num">จำนวนบิล</th><th class="num">ยอดขาย</th><th class="num">สัดส่วน</th></tr></thead>
+            <tbody id="sr-top-body"></tbody>
+          </table></div>
+        </div>
+        <div class="panel" id="sr-trend-panel" style="display:none;">
+          <div class="panel-head"><h2 id="sr-trend-title"></h2><span class="panel-head-sub">ขายได้แต่ละเดือน</span></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>เดือน</th><th>จำนวนที่ขาย</th><th class="num">จำนวนบิล</th><th class="num">ยอดขาย</th><th></th></tr></thead>
+            <tbody id="sr-trend-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+
       <div class="view" id="view-zones">
         <div class="panel">
           <div class="panel-head">
@@ -1406,6 +1716,33 @@
 </div>
 
 <div id="toast"><i class="ti ti-circle-check"></i><span id="toast-msg"></span></div>
+
+<!-- ขายหน้าร้าน: product suggestions (position:fixed, shared by every line) -->
+<div id="pos-suggest"></div>
+
+<!-- ขายหน้าร้าน: A4 daily sheet preview. The dialog only SHOWS a copy — the
+     copy that is printed is #cashup-print-area below, outside any fixed box. -->
+<div class="preview-backdrop" id="cashup-preview-modal">
+  <div class="preview-dialog" style="width:1000px;">
+    <div class="preview-head">
+      <h2>ตัวอย่างใบสรุปยอดขายประจำวัน (A4 แนวตั้ง)</h2>
+      <button class="icon-btn" id="cu-pv-close" style="margin-left:auto;" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="preview-body" style="background:#E6EAEC;padding:20px;"><div id="cashup-preview-paper"></div></div>
+    <div class="preview-foot">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <span style="font-weight:600;">เครื่องพิมพ์</span><select id="cu-printer" style="width:auto;min-width:240px;"></select>
+        <span style="font-weight:600;">สำเนา</span><input type="number" id="cu-copies" value="1" min="1" max="20" style="width:80px;">
+        <span class="preview-hint" id="cu-pv-pages"></span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="cu-pv-pdf"><i class="ti ti-file-type-pdf"></i>บันทึกเป็น PDF</button>
+        <button class="btn primary" id="cu-pv-print"><i class="ti ti-printer"></i>พิมพ์</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="cashup-print-area"></div>
 
 <!-- Session detail: shows every counted line of one stocktake round -->
 <div class="preview-backdrop" id="session-detail-modal">

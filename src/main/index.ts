@@ -10,6 +10,7 @@ import { registerBackupHandlers } from './ipc/backup'
 import { registerHistoryHandlers } from './ipc/history'
 import { registerExchangeHandlers } from './ipc/exchange'
 import { registerOrderHandlers } from './ipc/orders'
+import { registerSalesHandlers } from './ipc/sales'
 import { registerPrintHandlers } from './ipc/print'
 import { registerZoneHandlers } from './ipc/zones'
 import { registerCatalogHandlers } from './ipc/catalog'
@@ -65,6 +66,7 @@ if (!gotLock) {
     registerHistoryHandlers()
     registerExchangeHandlers()
     registerOrderHandlers()
+    registerSalesHandlers()
     registerPrintHandlers()
     registerZoneHandlers()
     registerCatalogHandlers()
