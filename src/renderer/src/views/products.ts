@@ -22,6 +22,11 @@ let refreshAfterSave: () => Promise<void> = async () => {}
 // selection the user has already built up.
 let selectedIds = new Set<number>()
 
+const PAGE_SIZE = 200
+let shownLimit = PAGE_SIZE
+let lastFilterKey = ''
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+
 export function resetProductFilters(): void {
   filters = { search: '', category: 'ทั้งหมด', status: 'ทั้งหมด', zone: 'ทั้งหมด', sort: 'default' }
   input('product-search').value = ''
@@ -261,8 +266,23 @@ export function renderProducts(): void {
   $('products-head-row').innerHTML = head
 
   const filtered = getFilteredSorted()
+  // Draw in pages — 4,666 rows at once froze the page for ~1.4 s (v1.6.2).
+  // Any change of filter/search/sort starts again from the first page.
+  const filterKey = JSON.stringify(filters)
+  if (filterKey !== lastFilterKey) {
+    lastFilterKey = filterKey
+    shownLimit = PAGE_SIZE
+  }
+  const shown = filtered.slice(0, shownLimit)
+  const moreRow =
+    filtered.length > shown.length
+      ? `<tr><td colspan="${colCount}" style="text-align:center;padding:16px;">
+           <span class="text-muted">แสดง ${shown.length.toLocaleString('th-TH')} จาก ${filtered.length.toLocaleString('th-TH')} รายการ — พิมพ์ค้นหาเพื่อหาได้เร็วกว่า</span>
+           <button class="btn small" id="btn-products-more" style="margin-left:10px;">แสดงเพิ่มอีก ${Math.min(PAGE_SIZE, filtered.length - shown.length).toLocaleString('th-TH')} รายการ</button>
+         </td></tr>`
+      : ''
   $('products-body').innerHTML =
-    filtered
+    (shown
       .map((p) => {
         const price = (code: string): string => (p.prices[code] !== undefined ? p.prices[code].toFixed(2) : '—')
         let row = pinned.map((c, i) => pinCell(i, 'td', c.html(p))).join('')
@@ -285,8 +305,13 @@ export function renderProducts(): void {
           row += `<td><button class="icon-btn btn-edit-product" data-id="${p.id}" title="แก้ไขสินค้า"><i class="ti ti-pencil"></i></button></td>`
         return `<tr>${row}</tr>`
       })
-      .join('') ||
+      .join('') + moreRow) ||
     `<tr><td colspan="${colCount}"><div class="empty-state"><i class="ti ti-search-off"></i>ไม่พบสินค้าตามตัวกรองที่เลือก</div></td></tr>`
+
+  document.getElementById('btn-products-more')?.addEventListener('click', () => {
+    shownLimit += PAGE_SIZE
+    renderProducts()
+  })
 
   document.querySelectorAll<HTMLButtonElement>('.btn-edit-product').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -296,7 +321,8 @@ export function renderProducts(): void {
   })
 
   renderColPicker(lvl)
-  if (showAction) bindSelection(filtered)
+  // "select all" acts on the rows on screen, never on rows not drawn yet
+  if (showAction) bindSelection(shown)
   renderFilterChips()
   updateFilterMeta(filtered.length)
 }
@@ -637,9 +663,12 @@ async function saveProduct(): Promise<void> {
 export function initProducts(refresh: () => Promise<void>): void {
   refreshAfterSave = refresh
 
+  // Filter once typing pauses, not on every keystroke — each redraw walks the
+  // whole catalogue, and redrawing per key made the box lag behind the typing.
   input('product-search').addEventListener('input', (e) => {
     filters.search = (e.target as HTMLInputElement).value
-    renderProducts()
+    if (searchTimer) clearTimeout(searchTimer)
+    searchTimer = setTimeout(renderProducts, 200)
   })
   select('product-sort').addEventListener('change', (e) => {
     filters.sort = (e.target as HTMLSelectElement).value

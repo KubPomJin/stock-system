@@ -172,9 +172,34 @@ function diffText(counted: number | undefined, sys: number, units: ProductView['
   return { text: `ขาด ${formatStock(-d, units)}`, color: 'var(--danger)', border: 'var(--danger)' }
 }
 
+// The grid is drawn in pages: all 4,666 items with their input boxes froze the
+// page for ~1.8 s (v1.6.2). Counts live in `cells`, not in the DOM, and saving
+// and printing read getRows() — so rows not drawn yet are never lost.
+const ST_PAGE = 150
+let stShown = ST_PAGE
+let stFilterKey = ''
+
 export function renderStocktakeTable(): void {
   const locations = state.locations
-  const rows = visibleRows()
+  const all = visibleRows()
+  const key = [
+    select('count-category').value,
+    (document.getElementById('count-search') as HTMLInputElement | null)?.value ?? '',
+    filterUncounted,
+    filterDiff
+  ].join('|')
+  if (key !== stFilterKey) {
+    stFilterKey = key
+    stShown = ST_PAGE
+  }
+  const rows = all.slice(0, stShown)
+  const more =
+    all.length > rows.length
+      ? `<div style="text-align:center;padding:16px;">
+           <span class="text-muted">แสดง ${rows.length.toLocaleString('th-TH')} จาก ${all.length.toLocaleString('th-TH')} รายการ — เลือกหมวดหรือพิมพ์ค้นหาเพื่อหาเร็วขึ้น</span>
+           <button type="button" class="btn small" id="btn-stocktake-more" style="margin-left:10px;">แสดงเพิ่มอีก ${Math.min(ST_PAGE, all.length - rows.length).toLocaleString('th-TH')} รายการ</button>
+         </div>`
+      : ''
 
   // The grid template is shared by the header and every row.
   document.documentElement.style.setProperty('--loc-count', String(locations.length))
@@ -260,9 +285,13 @@ export function renderStocktakeTable(): void {
           <div class="st-cols">${cells}</div>${extra}
         </div>`
       })
-      .join('') ||
+      .join('') + more ||
     '<div class="empty-state"><i class="ti ti-search-off"></i>ไม่พบสินค้าตามตัวกรองที่เลือก</div>'
 
+  document.getElementById('btn-stocktake-more')?.addEventListener('click', () => {
+    stShown += ST_PAGE
+    renderStocktakeTable()
+  })
   bindInputs()
   updateSummary()
 }
@@ -587,7 +616,13 @@ export function initStocktake(refresh: () => Promise<void>): void {
 
   select('count-category').addEventListener('change', renderStocktakeTable)
   // Filters re-render the grid so long lists stay manageable.
-  document.getElementById('count-search')?.addEventListener('input', renderStocktakeTable)
+  // Wait for a pause in typing — redrawing the grid on every key lagged badly
+  // once the catalogue reached thousands of items (v1.6.2).
+  let searchTimer: ReturnType<typeof setTimeout> | undefined
+  document.getElementById('count-search')?.addEventListener('input', () => {
+    if (searchTimer) clearTimeout(searchTimer)
+    searchTimer = setTimeout(renderStocktakeTable, 200)
+  })
   document.getElementById('count-only-uncounted')?.addEventListener('click', function (this: HTMLElement) {
     filterUncounted = !filterUncounted
     this.classList.toggle('active', filterUncounted)

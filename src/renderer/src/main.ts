@@ -73,6 +73,28 @@ function renderSidebarNav(): void {
   })
 }
 
+/* ---------- draw product-heavy pages only when they are opened ----------
+   These pages draw from the whole product list. Once the 4POS catalogue was
+   imported (4,666 products) drawing all of them into HIDDEN pages on every
+   refresh built ~255,000 DOM nodes and froze the app for seconds — typing on
+   the sales page right after login stalled 3.5 s (measured, v1.6.2). A refresh
+   now only marks them stale; each is drawn when it is actually shown. */
+const staleViews = new Set<string>()
+let currentView = 'dashboard'
+
+function drawView(view: string): void {
+  if (view === 'dashboard') renderDashboard()
+  else if (view === 'products') renderProducts()
+  else if (view === 'receiving') renderReceivingSelectors()
+  else if (view === 'stocktake') renderStocktakeSelectors()
+  else if (view === 'transfer') renderTransferSelectors()
+  else if (view === 'orders') renderOrderSelectors()
+}
+
+function drawIfStale(view: string): void {
+  if (staleViews.delete(view)) drawView(view)
+}
+
 function switchView(view: string): void {
   document.querySelectorAll<HTMLButtonElement>('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.view === view))
   document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'))
@@ -80,6 +102,8 @@ function switchView(view: string): void {
   const item = NAV_ITEMS.find((n) => n.view === view)
   $('view-title').textContent = item ? item.label : ''
   closeSidebarDrawer()
+  currentView = view
+  drawIfStale(view)
   if (view === 'users') {
     void renderUsersView()
     void renderCatalogHistory()
@@ -108,19 +132,18 @@ function closeSidebarDrawer(): void {
 
 /* ---------- data refresh ---------- */
 
-// Re-pull products from the DB and re-render every data-driven view.
-// Called after any mutation (receiving, stocktake, transfer, product save).
+// Re-pull products from the DB after any mutation (receiving, stocktake,
+// transfer, product save). Every product-driven page is marked stale; only the
+// page on screen is redrawn now, the rest when they are next opened.
 async function refreshData(): Promise<void> {
   await reloadProducts()
-  renderDashboard()
-  renderProducts()
+  staleViews.add('dashboard')
+  staleViews.add('products')
   if (level() >= 2) {
-    renderReceivingSelectors()
-    renderStocktakeSelectors()
-    renderTransferSelectors()
-    renderOrderSelectors()
-    await renderHistory()
+    for (const v of ['receiving', 'stocktake', 'transfer', 'orders']) staleViews.add(v)
   }
+  drawIfStale(currentView)
+  if (level() >= 2 && currentView === 'history') await renderHistory()
 }
 
 /* ---------- login / logout ---------- */
@@ -139,6 +162,7 @@ async function enterApp(): Promise<void> {
   $('user-role-label').textContent = user.roleLabel
 
   renderSidebarNav()
+  currentView = 'dashboard' // the page enterApp lands on — drawn by refreshData below
   resetProductFilters()
   await reloadLookups()
   await refreshData()
