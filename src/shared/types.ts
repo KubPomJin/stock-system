@@ -472,7 +472,10 @@ export interface SaleLinePayload {
 
 export interface SalePayload {
   id?: number // set = edit an existing bill
-  docNumber: string
+  docNumber: string // ignored when noTicket — the system numbers those itself
+  // Sold without a printed, numbered ticket. Gets its own N69-0001 series and
+  // is left out of the A-D missing-number check.
+  noTicket?: boolean
   docDate: string
   docTime: string
   customerName: string
@@ -489,6 +492,7 @@ export interface SalePayload {
 export interface SaleView {
   id: number
   docNumber: string
+  noTicket: boolean // no printed ticket behind this bill (N-series number)
   bookType: string | null
   docDate: string // falls back to the save date for old tickets without one
   docTime: string | null
@@ -571,6 +575,7 @@ export interface DaySummary {
   date: string
   billCount: number // excludes voided
   voidCount: number
+  noTicketCount: number // live bills sold without a printed ticket
   grandTotal: number
   cashTotal: number
   transferTotal: number

@@ -20,10 +20,15 @@ interface Line {
 }
 
 const BOOKS = ['A', 'B', 'C', 'D']
+// Pseudo-book for a sale that wasn't written on a printed, numbered ticket.
+// The server numbers those itself in their own series (N69-0001).
+const NO_TICKET = 'NONE'
 
 let lines: Line[] = []
 let editingId: number | null = null
 let book = 'A'
+let lastPaperBook = 'A' // where to go back to after a no-ticket bill
+let editingNoTicketNumber = '' // N-number of the no-ticket bill being edited
 let pay: SalePayMethod = 'CASH'
 let nextNumbers: BookNextNumber[] = []
 let dayLocked = false
@@ -427,28 +432,57 @@ function normalizeDoc(raw: string): string {
   m = s.match(/^([A-Z])-?(\d{1,5})$/)
   if (m) return `${m[1]}${yy()}-${m[2].padStart(4, '0')}`
   m = s.match(/^(\d{1,5})$/)
-  if (m) return `${book}${yy()}-${m[1].padStart(4, '0')}`
+  if (m) return `${book === NO_TICKET ? lastPaperBook : book}${yy()}-${m[1].padStart(4, '0')}`
   return s
 }
 
 function renderBooks(): void {
-  $('pos-books').innerHTML = BOOKS.map(
-    (b) => `<button type="button" class="seg-btn${b === book ? ' active' : ''}" data-book="${b}">${b}</button>`
-  ).join('')
+  $('pos-books').innerHTML =
+    BOOKS.map(
+      (b) => `<button type="button" class="seg-btn${b === book ? ' active' : ''}" data-book="${b}">${b}</button>`
+    ).join('') +
+    `<button type="button" class="seg-btn pos-noticket${book === NO_TICKET ? ' active' : ''}" data-book="${NO_TICKET}"
+       title="ขายโดยไม่ได้ใช้ใบสั่งสินค้าที่พิมพ์เลขไว้">ไม่มีใบ</button>`
   $('pos-books')
     .querySelectorAll<HTMLButtonElement>('.seg-btn')
     .forEach((btn) =>
       btn.addEventListener('click', () => {
+        const wasNoTicket = book === NO_TICKET
         book = btn.dataset.book as string
+        if (book !== NO_TICKET) lastPaperBook = book
         renderBooks()
+        applyDocMode()
+        if (book === NO_TICKET) {
+          focusCell(0, 'pl-item')
+          return
+        }
+        // Coming back from "no ticket" while editing: the paper number has to
+        // be typed — the old N-number is not a paper ticket.
         if (!editingId) suggestDoc()
+        else if (wasNoTicket) input('pos-doc').value = ''
         input('pos-doc').focus()
         input('pos-doc').select()
       })
     )
 }
 
+// "ไม่มีใบ" locks the number box — the server hands out the N-series number.
+function applyDocMode(): void {
+  const el = input('pos-doc')
+  const none = book === NO_TICKET
+  el.readOnly = none
+  el.placeholder = none ? 'ออกเลขให้เอง' : 'A69-0001'
+  if (!none) return
+  el.value = editingNoTicketNumber
+  const hint = $('pos-doc-hint')
+  hint.className = 'pos-hint'
+  hint.innerHTML =
+    '<b>บิลที่ไม่ได้ใช้ใบสั่งสินค้าที่พิมพ์ไว้</b> — ระบบออกเลขชุด <b>N</b> ให้เอง (เช่น N69-0001) ' +
+    'ไม่กินเลขของเล่ม A–D และไม่นับเป็นเลขที่ขาดหาย · ควรเขียนเหตุผลไว้ในช่องหมายเหตุ'
+}
+
 function suggestDoc(): void {
+  if (book === NO_TICKET) return applyDocMode()
   const n = nextNumbers.find((x) => x.book === book)
   input('pos-doc').value = n?.next ?? ''
   void checkDoc()
@@ -463,6 +497,7 @@ async function refreshNextNumbers(): Promise<void> {
 }
 
 async function checkDoc(): Promise<void> {
+  if (book === NO_TICKET) return
   const hint = $('pos-doc-hint')
   const doc = normalizeDoc(input('pos-doc').value)
   input('pos-doc').value = doc
@@ -497,6 +532,13 @@ async function checkDoc(): Promise<void> {
 
 function resetForm(keepDate = true): void {
   editingId = null
+  editingNoTicketNumber = ''
+  // A no-ticket bill is the exception — the next one is normally on paper again.
+  if (book === NO_TICKET) {
+    book = lastPaperBook
+    renderBooks()
+  }
+  applyDocMode()
   lines = [emptyLine()]
   const date = keepDate && input('pos-date').value ? input('pos-date').value : todayIso()
   input('pos-date').value = date
@@ -528,10 +570,13 @@ async function loadForEdit(id: number): Promise<void> {
       unitName: l.unitName ?? '',
       unitPrice: l.unitPrice ?? 0
     }))
+    editingNoTicketNumber = sale.noTicket ? sale.docNumber : ''
     const m = sale.docNumber.match(/^([A-D])/)
-    if (m) book = m[1]
+    if (sale.noTicket) book = NO_TICKET
+    else if (m) book = lastPaperBook = m[1]
     renderBooks()
     input('pos-doc').value = sale.docNumber
+    applyDocMode()
     input('pos-date').value = sale.docDate
     input('pos-time').value = sale.docTime ?? ''
     input('pos-customer').value = sale.customerName ?? ''
@@ -566,11 +611,12 @@ async function save(): Promise<void> {
     return
   }
   closeSuggest()
-  const doc = normalizeDoc(input('pos-doc').value)
-  input('pos-doc').value = doc
+  const noTicket = book === NO_TICKET
+  const doc = noTicket ? '' : normalizeDoc(input('pos-doc').value)
+  if (!noTicket) input('pos-doc').value = doc
   const filled = lines.filter((l) => l.description.trim())
-  if (!doc) {
-    showToast('กรุณาใส่เลขที่ใบสั่งสินค้า', true)
+  if (!noTicket && !doc) {
+    showToast('กรุณาใส่เลขที่ใบสั่งสินค้า — ถ้าขายโดยไม่ได้เขียนใบ ให้กดปุ่ม "ไม่มีใบ"', true)
     input('pos-doc').focus()
     return
   }
@@ -590,6 +636,7 @@ async function save(): Promise<void> {
     const res = await window.api.sales.save({
       id: editingId ?? undefined,
       docNumber: doc,
+      noTicket,
       docDate: input('pos-date').value,
       docTime: input('pos-time').value,
       customerName: input('pos-customer').value,
@@ -676,7 +723,7 @@ function dayRowHtml(s: SaleView): string {
       : `<button class="btn small pd-edit" data-id="${s.id}">แก้ไข</button>
          <button class="btn small pd-void" data-id="${s.id}" data-doc="${esc(s.docNumber)}">ยกเลิก</button>`
   return `<tr class="${s.voided ? 'is-void' : ''}">
-    <td class="mono"><b>${esc(s.docNumber)}</b></td>
+    <td class="mono"><b>${esc(s.docNumber)}</b>${s.noTicket ? '<div class="pl-tag no-strike"><span class="badge muted">ไม่มีใบ</span></div>' : ''}</td>
     <td>${esc(s.docTime ?? '')}</td>
     <td>${esc(s.customerName ?? '')}${s.voided ? `<div class="pl-tag no-strike" style="color:var(--danger);">ยกเลิก: ${esc(s.voidReason ?? '')}</div>` : ''}</td>
     <td class="num">${s.lineCount}</td>

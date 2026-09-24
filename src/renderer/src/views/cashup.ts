@@ -166,6 +166,7 @@ export async function renderCashup(): Promise<void> {
   // ---- credit / voided / gaps ----
   const credit = d.sales.filter((s) => !s.voided && s.creditAmount > 0)
   const voided = d.sales.filter((s) => s.voided)
+  const noTicket = d.sales.filter((s) => !s.voided && s.noTicket)
   const block = (title: string, body: string): string =>
     `<div style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:6px;">${title}</div>${body}</div>`
   $('cu-others').innerHTML =
@@ -179,6 +180,17 @@ export async function renderCashup(): Promise<void> {
       `บิลที่ยกเลิก — ${voided.length} ใบ`,
       voided.length
         ? voided.map((s) => `<span class="badge danger" style="margin:0 6px 6px 0;">${esc(s.docNumber)} · ${esc(s.voidReason ?? '')}</span>`).join('')
+        : '<span class="text-muted">ไม่มี</span>'
+    ) +
+    block(
+      `บิลที่ไม่มีใบ (ไม่ได้ใช้ใบสั่งสินค้าที่พิมพ์ไว้) — ${noTicket.length} ใบ`,
+      noTicket.length
+        ? noTicket
+            .map(
+              (s) =>
+                `<span class="badge muted" style="margin:0 6px 6px 0;">${esc(s.docNumber)} · ${money(s.grandTotal)}${s.note ? ` · ${esc(s.note)}` : ' · <i>ไม่ได้เขียนเหตุผล</i>'}</span>`
+            )
+            .join('')
         : '<span class="text-muted">ไม่มี</span>'
     ) +
     block(
@@ -253,7 +265,7 @@ function buildSheet(d: DaySummary, c: CashCloseView): string {
   const billRows = live
     .map(
       (s, i) => `<tr>
-        <td class="n">${i + 1}</td><td>${esc(s.docNumber)}</td><td>${esc(s.docTime ?? '')}</td>
+        <td class="n">${i + 1}</td><td>${esc(s.docNumber)}${s.noTicket ? ' (ไม่มีใบ)' : ''}</td><td>${esc(s.docTime ?? '')}</td>
         <td>${esc(s.customerName ?? '')}</td><td class="n">${money(s.grandTotal)}</td>
         <td>${esc(payLabel(s.paymentMethod))}</td>
         <td class="n">${s.cashAmount ? money(s.cashAmount) : ''}</td>
@@ -265,6 +277,7 @@ function buildSheet(d: DaySummary, c: CashCloseView): string {
     .join('')
 
   const voided = d.sales.filter((s) => s.voided)
+  const noTicket = live.filter((s) => s.noTicket)
   const gaps = d.gaps
     .map((g) => `เล่ม ${esc(g.book)}: ${g.numbers.map(esc).join(', ')}${g.more ? ` และอีก ${g.more} ใบ` : ''}`)
     .join('<br>')
@@ -313,9 +326,14 @@ function buildSheet(d: DaySummary, c: CashCloseView): string {
         <th class="n">${money(d.cashTotal)}</th><th class="n">${money(d.transferTotal)}</th><th class="n">${money(d.creditTotal)}</th><th></th></tr>
     </table>
 
-    <h2>3. บิลยกเลิก / เลขที่ใบที่ขาดหาย</h2>
+    <h2>3. บิลยกเลิก / บิลที่ไม่มีใบ / เลขที่ใบที่ขาดหาย</h2>
     <div class="cu-notebox" style="min-height:0;">
       <b>บิลยกเลิก:</b> ${voided.length ? voided.map((s) => `${esc(s.docNumber)} (${esc(s.voidReason ?? '')})`).join(', ') : 'ไม่มี'}<br>
+      <b>บิลที่ไม่มีใบ:</b> ${
+        noTicket.length
+          ? noTicket.map((s) => `${esc(s.docNumber)} ${money(s.grandTotal)}${s.note ? ` (${esc(s.note)})` : ''}`).join(', ')
+          : 'ไม่มี'
+      }<br>
       <b>เลขที่ขาดหาย:</b> ${gaps || 'ไม่มี'}
     </div>
 

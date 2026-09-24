@@ -324,7 +324,11 @@ CREATE TABLE order_docs (
     voided_at TEXT,
     voided_by INTEGER REFERENCES users(id),
     updated_at TEXT,
-    updated_by INTEGER REFERENCES users(id)
+    updated_by INTEGER REFERENCES users(id),
+    -- v1.6.1: 1 = sold WITHOUT a printed, numbered ticket. The system numbers
+    -- these itself in their own series (N69-0001); they never touch the A-D
+    -- counters and are left out of the missing-number check.
+    no_ticket INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX idx_order_docs_date ON order_docs(doc_date);
 

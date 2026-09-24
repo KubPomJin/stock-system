@@ -414,6 +414,10 @@ function migrateSales(): void {
   add('voided_by', 'INTEGER REFERENCES users(id)')
   add('updated_at', 'TEXT')
   add('updated_by', 'INTEGER REFERENCES users(id)')
+  // v1.6.1: a sale that was NOT written on a printed, numbered ticket. It gets
+  // its own series (N69-0001) so it never uses up or leaves a hole in the
+  // A-D books' numbering.
+  add('no_ticket', 'INTEGER NOT NULL DEFAULT 0')
 
   d.exec('CREATE INDEX IF NOT EXISTS idx_order_docs_date ON order_docs(doc_date);')
   d.exec('CREATE INDEX IF NOT EXISTS idx_order_doc_lines_order ON order_doc_lines(order_id);')

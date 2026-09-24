@@ -69,7 +69,7 @@ export async function renderTransfers(): Promise<void> {
     html += `<tr>
       <td><input type="checkbox" class="tr-check" data-id="${r.id}"${selected.has(r.id) ? ' checked' : ''}></td>
       <td>${thaiDate(r.docDate)} ${esc(r.docTime ?? '')}</td>
-      <td class="mono"><b>${esc(r.docNumber)}</b></td>
+      <td class="mono"><b>${esc(r.docNumber)}</b>${r.noTicket ? '<div class="pl-tag">ไม่มีใบ</div>' : ''}</td>
       <td>${esc(r.customerName ?? '')}</td>
       <td class="num"><b>${money(r.transferAmount)}</b>${r.paymentMethod === 'MIXED' ? '<div class="pl-tag">(จ่ายสด+โอน)</div>' : ''}</td>
       <td>${esc(r.transferRef ?? '')}</td>

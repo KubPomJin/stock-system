@@ -1,4 +1,4 @@
-// ขายหน้าร้าน / POS (v1.6.0)
+// ขายหน้าร้าน / POS (v1.6.0, "ไม่มีใบ" bills v1.6.1)
 //
 // The shop still writes order tickets by hand. This module is where those
 // tickets get keyed in afterwards so the money can be checked every day and the
@@ -59,6 +59,7 @@ const DENOMINATIONS = [1000, 500, 100, 50, 20, 10, 5, 2, 1]
 const SALE_SELECT = `
   SELECT o.id,
          o.doc_number       AS docNumber,
+         o.no_ticket        AS noTicket,
          o.book_type        AS bookType,
          ${DAY}             AS docDate,
          o.doc_time         AS docTime,
@@ -89,10 +90,29 @@ const SALE_SELECT = `
   LEFT JOIN users cu ON cu.id = o.created_by
   LEFT JOIN users vu ON vu.id = o.transfer_verified_by`
 
-type SaleRow = Omit<SaleView, 'voided'> & { voided: number }
+type SaleRow = Omit<SaleView, 'voided' | 'noTicket'> & { voided: number; noTicket: number }
 
 function toView(r: SaleRow): SaleView {
-  return { ...r, voided: r.voided === 1 }
+  return { ...r, voided: r.voided === 1, noTicket: r.noTicket === 1 }
+}
+
+// Bills sold without a printed ticket get their own series, numbered by the
+// system: 'N' + Buddhist year of the sale + running number (N69-0001). The
+// letter is outside the A-D paper books, so it never touches their counters
+// or shows up in their missing-number check.
+const NO_TICKET_PREFIX = 'N'
+
+function nextNoTicketNumber(docDate: string): string {
+  const yy = String((Number(docDate.slice(0, 4)) + 543) % 100).padStart(2, '0')
+  const rows = getDb()
+    .prepare('SELECT doc_number FROM order_docs WHERE doc_number LIKE ?')
+    .all(`${NO_TICKET_PREFIX}${yy}-%`) as { doc_number: string }[]
+  let max = 0
+  for (const r of rows) {
+    const m = r.doc_number.match(/-(\d+)$/)
+    if (m) max = Math.max(max, Number(m[1]))
+  }
+  return `${NO_TICKET_PREFIX}${yy}-${String(max + 1).padStart(4, '0')}`
 }
 
 function round2(n: number): number {
@@ -175,13 +195,18 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
   const user = getSession()!
   const db = getDb()
 
-  const docNumber = String(p.docNumber ?? '').trim().toUpperCase()
-  if (!docNumber) throw new Error('กรุณาระบุเลขที่ใบสั่งสินค้า')
-  if (!/^[A-Z]{1,2}\d{2,4}-\d{1,5}$/.test(docNumber)) {
-    throw new Error(`รูปแบบเลขที่ใบไม่ถูกต้อง "${docNumber}" — ต้องเป็นแบบ A69-0012`)
-  }
-  const bookType = BOOK_TYPES.includes(docNumber[0]) ? docNumber[0] : null
+  const noTicket = !!p.noTicket
   if (!isIsoDate(p.docDate ?? '')) throw new Error('กรุณาระบุวันที่ของบิล')
+  let docNumber = String(p.docNumber ?? '').trim().toUpperCase()
+  if (!noTicket) {
+    if (!docNumber) throw new Error('กรุณาระบุเลขที่ใบสั่งสินค้า (หรือเลือก "ไม่มีใบ" ถ้าขายโดยไม่ได้ใช้ใบที่พิมพ์ไว้)')
+    if (!/^[A-Z]{1,2}\d{2,4}-\d{1,5}$/.test(docNumber)) {
+      throw new Error(`รูปแบบเลขที่ใบไม่ถูกต้อง "${docNumber}" — ต้องเป็นแบบ A69-0012`)
+    }
+    if (docNumber.startsWith(NO_TICKET_PREFIX)) {
+      throw new Error(`เลขที่ขึ้นต้นด้วย ${NO_TICKET_PREFIX} ใช้กับบิลที่ไม่มีใบเท่านั้น — ถ้าบิลนี้ไม่มีใบ ให้เลือก "ไม่มีใบ"`)
+    }
+  }
   if (!PAY_METHODS.includes(p.paymentMethod)) throw new Error('กรุณาเลือกวิธีชำระเงิน')
 
   const lines = (p.lines ?? [])
@@ -227,6 +252,19 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
   }
 
   const run = db.transaction((): { id: number; docNumber: string } => {
+    // No-ticket bills keep the number they already have when edited; a new one
+    // (or a paper bill switched to "no ticket") takes the next N number. Done
+    // inside the transaction so two saves can't be handed the same number.
+    if (noTicket) {
+      const current = p.id
+        ? (db.prepare('SELECT doc_number, no_ticket FROM order_docs WHERE id = ?').get(p.id) as
+            | { doc_number: string; no_ticket: number }
+            | undefined)
+        : undefined
+      docNumber = current?.no_ticket ? current.doc_number : nextNoTicketNumber(p.docDate)
+    }
+    const bookType = !noTicket && BOOK_TYPES.includes(docNumber[0]) ? docNumber[0] : null
+
     const dup = db.prepare('SELECT id FROM order_docs WHERE doc_number = ? AND id IS NOT ?').get(docNumber, p.id ?? null)
     if (dup) throw new Error(`เลขที่ใบ ${docNumber} คีย์ไปแล้ว — ถ้าจะแก้ ให้กด "แก้ไข" ที่บิลนั้นในรายการ`)
 
@@ -246,7 +284,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
       const keepCheck = newTransfer > 0 && old.transfer_status && Math.abs(old.transfer - newTransfer) < 0.005
       db.prepare(
         `UPDATE order_docs SET
-           doc_number = ?, book_type = ?, doc_date = ?, doc_time = ?, customer_name = ?, customer_contact = ?,
+           doc_number = ?, no_ticket = ?, book_type = ?, doc_date = ?, doc_time = ?, customer_name = ?, customer_contact = ?,
            payment_method = ?, cash_received = ?, cash_change = ?, transfer_amount = ?, transfer_ref = ?,
            note = ?, subtotal = ?, delivery_fee = ?, grand_total = ?,
            transfer_status = ?,
@@ -256,6 +294,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
          WHERE id = ?`
       ).run(
         docNumber,
+        noTicket ? 1 : 0,
         bookType,
         p.docDate,
         p.docTime || null,
@@ -284,13 +323,14 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         db
           .prepare(
             `INSERT INTO order_docs
-               (doc_number, book_type, doc_date, doc_time, customer_name, customer_contact,
+               (doc_number, no_ticket, book_type, doc_date, doc_time, customer_name, customer_contact,
                 payment_method, cash_received, cash_change, transfer_amount, transfer_ref,
                 note, subtotal, delivery_fee, grand_total, transfer_status, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             docNumber,
+            noTicket ? 1 : 0,
             bookType,
             p.docDate,
             p.docTime || null,
@@ -338,7 +378,7 @@ function findGaps(books: Set<string>): DaySummary['gaps'] {
     const book = bookYear.slice(0, 1)
     const yy = bookYear.slice(1)
     const rows = db
-      .prepare('SELECT doc_number FROM order_docs WHERE doc_number LIKE ?')
+      .prepare('SELECT doc_number FROM order_docs WHERE doc_number LIKE ? AND no_ticket = 0')
       .all(`${book}${yy}-%`) as { doc_number: string }[]
     const nums = new Set<number>()
     let width = 4
@@ -476,6 +516,7 @@ function daySummary(date: string): DaySummary {
 
   const bookYears = new Set<string>()
   for (const s of sales) {
+    if (s.noTicket) continue // N-series is numbered by the system — nothing can go missing
     const m = s.docNumber.match(/^([A-Z])(\d{2})-\d+$/)
     if (m) bookYears.add(m[1] + m[2])
   }
@@ -484,6 +525,7 @@ function daySummary(date: string): DaySummary {
     date,
     billCount: totals.billCount,
     voidCount: sales.length - live.length,
+    noTicketCount: live.filter((s) => s.noTicket).length,
     grandTotal: totals.grandTotal,
     cashTotal: totals.cashTotal,
     transferTotal: totals.transferTotal,
