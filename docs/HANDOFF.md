@@ -1,6 +1,6 @@
 # HANDOFF — สรุปสถานะโปรเจกต์ StockKeep (สำหรับเปิดแชตใหม่)
 
-> อัปเดตล่าสุด: 24 กันยายน 2569 · เวอร์ชันปัจจุบัน **v1.6.3** (build เป็น installer แล้ว)
+> อัปเดตล่าสุด: 24 กันยายน 2569 · เวอร์ชันปัจจุบัน **v1.6.4** (build เป็น installer แล้ว)
 > เอกสารนี้ทำไว้ให้เปิดแชตใหม่แล้วทำงานต่อได้ทันที โดยไม่ต้องเล่าประวัติซ้ำ
 
 ---
@@ -28,7 +28,7 @@
 Desktop app (Electron + TypeScript + SQLite) จัดการสต๊อกร้านวัสดุก่อสร้าง UI ภาษาไทยทั้งหมด
 - โค้ด: `D:\Claude Code\Home\Program\stock-system\`
 - ฐานข้อมูลจริง: `%APPDATA%\stockkeep\stockkeep.db`
-- Installer ล่าสุด: `release\StockKeep Setup 1.6.3.exe`
+- Installer ล่าสุด: `release\StockKeep Setup 1.6.4.exe`
 - เข้าระบบครั้งแรก: `admin` / `admin123`
 - โปรแกรมคู่: **BillKeep** ที่ `D:\Claude Code\Home\Program\order program\bill-system\`
 
@@ -52,7 +52,7 @@ npx tsc --noEmit # ตรวจ type
 
 ---
 
-## 3. สถานะล่าสุด (v1.6.3)
+## 3. สถานะล่าสุด (v1.6.4)
 
 ทำเสร็จและ build เป็น installer แล้ว:
 
@@ -70,7 +70,12 @@ npx tsc --noEmit # ตรวจ type
 | สำรอง/กู้คืนข้อมูล | Export/Import ไฟล์ `.db` |
 | UI ทั้งระบบ | design v2 (ตัวหนังสือ 15px, สีเทาเข้ม `#3F4A4F`, ช่องกรอก 44px) |
 
-> ✅ ทุกอย่างที่แก้ไว้ถูก build เป็น installer แล้ว (v1.6.3) — ไม่มีงานค้างที่ยังไม่ได้ build
+> ✅ ทุกอย่างที่แก้ไว้ถูก build เป็น installer แล้ว (v1.6.4) — ไม่มีงานค้างที่ยังไม่ได้ build
+
+### v1.6.4 — คืนของในบิล + Ctrl+Enter (5 ต.ค. 2569)
+- บรรทัดคืนของ (`order_doc_lines.is_return`, qty/amount ติดลบในฐานข้อมูล) · บิลติดลบได้ = คืนเงินลูกค้า
+- Ctrl+Enter บันทึกบิล (listener แบบ capture บน document) + ธง `saving` กันบันทึกซ้ำ
+- v1.6.3 (`1bdaf9d`) + v1.6.4 **commit + push ขึ้น GitHub แล้ว** (5 ต.ค. 2569) · installer `release\StockKeep Setup 1.6.4.exe`
 
 ### v1.6.3 — ฟีดแบ็กรอบแรกจากการคีย์บิลจริง (5 ต.ค. 2569)
 - ส่วนลดทั้งบิล (`order_docs.discount`) · แก้ยอดรายบรรทัดเอง + ปุ่ม "ปัด" (.50 ปัดขึ้น) · หมายเหตุรายบรรทัด (`order_doc_lines.note`)

@@ -765,6 +765,16 @@
   .pos-lines .pl-round{height:40px;padding:0 10px;}
   .pos-lines .pl-amt-tag{text-align:right;color:var(--warn);}
   .pos-lines input.pl-note{height:30px;margin-top:4px;font-size:13px;}
+  /* Return lines (v1.6.4): goods brought back, taken off the bill */
+  .pos-lines .pl-ret{display:block;margin:8px auto 0;padding:1px 6px;font-size:11.5px;font-weight:600;line-height:1.5;
+    border:1px solid var(--border-input);border-radius:5px;background:#fff;color:var(--text-secondary);cursor:pointer;}
+  .pos-lines .pl-ret.on{background:var(--danger);border-color:var(--danger);color:#fff;}
+  .pos-lines tr.is-return td{background:#FFF3F1;}
+  .pos-lines .pl-tag.ret{color:var(--danger);font-weight:600;}
+  .pos-lines .pl-minus{display:flex;visibility:hidden;width:12px;justify-content:center;align-items:center;font-size:20px;font-weight:800;color:var(--danger);}
+  .pos-lines tr.is-return .pl-minus{visibility:visible;}
+  .pos-lines tr.is-return .pl-amt{color:var(--danger);}
+  .pos-total-row.grand.refund{color:var(--danger);}
   .pl-tag{font-size:12px;margin-top:3px;color:var(--text-secondary);text-decoration:none;}
   .pl-tag.free{color:var(--warn);}
   #pos-suggest{position:fixed;z-index:90;background:#fff;border:1px solid var(--border-input);border-radius:8px;
@@ -1401,7 +1411,8 @@
           </table></div>
           <div style="padding:10px 20px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <button class="btn small" id="pos-btn-add-line"><i class="ti ti-plus"></i>เพิ่มบรรทัด</button>
-            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · ยอดมีเศษสตางค์ กด <b>ปัด</b> หรือแก้ช่องจำนวนเงินเอง · <b>Ctrl+S</b> = บันทึก</span>
+            <button class="btn small" id="pos-btn-add-return" style="color:var(--danger);"><i class="ti ti-arrow-back-up"></i>เพิ่มบรรทัดคืนของ</button>
+            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · ยอดมีเศษสตางค์ กด <b>ปัด</b> หรือแก้ช่องจำนวนเงินเอง · ของที่ลูกค้าคืน กด <b>คืน</b> ที่บรรทัด · <b>Ctrl+Enter</b> = บันทึกบิล</span>
           </div>
           <div class="pos-bottom" style="padding:18px 20px 20px;">
             <div>
@@ -1426,13 +1437,14 @@
             <div>
               <div class="pos-total-box">
                 <div class="pos-total-row"><span>รวมค่าสินค้า</span><b class="mono" id="pos-subtotal">฿0.00</b></div>
+                <div class="pos-total-row" id="pos-return-row" style="display:none;color:var(--danger);"><span>หักของที่คืน</span><b class="mono" id="pos-returned"></b></div>
                 <div class="pos-total-row"><span>ค่าจัดส่ง</span><input type="number" id="pos-delivery" step="0.01" min="0" value="0"></div>
                 <div class="pos-total-row"><span>ส่วนลด / ปัดเศษ</span><input type="number" id="pos-discount" step="0.01" min="0" value="0" title="ลดให้ลูกค้าทั้งบิล เช่น เศษ 1 บาท"></div>
-                <div class="pos-total-row grand"><span>รวมเป็นเงิน</span><span class="mono" id="pos-grand">฿0.00</span></div>
+                <div class="pos-total-row grand" id="pos-grand-row"><span id="pos-grand-label">รวมเป็นเงิน</span><span class="mono" id="pos-grand">฿0.00</span></div>
                 <div class="pos-total-row" id="pos-split-row" style="display:none;"><span id="pos-split-label"></span><b class="mono" id="pos-split"></b></div>
                 <div class="pos-total-row change" id="pos-change-row" style="display:none;"><span>เงินทอน</span><span class="mono" id="pos-change">฿0.00</span></div>
               </div>
-              <button class="btn primary" id="pos-btn-save" style="width:100%;justify-content:center;height:54px;font-size:17px;margin-top:12px;"><i class="ti ti-device-floppy"></i>บันทึกบิล (Ctrl+S)</button>
+              <button class="btn primary" id="pos-btn-save" style="width:100%;justify-content:center;height:54px;font-size:17px;margin-top:12px;"><i class="ti ti-device-floppy"></i>บันทึกบิล (Ctrl+Enter)</button>
             </div>
           </div>
         </div>

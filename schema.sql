@@ -347,7 +347,10 @@ CREATE TABLE order_doc_lines (
     unit_price REAL,
     amount REAL,                       -- the line's real total; may differ from qty x unit_price
                                        -- when rounded by hand (v1.6.3: weighed goods 25.50 -> 26)
-    note TEXT                          -- v1.6.3: per-line note
+    note TEXT,                         -- v1.6.3: per-line note
+    -- v1.6.4: 1 = goods brought back, valued and taken off the bill.
+    -- Stored with NEGATIVE qty and amount so report SUMs net them out.
+    is_return INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX idx_order_doc_lines_order ON order_doc_lines(order_id);
 

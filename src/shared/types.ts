@@ -472,6 +472,10 @@ export interface SaleLinePayload {
   // weighed item). null/undefined = qty x unitPrice.
   amount?: number | null
   note?: string
+  // Goods the customer brought back, valued by the shop and taken off the
+  // bill. qty / unitPrice / amount stay POSITIVE here; the server stores the
+  // line with negative qty and amount so every report nets it out.
+  isReturn?: boolean
 }
 
 export interface SalePayload {
@@ -534,8 +538,9 @@ export interface SaleLineView {
   qty: number | null
   unitName: string | null
   unitPrice: number | null
-  amount: number | null
+  amount: number | null // negative on a return line
   note: string | null
+  isReturn: boolean
 }
 
 export interface SaleFilter {

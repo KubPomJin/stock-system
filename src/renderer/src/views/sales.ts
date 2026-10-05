@@ -21,6 +21,9 @@ interface Line {
   // null = qty x unitPrice. Changing qty or price drops it again.
   amount: number | null
   note: string
+  // Goods brought back and taken off the bill. qty/price/amount stay positive
+  // on screen; the line counts negative in the totals (and in the database).
+  ret: boolean
 }
 
 const BOOKS = ['A', 'B', 'C', 'D']
@@ -192,7 +195,8 @@ function applyProduct(i: number, p: ProductView): void {
     unitName: bu?.name ?? '',
     unitPrice: Math.round(retailPerBase(p) * (bu?.qtyPerBase ?? 1) * 100) / 100,
     amount: null,
-    note: lines[i].note
+    note: lines[i].note,
+    ret: lines[i].ret
   }
 }
 
@@ -200,8 +204,8 @@ function applyProduct(i: number, p: ProductView): void {
    Line grid
    ========================================================================= */
 
-function emptyLine(): Line {
-  return { productId: null, description: '', qty: 1, unitName: '', unitPrice: 0, amount: null, note: '' }
+function emptyLine(ret = false): Line {
+  return { productId: null, description: '', qty: 1, unitName: '', unitPrice: 0, amount: null, note: '', ret }
 }
 
 function round2(n: number): number {
@@ -214,6 +218,11 @@ function calcAmount(l: Line): number {
 
 function lineAmount(l: Line): number {
   return l.amount ?? calcAmount(l)
+}
+
+// What the line does to the bill: a return comes off it.
+function signedAmount(l: Line): number {
+  return l.ret ? -lineAmount(l) : lineAmount(l)
 }
 
 // Under the amount box: what qty x price really came to, once it was changed.
@@ -230,10 +239,14 @@ function rowHtml(l: Line, i: number): string {
       ? '<div class="pl-tag free">ไม่อยู่ในรายการสินค้า — บันทึกเป็นข้อความ</div>'
       : ''
   const unitOpts = (p?.units ?? []).map((u) => `<option value="${esc(u.name)}"></option>`).join('')
-  return `<tr data-i="${i}">
-    <td class="pl-no">${i + 1}</td>
+  return `<tr data-i="${i}"${l.ret ? ' class="is-return"' : ''}>
+    <td class="pl-no">${i + 1}
+      <button type="button" class="pl-ret${l.ret ? ' on' : ''}" data-i="${i}" tabindex="-1"
+        title="ของที่ลูกค้าเอามาคืน — หักออกจากบิล">คืน</button>
+    </td>
     <td class="pl-item-cell">
-      <input type="text" class="pl-item" data-i="${i}" value="${esc(l.description)}" placeholder="พิมพ์ชื่อสินค้า หรือ บาร์โค้ด" autocomplete="off">
+      <input type="text" class="pl-item" data-i="${i}" value="${esc(l.description)}" placeholder="${l.ret ? 'ของที่ลูกค้าเอามาคืน — พิมพ์ชื่อหรือบาร์โค้ด' : 'พิมพ์ชื่อสินค้า หรือ บาร์โค้ด'}" autocomplete="off">
+      ${l.ret ? '<div class="pl-tag ret">↩ คืนของ — หักออกจากบิล (ใส่ราคาที่ตีให้ลูกค้า)</div>' : ''}
       ${tag}
       <input type="text" class="pl-note" data-i="${i}" value="${esc(l.note)}" placeholder="หมายเหตุรายการนี้ (ถ้ามี)" autocomplete="off">
     </td>
@@ -242,6 +255,7 @@ function rowHtml(l: Line, i: number): string {
     <td><input type="number" class="pl-price" data-i="${i}" value="${l.unitPrice ? l.unitPrice : ''}" step="0.01" min="0"></td>
     <td class="pl-amount-cell">
       <div class="pl-amt-wrap">
+        <span class="pl-minus">−</span>
         <input type="number" class="pl-amt${l.amount != null ? ' edited' : ''}" data-i="${i}" value="${lineAmount(l) || ''}" step="0.01" min="0" title="แก้ยอดของบรรทัดนี้เองได้">
         <button type="button" class="btn small pl-round" data-i="${i}" title="ปัดเป็นบาทเต็ม (.50 ขึ้นไปปัดขึ้น)" tabindex="-1">ปัด</button>
       </div>
@@ -416,6 +430,15 @@ function bindRows(root: HTMLElement): void {
     })
   })
 
+  root.querySelectorAll<HTMLButtonElement>('.pl-ret').forEach((btn) => {
+    const i = Number(btn.dataset.i)
+    btn.addEventListener('click', () => {
+      lines[i].ret = !lines[i].ret
+      renderRow(i)
+      updateTotals()
+    })
+  })
+
   root.querySelectorAll<HTMLButtonElement>('.pl-del').forEach((btn) => {
     btn.addEventListener('click', () => {
       lines.splice(Number(btn.dataset.i), 1)
@@ -448,8 +471,18 @@ function numVal(id: string): number {
   return parseFloat(input(id).value) || 0
 }
 
-function totals(): { subtotal: number; discount: number; grand: number; transfer: number; cashPart: number } {
-  const subtotal = round2(lines.reduce((s, l) => s + lineAmount(l), 0))
+function totals(): {
+  sold: number
+  returned: number
+  subtotal: number
+  discount: number
+  grand: number
+  transfer: number
+  cashPart: number
+} {
+  const sold = round2(lines.filter((l) => !l.ret).reduce((s, l) => s + lineAmount(l), 0))
+  const returned = round2(lines.filter((l) => l.ret).reduce((s, l) => s + lineAmount(l), 0))
+  const subtotal = round2(lines.reduce((s, l) => s + signedAmount(l), 0))
   const discount = round2(Math.max(numVal('pos-discount'), 0))
   const grand = round2(subtotal + Math.max(numVal('pos-delivery'), 0) - discount)
   let transfer = 0
@@ -460,13 +493,19 @@ function totals(): { subtotal: number; discount: number; grand: number; transfer
     transfer = numVal('pos-transfer-amount')
     cashPart = Math.round((grand - transfer) * 100) / 100
   }
-  return { subtotal, discount, grand, transfer, cashPart }
+  return { sold, returned, subtotal, discount, grand, transfer, cashPart }
 }
 
 function updateTotals(): void {
   const t = totals()
-  $('pos-subtotal').textContent = baht(t.subtotal)
-  $('pos-grand').textContent = baht(t.grand)
+  $('pos-subtotal').textContent = baht(t.sold)
+  $('pos-return-row').style.display = t.returned > 0 ? 'flex' : 'none'
+  $('pos-returned').textContent = `−${money(t.returned)}`
+  // More brought back than bought: the customer gets money back.
+  const refund = t.grand < 0
+  $('pos-grand-row').classList.toggle('refund', refund)
+  $('pos-grand-label').textContent = refund ? 'ต้องคืนเงินลูกค้า' : 'รวมเป็นเงิน'
+  $('pos-grand').textContent = baht(refund ? -t.grand : t.grand)
 
   // Split line under the total — what the drawer / bank should receive.
   const splitRow = $('pos-split-row')
@@ -484,7 +523,7 @@ function updateTotals(): void {
 
   const received = numVal('pos-cash-received')
   const changeRow = $('pos-change-row')
-  if ((pay === 'CASH' || pay === 'MIXED') && received > 0) {
+  if ((pay === 'CASH' || pay === 'MIXED') && received > 0 && t.cashPart > 0) {
     const change = Math.round((received - t.cashPart) * 100) / 100
     changeRow.style.display = 'flex'
     changeRow.classList.toggle('short', change < 0)
@@ -674,10 +713,16 @@ async function loadForEdit(id: number): Promise<void> {
       unitName: l.unitName ?? '',
       unitPrice: l.unitPrice ?? 0,
       // Saved amount that isn't qty x price = it was rounded/changed by hand.
+      // Saved negative on a return line — shown positive with the "คืน" flag.
       amount:
-        l.amount != null && Math.abs(l.amount - round2((l.qty ?? 0) * (l.unitPrice ?? 0))) >= 0.005 ? l.amount : null,
-      note: l.note ?? ''
+        l.amount != null &&
+        Math.abs(Math.abs(l.amount) - round2(Math.abs(l.qty ?? 0) * (l.unitPrice ?? 0))) >= 0.005
+          ? Math.abs(l.amount)
+          : null,
+      note: l.note ?? '',
+      ret: l.isReturn
     }))
+    for (const l of lines) l.qty = Math.abs(l.qty)
     editingNoTicketNumber = sale.noTicket ? sale.docNumber : ''
     const m = sale.docNumber.match(/^([A-D])/)
     if (sale.noTicket) book = NO_TICKET
@@ -714,7 +759,21 @@ async function loadForEdit(id: number): Promise<void> {
   }
 }
 
+// Ctrl+Enter held down, or a double click, must not save the same bill twice
+// (a no-ticket bill would get two N numbers).
+let saving = false
+
 async function save(): Promise<void> {
+  if (saving) return
+  saving = true
+  try {
+    await doSave()
+  } finally {
+    saving = false
+  }
+}
+
+async function doSave(): Promise<void> {
   if (dayLocked) {
     showToast('วันนี้เจ้าของตรวจยอดแล้ว — แก้ไขหรือเพิ่มบิลไม่ได้', true)
     return
@@ -735,7 +794,7 @@ async function save(): Promise<void> {
     return
   }
   const t = totals()
-  if (t.grand < 0) {
+  if (t.discount > 0 && t.grand < 0) {
     showToast('ส่วนลดมากกว่ายอดของบิล', true)
     input('pos-discount').focus()
     return
@@ -769,7 +828,8 @@ async function save(): Promise<void> {
         unitName: l.unitName,
         unitPrice: l.unitPrice,
         amount: l.amount,
-        note: l.note.trim()
+        note: l.note.trim(),
+        isReturn: l.ret
       }))
     })
     await refreshNextNumbers()
@@ -911,10 +971,15 @@ export function initSales(navigate: (view: string) => void): void {
     input(id).addEventListener('input', updateTotals)
   }
   $('pos-btn-exact').addEventListener('click', () => {
-    input('pos-cash-received').value = String(totals().cashPart)
+    input('pos-cash-received').value = String(Math.max(totals().cashPart, 0))
     updateTotals()
   })
   $('pos-btn-add-line').addEventListener('click', addLineAndFocus)
+  $('pos-btn-add-return').addEventListener('click', () => {
+    lines.push(emptyLine(true))
+    renderLines()
+    focusCell(lines.length - 1, 'pl-item')
+  })
   // "คืนค่า" under a hand-changed amount — delegated, rows are re-rendered often.
   $('pos-lines-body').addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('.pl-amt-reset')
@@ -929,14 +994,23 @@ export function initSales(navigate: (view: string) => void): void {
   $('pos-btn-cancel-edit').addEventListener('click', () => resetForm(true))
   $('pos-btn-goto-cashup').addEventListener('click', () => goToView('cashup'))
 
-  // Ctrl+S saves — only while this page is the one on screen.
-  document.addEventListener('keydown', (e) => {
-    if (!$('view-sales').classList.contains('active')) return
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+  // Ctrl+Enter (or Ctrl+S) saves the bill from any box — only while this page
+  // is on screen and not from a dialog on top of it. Capture phase so it wins
+  // over the boxes' own Enter handling (which would open a new line).
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (!$('view-sales').classList.contains('active')) return
+      if (!(e.ctrlKey || e.metaKey)) return
+      if (e.key !== 'Enter' && e.key.toLowerCase() !== 's') return
+      const target = e.target as HTMLElement
+      if (target !== document.body && !target.closest('#view-sales')) return
       e.preventDefault()
+      e.stopPropagation()
       void save()
-    }
-  })
+    },
+    true
+  )
   // The dropdown is position:fixed — keep it glued to its box whichever
   // element scrolls (the window, .content, a table). Capture phase, because
   // scroll events don't bubble. Scrolling the list itself is ignored.

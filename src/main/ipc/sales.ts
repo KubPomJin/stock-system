@@ -219,7 +219,8 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
       unitPrice: Number(l.unitPrice) || 0,
       // A hand-set line total (rounded weighed goods) wins over qty x price.
       amount: l.amount == null || !Number.isFinite(Number(l.amount)) ? null : round2(Number(l.amount)),
-      note: String(l.note ?? '').trim()
+      note: String(l.note ?? '').trim(),
+      isReturn: !!l.isReturn
     }))
     .filter((l) => l.description !== '')
     .map((l) => ({ ...l, amount: l.amount ?? round2(l.qty * l.unitPrice) }))
@@ -227,14 +228,21 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
   for (const l of lines) {
     if (!(l.qty > 0)) throw new Error(`จำนวนของ "${l.description}" ต้องมากกว่า 0`)
     if (l.unitPrice < 0) throw new Error(`ราคาของ "${l.description}" ติดลบไม่ได้`)
-    if (l.amount < 0) throw new Error(`จำนวนเงินของ "${l.description}" ติดลบไม่ได้ — ถ้าจะลดให้ลูกค้า ใส่ที่ช่อง "ส่วนลด"`)
+    if (l.amount < 0) {
+      throw new Error(
+        `จำนวนเงินของ "${l.description}" ติดลบไม่ได้ — ลดให้ลูกค้าใส่ที่ช่อง "ส่วนลด" · ของที่ลูกค้าเอามาคืนให้กด "คืน" ที่บรรทัดนั้น`
+      )
+    }
   }
 
-  const subtotal = round2(lines.reduce((s, l) => s + l.amount, 0))
+  // Return lines come off the bill. The whole bill may end up below zero
+  // (more brought back than bought) — that is money handed back.
+  const sign = (l: { isReturn: boolean }): number => (l.isReturn ? -1 : 1)
+  const subtotal = round2(lines.reduce((s, l) => s + sign(l) * l.amount, 0))
   const deliveryFee = round2(Math.max(Number(p.deliveryFee) || 0, 0))
   const discount = round2(Number(p.discount) || 0)
   if (discount < 0) throw new Error('ส่วนลดติดลบไม่ได้')
-  if (discount > round2(subtotal + deliveryFee)) throw new Error('ส่วนลดมากกว่ายอดของบิล')
+  if (discount > 0 && discount > round2(subtotal + deliveryFee)) throw new Error('ส่วนลดมากกว่ายอดของบิล')
   const grandTotal = round2(subtotal + deliveryFee - discount)
 
   // Split the bill into what went where. TRANSFER always means the whole bill.
@@ -363,11 +371,22 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
     }
 
     const ins = db.prepare(
-      `INSERT INTO order_doc_lines (order_id, line_no, product_id, description, location_name, qty, unit_name, unit_price, amount, note)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`
+      `INSERT INTO order_doc_lines (order_id, line_no, product_id, description, location_name, qty, unit_name, unit_price, amount, note, is_return)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`
     )
     lines.forEach((l, i) => {
-      ins.run(id, i + 1, l.productId, l.description, l.qty, l.unitName || null, l.unitPrice, l.amount, l.note || null)
+      ins.run(
+        id,
+        i + 1,
+        l.productId,
+        l.description,
+        sign(l) * l.qty,
+        l.unitName || null,
+        l.unitPrice,
+        sign(l) * l.amount,
+        l.note || null,
+        l.isReturn ? 1 : 0
+      )
     })
 
     if (bookType) syncCounterWithUsedNumber(bookType, docNumber)
@@ -648,7 +667,7 @@ function topProducts(dateFrom: string, dateTo: string, limit: number): ProductSa
               MAX(l.product_id) AS productId,
               MAX(p.barcode) AS barcode,
               COALESCE(MAX(p.description), MAX(TRIM(l.description))) AS description,
-              COUNT(DISTINCT o.id) AS billCount,
+              COUNT(DISTINCT CASE WHEN l.is_return = 0 THEN o.id END) AS billCount,
               SUM(${LINE_AMOUNT}) AS amount
        FROM order_doc_lines l
        JOIN order_docs o ON o.id = l.order_id
@@ -702,7 +721,7 @@ function productTrend(year: number, key: string): ProductTrendRow[] {
   const where = `o.voided = 0 AND strftime('%Y', ${DAY}) = ? AND ${LINE_KEY} = ?`
   const head = db
     .prepare(
-      `SELECT CAST(strftime('%m', ${DAY}) AS INTEGER) AS month, COUNT(DISTINCT o.id) AS billCount,
+      `SELECT CAST(strftime('%m', ${DAY}) AS INTEGER) AS month, COUNT(DISTINCT CASE WHEN l.is_return = 0 THEN o.id END) AS billCount,
               SUM(${LINE_AMOUNT}) AS amount
        FROM order_doc_lines l JOIN order_docs o ON o.id = l.order_id
        WHERE ${where} GROUP BY month`
@@ -760,11 +779,11 @@ export function registerSalesHandlers(): void {
     const lines = getDb()
       .prepare(
         `SELECT line_no AS lineNo, product_id AS productId, description, qty,
-                unit_name AS unitName, unit_price AS unitPrice, amount, note
+                unit_name AS unitName, unit_price AS unitPrice, amount, note, is_return AS isReturn
          FROM order_doc_lines WHERE order_id = ? ORDER BY line_no`
       )
-      .all(id) as SaleLineView[]
-    return { sale, lines }
+      .all(id) as (Omit<SaleLineView, 'isReturn'> & { isReturn: number })[]
+    return { sale, lines: lines.map((l) => ({ ...l, isReturn: l.isReturn === 1 })) }
   })
 
   handle('sales:save', 1, (payload: SalePayload) => saveSale(payload))

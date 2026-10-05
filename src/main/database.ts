@@ -426,6 +426,10 @@ function migrateSales(): void {
   // may differ from qty x unit_price when it was rounded by hand.
   const lineCols = (d.prepare('PRAGMA table_info(order_doc_lines)').all() as { name: string }[]).map((c) => c.name)
   if (!lineCols.includes('note')) d.exec('ALTER TABLE order_doc_lines ADD COLUMN note TEXT')
+  // v1.6.4: goods brought back and taken off the bill. Stored with NEGATIVE
+  // qty and amount (so SUMs in the reports net them out); the flag is for
+  // display and for telling a return apart from a data-entry mistake.
+  if (!lineCols.includes('is_return')) d.exec('ALTER TABLE order_doc_lines ADD COLUMN is_return INTEGER NOT NULL DEFAULT 0')
 
   d.exec('CREATE INDEX IF NOT EXISTS idx_order_docs_date ON order_docs(doc_date);')
   d.exec('CREATE INDEX IF NOT EXISTS idx_order_doc_lines_order ON order_doc_lines(order_id);')
