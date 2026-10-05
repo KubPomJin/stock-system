@@ -17,6 +17,10 @@ interface Line {
   qty: number
   unitName: string
   unitPrice: number
+  // Line total typed or rounded by hand (weighed goods: 25.50 -> 26).
+  // null = qty x unitPrice. Changing qty or price drops it again.
+  amount: number | null
+  note: string
 }
 
 const BOOKS = ['A', 'B', 'C', 'D']
@@ -119,11 +123,8 @@ function renderSuggest(): void {
        <i class="ti ti-pencil"></i> ใช้ข้อความที่พิมพ์: "${esc(typed)}" (ไม่อยู่ในรายการสินค้า)
      </div>`
 
-  const r = inputEl.getBoundingClientRect()
-  box.style.left = `${Math.round(r.left)}px`
-  box.style.top = `${Math.round(r.bottom + 3)}px`
-  box.style.width = `${Math.max(Math.round(r.width), 460)}px`
   box.classList.add('open')
+  positionSuggest()
 
   box.querySelectorAll<HTMLElement>('.ps-opt').forEach((el) => {
     el.addEventListener('mousedown', (e) => {
@@ -132,6 +133,33 @@ function renderSuggest(): void {
     })
   })
   box.querySelector('.ps-opt.active')?.scrollIntoView({ block: 'nearest' })
+}
+
+// The dropdown is position:fixed, so it has to be moved by hand whenever the
+// page scrolls. Near the bottom of the screen it opens UPWARDS instead, and it
+// never grows past the edge of the window.
+function positionSuggest(): void {
+  const box = suggestBox()
+  if (!box.classList.contains('open')) return
+  const inputEl = document.querySelector<HTMLInputElement>(`.pl-item[data-i="${suggestFor}"]`)
+  if (!inputEl) return closeSuggest()
+  const r = inputEl.getBoundingClientRect()
+  const vh = window.innerHeight
+  // Scrolled out of sight — nothing to attach to.
+  if (r.bottom < 0 || r.top > vh) return closeSuggest()
+  const below = vh - r.bottom - 12
+  const above = r.top - 12
+  const up = below < 240 && above > below
+  box.style.maxHeight = `${Math.round(Math.min(380, Math.max(up ? above : below, 120)))}px`
+  box.style.left = `${Math.round(r.left)}px`
+  box.style.width = `${Math.max(Math.round(r.width), 460)}px`
+  if (up) {
+    box.style.top = ''
+    box.style.bottom = `${Math.round(vh - r.top + 3)}px`
+  } else {
+    box.style.bottom = ''
+    box.style.top = `${Math.round(r.bottom + 3)}px`
+  }
 }
 
 function openSuggest(i: number): void {
@@ -162,7 +190,9 @@ function applyProduct(i: number, p: ProductView): void {
     description: p.description,
     qty: lines[i].qty || 1,
     unitName: bu?.name ?? '',
-    unitPrice: Math.round(retailPerBase(p) * (bu?.qtyPerBase ?? 1) * 100) / 100
+    unitPrice: Math.round(retailPerBase(p) * (bu?.qtyPerBase ?? 1) * 100) / 100,
+    amount: null,
+    note: lines[i].note
   }
 }
 
@@ -171,11 +201,25 @@ function applyProduct(i: number, p: ProductView): void {
    ========================================================================= */
 
 function emptyLine(): Line {
-  return { productId: null, description: '', qty: 1, unitName: '', unitPrice: 0 }
+  return { productId: null, description: '', qty: 1, unitName: '', unitPrice: 0, amount: null, note: '' }
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+function calcAmount(l: Line): number {
+  return round2(l.qty * l.unitPrice)
 }
 
 function lineAmount(l: Line): number {
-  return Math.round(l.qty * l.unitPrice * 100) / 100
+  return l.amount ?? calcAmount(l)
+}
+
+// Under the amount box: what qty x price really came to, once it was changed.
+function amountTagHtml(l: Line, i: number): string {
+  if (l.amount == null) return ''
+  return `คิดจริง ${money(calcAmount(l))} · <a href="#" class="pl-amt-reset" data-i="${i}">คืนค่า</a>`
 }
 
 function rowHtml(l: Line, i: number): string {
@@ -191,11 +235,18 @@ function rowHtml(l: Line, i: number): string {
     <td class="pl-item-cell">
       <input type="text" class="pl-item" data-i="${i}" value="${esc(l.description)}" placeholder="พิมพ์ชื่อสินค้า หรือ บาร์โค้ด" autocomplete="off">
       ${tag}
+      <input type="text" class="pl-note" data-i="${i}" value="${esc(l.note)}" placeholder="หมายเหตุรายการนี้ (ถ้ามี)" autocomplete="off">
     </td>
     <td><input type="number" class="pl-qty" data-i="${i}" value="${l.qty || ''}" step="any" min="0"></td>
     <td><input type="text" class="pl-unit" data-i="${i}" value="${esc(l.unitName)}" list="dl-unit-${i}" autocomplete="off"><datalist id="dl-unit-${i}">${unitOpts}</datalist></td>
     <td><input type="number" class="pl-price" data-i="${i}" value="${l.unitPrice ? l.unitPrice : ''}" step="0.01" min="0"></td>
-    <td class="pl-amount" data-i="${i}">${money(lineAmount(l))}</td>
+    <td class="pl-amount-cell">
+      <div class="pl-amt-wrap">
+        <input type="number" class="pl-amt${l.amount != null ? ' edited' : ''}" data-i="${i}" value="${lineAmount(l) || ''}" step="0.01" min="0" title="แก้ยอดของบรรทัดนี้เองได้">
+        <button type="button" class="btn small pl-round" data-i="${i}" title="ปัดเป็นบาทเต็ม (.50 ขึ้นไปปัดขึ้น)" tabindex="-1">ปัด</button>
+      </div>
+      <div class="pl-tag pl-amt-tag" data-i="${i}">${amountTagHtml(l, i)}</div>
+    </td>
     <td><button class="icon-btn pl-del" data-i="${i}" title="ลบบรรทัด" tabindex="-1"><i class="ti ti-trash"></i></button></td>
   </tr>`
 }
@@ -275,6 +326,7 @@ function bindRows(root: HTMLElement): void {
     const i = Number(el.dataset.i)
     el.addEventListener('input', () => {
       lines[i].qty = parseFloat(el.value) || 0
+      lines[i].amount = null
       refreshAmount(i)
     })
     el.addEventListener('keydown', (e) => {
@@ -294,6 +346,7 @@ function bindRows(root: HTMLElement): void {
       const u = p?.units.find((x) => x.name === lines[i].unitName)
       if (p && u && retailPerBase(p) > 0) {
         lines[i].unitPrice = Math.round(retailPerBase(p) * u.qtyPerBase * 100) / 100
+        lines[i].amount = null
         const priceEl = document.querySelector<HTMLInputElement>(`.pl-price[data-i="${i}"]`)
         if (priceEl) priceEl.value = String(lines[i].unitPrice)
         refreshAmount(i)
@@ -314,6 +367,7 @@ function bindRows(root: HTMLElement): void {
     const i = Number(el.dataset.i)
     el.addEventListener('input', () => {
       lines[i].unitPrice = parseFloat(el.value) || 0
+      lines[i].amount = null
       refreshAmount(i)
     })
     el.addEventListener('keydown', (e) => {
@@ -321,6 +375,44 @@ function bindRows(root: HTMLElement): void {
       e.preventDefault()
       if (i === lines.length - 1) addLineAndFocus()
       else focusCell(i + 1, 'pl-item')
+    })
+  })
+
+  root.querySelectorAll<HTMLInputElement>('.pl-note').forEach((el) => {
+    const i = Number(el.dataset.i)
+    el.addEventListener('input', () => {
+      lines[i].note = el.value
+    })
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        focusCell(i, 'pl-qty')
+      }
+    })
+  })
+
+  root.querySelectorAll<HTMLInputElement>('.pl-amt').forEach((el) => {
+    const i = Number(el.dataset.i)
+    el.addEventListener('input', () => {
+      const v = el.value.trim() === '' ? null : round2(parseFloat(el.value) || 0)
+      // Typing back the computed figure is the same as not overriding it.
+      lines[i].amount = v == null || Math.abs(v - calcAmount(lines[i])) < 0.005 ? null : v
+      refreshAmount(i, false)
+    })
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return
+      e.preventDefault()
+      if (i === lines.length - 1) addLineAndFocus()
+      else focusCell(i + 1, 'pl-item')
+    })
+  })
+
+  root.querySelectorAll<HTMLButtonElement>('.pl-round').forEach((btn) => {
+    const i = Number(btn.dataset.i)
+    btn.addEventListener('click', () => {
+      const rounded = Math.round(lineAmount(lines[i]))
+      lines[i].amount = Math.abs(rounded - calcAmount(lines[i])) < 0.005 ? null : rounded
+      refreshAmount(i)
     })
   })
 
@@ -332,9 +424,19 @@ function bindRows(root: HTMLElement): void {
   })
 }
 
-function refreshAmount(i: number): void {
-  const cell = document.querySelector(`.pl-amount[data-i="${i}"]`)
-  if (cell) cell.textContent = money(lineAmount(lines[i]))
+// writeBox=false while the user is typing in the amount box itself, so the
+// caret isn't yanked around.
+function refreshAmount(i: number, writeBox = true): void {
+  const l = lines[i]
+  const box = document.querySelector<HTMLInputElement>(`.pl-amt[data-i="${i}"]`)
+  if (box) {
+    if (writeBox) box.value = lineAmount(l) ? String(lineAmount(l)) : ''
+    box.classList.toggle('edited', l.amount != null)
+  }
+  const tag = document.querySelector<HTMLElement>(`.pl-amt-tag[data-i="${i}"]`)
+  if (tag) {
+    tag.innerHTML = amountTagHtml(l, i)
+  }
   updateTotals()
 }
 
@@ -346,9 +448,10 @@ function numVal(id: string): number {
   return parseFloat(input(id).value) || 0
 }
 
-function totals(): { subtotal: number; grand: number; transfer: number; cashPart: number } {
-  const subtotal = Math.round(lines.reduce((s, l) => s + lineAmount(l), 0) * 100) / 100
-  const grand = Math.round((subtotal + Math.max(numVal('pos-delivery'), 0)) * 100) / 100
+function totals(): { subtotal: number; discount: number; grand: number; transfer: number; cashPart: number } {
+  const subtotal = round2(lines.reduce((s, l) => s + lineAmount(l), 0))
+  const discount = round2(Math.max(numVal('pos-discount'), 0))
+  const grand = round2(subtotal + Math.max(numVal('pos-delivery'), 0) - discount)
   let transfer = 0
   let cashPart = 0
   if (pay === 'CASH') cashPart = grand
@@ -357,7 +460,7 @@ function totals(): { subtotal: number; grand: number; transfer: number; cashPart
     transfer = numVal('pos-transfer-amount')
     cashPart = Math.round((grand - transfer) * 100) / 100
   }
-  return { subtotal, grand, transfer, cashPart }
+  return { subtotal, discount, grand, transfer, cashPart }
 }
 
 function updateTotals(): void {
@@ -547,6 +650,7 @@ function resetForm(keepDate = true): void {
     input(id).value = ''
   }
   input('pos-delivery').value = '0'
+  input('pos-discount').value = '0'
   $('pos-title').textContent = 'คีย์บิลขาย'
   $('pos-subtitle').textContent = 'พิมพ์ตามใบสั่งสินค้าที่เขียนด้วยมือ — บันทึกยอดเงินอย่างเดียว ไม่ตัดสต๊อก'
   $('pos-btn-cancel-edit').style.display = 'none'
@@ -568,7 +672,11 @@ async function loadForEdit(id: number): Promise<void> {
       description: l.description,
       qty: l.qty ?? 0,
       unitName: l.unitName ?? '',
-      unitPrice: l.unitPrice ?? 0
+      unitPrice: l.unitPrice ?? 0,
+      // Saved amount that isn't qty x price = it was rounded/changed by hand.
+      amount:
+        l.amount != null && Math.abs(l.amount - round2((l.qty ?? 0) * (l.unitPrice ?? 0))) >= 0.005 ? l.amount : null,
+      note: l.note ?? ''
     }))
     editingNoTicketNumber = sale.noTicket ? sale.docNumber : ''
     const m = sale.docNumber.match(/^([A-D])/)
@@ -582,6 +690,7 @@ async function loadForEdit(id: number): Promise<void> {
     input('pos-customer').value = sale.customerName ?? ''
     input('pos-contact').value = sale.customerContact ?? ''
     input('pos-delivery').value = String(sale.deliveryFee || 0)
+    input('pos-discount').value = String(sale.discount || 0)
     input('pos-transfer-ref').value = sale.transferRef ?? ''
     input('pos-note').value = sale.note ?? ''
     const method = (['CASH', 'TRANSFER', 'MIXED', 'CREDIT'] as SalePayMethod[]).includes(sale.paymentMethod as SalePayMethod)
@@ -626,6 +735,11 @@ async function save(): Promise<void> {
     return
   }
   const t = totals()
+  if (t.grand < 0) {
+    showToast('ส่วนลดมากกว่ายอดของบิล', true)
+    input('pos-discount').focus()
+    return
+  }
   const received = numVal('pos-cash-received')
   if ((pay === 'CASH' || pay === 'MIXED') && received > 0 && received < t.cashPart) {
     showToast(`รับเงินมา ${money(received)} ยังไม่พอ (ต้องจ่ายเงินสด ${money(t.cashPart)})`, true)
@@ -646,13 +760,16 @@ async function save(): Promise<void> {
       transferAmount: pay === 'MIXED' ? numVal('pos-transfer-amount') : null,
       transferRef: input('pos-transfer-ref').value,
       deliveryFee: numVal('pos-delivery'),
+      discount: t.discount,
       note: input('pos-note').value,
       lines: filled.map((l) => ({
         productId: l.productId,
         description: l.description.trim(),
         qty: l.qty,
         unitName: l.unitName,
-        unitPrice: l.unitPrice
+        unitPrice: l.unitPrice,
+        amount: l.amount,
+        note: l.note.trim()
       }))
     })
     await refreshNextNumbers()
@@ -790,7 +907,7 @@ export function initSales(navigate: (view: string) => void): void {
   document.querySelectorAll<HTMLButtonElement>('#pos-pay .pos-pay-btn').forEach((b) =>
     b.addEventListener('click', () => setPay(b.dataset.pay as SalePayMethod))
   )
-  for (const id of ['pos-delivery', 'pos-transfer-amount', 'pos-cash-received']) {
+  for (const id of ['pos-delivery', 'pos-discount', 'pos-transfer-amount', 'pos-cash-received']) {
     input(id).addEventListener('input', updateTotals)
   }
   $('pos-btn-exact').addEventListener('click', () => {
@@ -798,6 +915,15 @@ export function initSales(navigate: (view: string) => void): void {
     updateTotals()
   })
   $('pos-btn-add-line').addEventListener('click', addLineAndFocus)
+  // "คืนค่า" under a hand-changed amount — delegated, rows are re-rendered often.
+  $('pos-lines-body').addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLElement>('.pl-amt-reset')
+    if (!a) return
+    e.preventDefault()
+    const i = Number(a.dataset.i)
+    lines[i].amount = null
+    refreshAmount(i)
+  })
   $('pos-btn-save').addEventListener('click', () => void save())
   $('pos-btn-clear').addEventListener('click', () => resetForm(true))
   $('pos-btn-cancel-edit').addEventListener('click', () => resetForm(true))
@@ -811,9 +937,17 @@ export function initSales(navigate: (view: string) => void): void {
       void save()
     }
   })
-  // The dropdown is position:fixed — hide it rather than let it float away.
-  document.querySelector('.content')?.addEventListener('scroll', closeSuggest, { passive: true })
-  window.addEventListener('resize', closeSuggest)
+  // The dropdown is position:fixed — keep it glued to its box whichever
+  // element scrolls (the window, .content, a table). Capture phase, because
+  // scroll events don't bubble. Scrolling the list itself is ignored.
+  window.addEventListener(
+    'scroll',
+    (e) => {
+      if (e.target !== suggestBox()) positionSuggest()
+    },
+    { capture: true, passive: true }
+  )
+  window.addEventListener('resize', positionSuggest)
 
   resetForm(false)
   input('pos-time').value = ''

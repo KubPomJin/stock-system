@@ -310,7 +310,7 @@ CREATE TABLE order_docs (
     note TEXT,
     subtotal REAL NOT NULL DEFAULT 0,
     delivery_fee REAL NOT NULL DEFAULT 0,
-    grand_total REAL NOT NULL DEFAULT 0,
+    grand_total REAL NOT NULL DEFAULT 0,  -- subtotal + delivery_fee - discount
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by INTEGER REFERENCES users(id),
     -- v1.6.0: bank-statement check. NULL on a bill that has a transfer = PENDING.
@@ -328,7 +328,9 @@ CREATE TABLE order_docs (
     -- v1.6.1: 1 = sold WITHOUT a printed, numbered ticket. The system numbers
     -- these itself in their own series (N69-0001); they never touch the A-D
     -- counters and are left out of the missing-number check.
-    no_ticket INTEGER NOT NULL DEFAULT 0
+    no_ticket INTEGER NOT NULL DEFAULT 0,
+    -- v1.6.3: knocked off the whole bill (e.g. the odd 1 baht)
+    discount REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX idx_order_docs_date ON order_docs(doc_date);
 
@@ -343,7 +345,9 @@ CREATE TABLE order_doc_lines (
     qty REAL,
     unit_name TEXT,                    -- the unit it was SOLD in (not converted to base)
     unit_price REAL,
-    amount REAL
+    amount REAL,                       -- the line's real total; may differ from qty x unit_price
+                                       -- when rounded by hand (v1.6.3: weighed goods 25.50 -> 26)
+    note TEXT                          -- v1.6.3: per-line note
 );
 CREATE INDEX idx_order_doc_lines_order ON order_doc_lines(order_id);
 

@@ -758,7 +758,13 @@
   .pos-lines .pl-qty{width:96px;text-align:right;}
   .pos-lines .pl-unit{width:104px;}
   .pos-lines .pl-price{width:124px;text-align:right;}
-  .pos-lines td.pl-amount{width:124px;text-align:right;padding-top:16px !important;font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-weight:700;}
+  .pos-lines .pl-amount-cell{width:190px;}
+  .pos-lines .pl-amt-wrap{display:flex;gap:4px;}
+  .pos-lines .pl-amt{width:124px;text-align:right;font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-weight:700;}
+  .pos-lines .pl-amt.edited{border-color:var(--warn);background:#FFF8EC;}
+  .pos-lines .pl-round{height:40px;padding:0 10px;}
+  .pos-lines .pl-amt-tag{text-align:right;color:var(--warn);}
+  .pos-lines input.pl-note{height:30px;margin-top:4px;font-size:13px;}
   .pl-tag{font-size:12px;margin-top:3px;color:var(--text-secondary);text-decoration:none;}
   .pl-tag.free{color:var(--warn);}
   #pos-suggest{position:fixed;z-index:90;background:#fff;border:1px solid var(--border-input);border-radius:8px;
@@ -839,6 +845,35 @@
   .cu-sheet .cu-big td{font-size:13px;font-weight:700;}
   .cu-sheet .cu-two{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
   .cu-sheet .cu-notebox{border:1px solid #000;min-height:52px;padding:5px 7px;font-size:11px;}
+  .cu-sheet .cu-notebox.lined{min-height:0;padding:2px 9px 6px;}
+  .cu-sheet .cu-noteline{border-bottom:1px dotted #000;height:26px;}
+  .cu-sheet .cu-noteline.text{height:auto;min-height:26px;padding-top:6px;white-space:pre-wrap;}
+  .cu-sheet table.cu-cash td{height:22px;}
+  .cu-sheet table.cu-cash.blank td{height:30px;}
+  .cu-sheet table.cu-cash .lbl{width:34%;}
+  .cu-sheet table.cu-cash .amt{width:22%;}
+  .cu-sheet .cu-hand{font-size:10px;color:#444 !important;}
+  /* Same continuous form as the order ticket (9 x 5.5in), content laid out
+     PORTRAIT and turned 90deg onto the page when printed. */
+  #cashup-preview-paper.form{width:auto;padding:0;background:none;box-shadow:none;}
+  .cu-form-preview{background:#fff;margin:0 auto;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.15);outline:1px dashed #9AA5AA;outline-offset:0;}
+  .cu-form-page{position:relative;overflow:hidden;background:#fff;}
+  .cu-form-rot{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;}
+  .cu-sheet.small{width:100%;font-size:10px;line-height:1.35;}
+  .cu-sheet.small h1{font-size:15px;}
+  .cu-sheet.small h2{font-size:11px;margin:7px 0 3px;}
+  .cu-sheet.small .cu-sub{font-size:11px;margin:1px 0 4px;}
+  .cu-sheet.small .cu-meta{font-size:8.5px;margin-bottom:5px;}
+  .cu-sheet.small th,.cu-sheet.small td{font-size:9.5px;padding:2px 4px;}
+  .cu-sheet.small .cu-big td{font-size:11px;}
+  .cu-sheet.small table.cu-cash td{height:19px;}
+  .cu-sheet.small table.cu-cash.blank td{height:25px;}
+  .cu-sheet.small .cu-two{grid-template-columns:1fr;gap:6px;}
+  .cu-sheet.small .cu-notebox{font-size:9.5px;}
+  .cu-sheet.small .cu-noteline{height:21px;}
+  .cu-sheet.small .cu-noteline.text{min-height:21px;padding-top:4px;}
+  .cu-sheet.small .cu-sign{gap:18px;margin-top:14px;font-size:9.5px;}
+  .cu-sheet.small .cu-line{height:22px;}
   .cu-sheet .cu-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:30px;text-align:center;font-size:11.5px;}
   .cu-sheet .cu-line{border-bottom:1px dotted #000;height:30px;margin-bottom:4px;}
   .cu-sheet tr{page-break-inside:avoid;break-inside:avoid;}
@@ -1366,7 +1401,7 @@
           </table></div>
           <div style="padding:10px 20px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <button class="btn small" id="pos-btn-add-line"><i class="ti ti-plus"></i>เพิ่มบรรทัด</button>
-            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · <b>Ctrl+S</b> = บันทึก</span>
+            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · ยอดมีเศษสตางค์ กด <b>ปัด</b> หรือแก้ช่องจำนวนเงินเอง · <b>Ctrl+S</b> = บันทึก</span>
           </div>
           <div class="pos-bottom" style="padding:18px 20px 20px;">
             <div>
@@ -1392,6 +1427,7 @@
               <div class="pos-total-box">
                 <div class="pos-total-row"><span>รวมค่าสินค้า</span><b class="mono" id="pos-subtotal">฿0.00</b></div>
                 <div class="pos-total-row"><span>ค่าจัดส่ง</span><input type="number" id="pos-delivery" step="0.01" min="0" value="0"></div>
+                <div class="pos-total-row"><span>ส่วนลด / ปัดเศษ</span><input type="number" id="pos-discount" step="0.01" min="0" value="0" title="ลดให้ลูกค้าทั้งบิล เช่น เศษ 1 บาท"></div>
                 <div class="pos-total-row grand"><span>รวมเป็นเงิน</span><span class="mono" id="pos-grand">฿0.00</span></div>
                 <div class="pos-total-row" id="pos-split-row" style="display:none;"><span id="pos-split-label"></span><b class="mono" id="pos-split"></b></div>
                 <div class="pos-total-row change" id="pos-change-row" style="display:none;"><span>เงินทอน</span><span class="mono" id="pos-change">฿0.00</span></div>
@@ -1426,9 +1462,17 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head"><h2>1. นับเงินสดในลิ้นชัก</h2><span class="panel-head-sub" id="cu-count-sub"></span></div>
+          <div class="panel-head"><h2>1. นับเงินสดในลิ้นชัก</h2><span class="panel-head-sub" id="cu-count-sub"></span>
+            <div class="panel-actions"><label class="po-radio" style="margin:0;"><input type="checkbox" id="cu-use-denoms">นับแยกธนบัตร / เหรียญ</label></div>
+          </div>
           <div class="cu-grid" style="padding:18px 20px;">
-            <div>
+            <div id="cu-total-wrap">
+              <label>นับเงินในลิ้นชักได้รวม (บาท)</label>
+              <input type="number" id="cu-counted-input" step="0.01" min="0" style="font-size:22px;height:56px;text-align:right;">
+              <div class="field-hint" style="margin:8px 0 0;">นับเงินทั้งหมดในลิ้นชัก (รวมเงินทอนตั้งต้น) แล้วใส่ยอดรวม ·
+                ถ้าต้องการนับแยกแต่ละแบงก์/เหรียญ ติ๊ก "นับแยกธนบัตร / เหรียญ" ด้านบน</div>
+            </div>
+            <div id="cu-denom-wrap">
               <table class="cu-denoms">
                 <thead><tr><th>ธนบัตร / เหรียญ</th><th class="num">จำนวน</th><th class="num">เป็นเงิน</th></tr></thead>
                 <tbody id="cu-denom-body"></tbody>
@@ -1438,11 +1482,11 @@
             <div>
               <div class="cu-calc">
                 <div class="cu-calc-row"><span>เงินทอนตั้งต้น (ตอนเปิดร้าน)</span><input type="number" id="cu-float" step="0.01" min="0"></div>
+                <div class="cu-calc-row"><span>− เงินใช้ระหว่างวัน (จ่ายออกจากลิ้นชัก)</span><input type="number" id="cu-out" step="0.01" min="0"></div>
+                <div class="cu-calc-row"><input type="text" id="cu-adjust-note" placeholder="ใช้ไปกับอะไร เช่น ซื้อน้ำแข็ง 40, ค่าส่งของ 100"></div>
                 <div class="cu-calc-row"><span>+ ขายเป็นเงินสด (จากบิล)</span><b class="mono" id="cu-cash-sales">฿0.00</b></div>
                 <div class="cu-calc-row"><span>+ เงินเข้าอื่นๆ (เช่น ลูกค้าเครดิตมาจ่าย)</span><input type="number" id="cu-in" step="0.01" min="0"></div>
-                <div class="cu-calc-row"><span>− จ่ายออกจากลิ้นชัก</span><input type="number" id="cu-out" step="0.01" min="0"></div>
-                <div class="cu-calc-row"><input type="text" id="cu-adjust-note" placeholder="รายละเอียดเงินเข้า/จ่ายออก เช่น ซื้อน้ำแข็ง 40"></div>
-                <div class="cu-calc-row total"><span>ควรมีเงินสดในลิ้นชัก</span><b class="mono" id="cu-expected">฿0.00</b></div>
+                <div class="cu-calc-row total"><span>ยอดรวม — เงินสดที่ควรมีในลิ้นชัก</span><b class="mono" id="cu-expected">฿0.00</b></div>
                 <div class="cu-calc-row total"><span>นับได้จริง</span><b class="mono" id="cu-counted-2">฿0.00</b></div>
               </div>
               <div class="cu-diff" id="cu-diff">—</div>
@@ -1725,12 +1769,71 @@
 <!-- ขายหน้าร้าน: A4 daily sheet preview. The dialog only SHOWS a copy — the
      copy that is printed is #cashup-print-area below, outside any fixed box. -->
 <div class="preview-backdrop" id="cashup-preview-modal">
-  <div class="preview-dialog" style="width:1000px;">
+  <div class="preview-dialog" style="width:1180px;">
     <div class="preview-head">
-      <h2>ตัวอย่างใบสรุปยอดขายประจำวัน (A4 แนวตั้ง)</h2>
+      <h2>ตัวอย่างใบสรุปยอดขายประจำวัน</h2>
       <button class="icon-btn" id="cu-pv-close" style="margin-left:auto;" aria-label="ปิด"><i class="ti ti-x"></i></button>
     </div>
-    <div class="preview-body" style="background:#E6EAEC;padding:20px;"><div id="cashup-preview-paper"></div></div>
+    <div class="print-layout">
+      <div class="print-options" id="cu-pv-options">
+        <div class="po-group">
+          <h3>กระดาษ</h3>
+          <label class="po-radio"><input type="radio" name="cu-paper" value="form">ใบสั่งสินค้า 9 × 5.5 นิ้ว (แนวตั้ง)</label>
+          <label class="po-radio"><input type="radio" name="cu-paper" value="a4">A4 แนวตั้ง</label>
+          <div id="cu-form-settings">
+            <label class="po-radio"><input type="checkbox" id="cu-flip">กลับหัว (หัวกระดาษอยู่อีกด้าน)</label>
+            <div class="field-hint" id="cu-paper-hint" style="margin:2px 0 10px;line-height:1.5;"></div>
+            <h3>ขนาดที่ส่งให้เครื่องพิมพ์</h3>
+            <select id="cu-form-paper" style="margin-bottom:10px;">
+              <option value="9">9 × 5.5 นิ้ว — กระดาษเต็มแผ่น</option>
+              <option value="8">8 × 5.5 นิ้ว — เฉพาะพื้นที่พิมพ์</option>
+            </select>
+            <h3>ระยะขอบกระดาษ (มม.)</h3>
+            <div class="ov-margins">
+              <label>บน<input type="number" id="cu-m-top" min="0" max="60" step="0.5"></label>
+              <label>ล่าง<input type="number" id="cu-m-bottom" min="0" max="60" step="0.5"></label>
+              <label>ซ้าย<input type="number" id="cu-m-left" min="0" max="60" step="0.5"></label>
+              <label>ขวา<input type="number" id="cu-m-right" min="0" max="60" step="0.5"></label>
+            </div>
+            <div class="field-hint" style="margin:6px 0 0;line-height:1.5;">ด้านของกระดาษตอนออกจากเครื่องพิมพ์ (แนวนอน 9 นิ้ว เหมือนใบสั่งสินค้า)</div>
+            <button class="btn small" id="cu-m-reset" style="width:100%;justify-content:center;margin-top:8px;">ใช้ค่าเดียวกับใบสั่งสินค้า</button>
+          </div>
+        </div>
+        <div class="po-group">
+          <h3>ส่วนที่จะพิมพ์</h3>
+          <label class="po-radio"><input type="checkbox" data-opt="summary">ยอดรวม เงินสด / โอน / เครดิต</label>
+          <label class="po-radio"><input type="checkbox" data-opt="cash">ตารางตรวจเงินสด</label>
+          <label class="po-radio"><input type="checkbox" data-opt="denoms">ตารางนับธนบัตร / เหรียญ</label>
+          <label class="po-radio"><input type="checkbox" data-opt="bills">รายการบิลทั้งหมด</label>
+          <label class="po-radio"><input type="checkbox" data-opt="others">บิลยกเลิก / ไม่มีใบ / เลขที่ขาด</label>
+          <label class="po-radio"><input type="checkbox" data-opt="note">ช่องหมายเหตุ</label>
+          <label class="po-radio"><input type="checkbox" data-opt="sign">ช่องลงชื่อ</label>
+        </div>
+        <div class="po-group">
+          <h3>ตารางตรวจเงินสด</h3>
+          <label class="po-radio"><input type="radio" name="cu-cash-mode" value="auto">คิดให้จากที่คีย์ในระบบ</label>
+          <label class="po-radio"><input type="radio" name="cu-cash-mode" value="blank">เว้นช่องว่างไว้เขียนเอง</label>
+          <div class="field-hint" style="margin:2px 0 0;line-height:1.5;">แบบเว้นช่อง: ยอด "ขายเป็นเงินสด" ยังพิมพ์จากบิลให้ ช่องอื่นเขียนด้วยมือ</div>
+        </div>
+        <div class="po-group">
+          <h3>ช่องหมายเหตุ</h3>
+          <select id="cu-note-lines">
+            <option value="0">ไม่เว้นบรรทัด</option>
+            <option value="3">เว้นไว้เขียน 3 บรรทัด</option>
+            <option value="5">เว้นไว้เขียน 5 บรรทัด</option>
+            <option value="8">เว้นไว้เขียน 8 บรรทัด</option>
+            <option value="12">เว้นไว้เขียน 12 บรรทัด</option>
+            <option value="18">เว้นไว้เขียน 18 บรรทัด</option>
+          </select>
+          <div class="field-hint" style="margin:6px 0 0;line-height:1.5;">หมายเหตุที่พิมพ์ไว้ในระบบ จะขึ้นบรรทัดบนสุดให้</div>
+        </div>
+        <button class="btn small" id="cu-pv-reset" style="width:100%;justify-content:center;">คืนค่าเริ่มต้น</button>
+      </div>
+      <div class="preview-body" style="background:#E6EAEC;padding:20px;">
+        <div class="pv-warn" id="cu-pv-warn"><i class="ti ti-alert-triangle"></i><span></span></div>
+        <div id="cashup-preview-paper"></div>
+      </div>
+    </div>
     <div class="preview-foot">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <span style="font-weight:600;">เครื่องพิมพ์</span><select id="cu-printer" style="width:auto;min-width:240px;"></select>

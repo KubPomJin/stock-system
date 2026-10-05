@@ -78,6 +78,7 @@ const SALE_SELECT = `
          o.transfer_note    AS transferNote,
          o.subtotal,
          o.delivery_fee     AS deliveryFee,
+         o.discount,
          o.grand_total      AS grandTotal,
          o.note,
          o.voided,
@@ -215,18 +216,26 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
       description: String(l.description ?? '').trim(),
       qty: Number(l.qty) || 0,
       unitName: String(l.unitName ?? '').trim(),
-      unitPrice: Number(l.unitPrice) || 0
+      unitPrice: Number(l.unitPrice) || 0,
+      // A hand-set line total (rounded weighed goods) wins over qty x price.
+      amount: l.amount == null || !Number.isFinite(Number(l.amount)) ? null : round2(Number(l.amount)),
+      note: String(l.note ?? '').trim()
     }))
     .filter((l) => l.description !== '')
+    .map((l) => ({ ...l, amount: l.amount ?? round2(l.qty * l.unitPrice) }))
   if (!lines.length) throw new Error('กรุณาใส่รายการสินค้าอย่างน้อย 1 รายการ')
   for (const l of lines) {
     if (!(l.qty > 0)) throw new Error(`จำนวนของ "${l.description}" ต้องมากกว่า 0`)
     if (l.unitPrice < 0) throw new Error(`ราคาของ "${l.description}" ติดลบไม่ได้`)
+    if (l.amount < 0) throw new Error(`จำนวนเงินของ "${l.description}" ติดลบไม่ได้ — ถ้าจะลดให้ลูกค้า ใส่ที่ช่อง "ส่วนลด"`)
   }
 
-  const subtotal = round2(lines.reduce((s, l) => s + round2(l.qty * l.unitPrice), 0))
+  const subtotal = round2(lines.reduce((s, l) => s + l.amount, 0))
   const deliveryFee = round2(Math.max(Number(p.deliveryFee) || 0, 0))
-  const grandTotal = round2(subtotal + deliveryFee)
+  const discount = round2(Number(p.discount) || 0)
+  if (discount < 0) throw new Error('ส่วนลดติดลบไม่ได้')
+  if (discount > round2(subtotal + deliveryFee)) throw new Error('ส่วนลดมากกว่ายอดของบิล')
+  const grandTotal = round2(subtotal + deliveryFee - discount)
 
   // Split the bill into what went where. TRANSFER always means the whole bill.
   let transferAmount: number | null = null
@@ -286,7 +295,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         `UPDATE order_docs SET
            doc_number = ?, no_ticket = ?, book_type = ?, doc_date = ?, doc_time = ?, customer_name = ?, customer_contact = ?,
            payment_method = ?, cash_received = ?, cash_change = ?, transfer_amount = ?, transfer_ref = ?,
-           note = ?, subtotal = ?, delivery_fee = ?, grand_total = ?,
+           note = ?, subtotal = ?, delivery_fee = ?, discount = ?, grand_total = ?,
            transfer_status = ?,
            transfer_verified_at = CASE WHEN ? THEN transfer_verified_at ELSE NULL END,
            transfer_verified_by = CASE WHEN ? THEN transfer_verified_by ELSE NULL END,
@@ -308,6 +317,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         p.note?.trim() || null,
         subtotal,
         deliveryFee,
+        discount,
         grandTotal,
         newTransfer > 0 ? (keepCheck ? old.transfer_status : 'PENDING') : null,
         keepCheck ? 1 : 0,
@@ -325,8 +335,8 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
             `INSERT INTO order_docs
                (doc_number, no_ticket, book_type, doc_date, doc_time, customer_name, customer_contact,
                 payment_method, cash_received, cash_change, transfer_amount, transfer_ref,
-                note, subtotal, delivery_fee, grand_total, transfer_status, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                note, subtotal, delivery_fee, discount, grand_total, transfer_status, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             docNumber,
@@ -344,6 +354,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
             p.note?.trim() || null,
             subtotal,
             deliveryFee,
+            discount,
             grandTotal,
             (transferAmount ?? 0) > 0 ? 'PENDING' : null,
             user.id
@@ -352,11 +363,11 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
     }
 
     const ins = db.prepare(
-      `INSERT INTO order_doc_lines (order_id, line_no, product_id, description, location_name, qty, unit_name, unit_price, amount)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)`
+      `INSERT INTO order_doc_lines (order_id, line_no, product_id, description, location_name, qty, unit_name, unit_price, amount, note)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`
     )
     lines.forEach((l, i) => {
-      ins.run(id, i + 1, l.productId, l.description, l.qty, l.unitName || null, l.unitPrice, round2(l.qty * l.unitPrice))
+      ins.run(id, i + 1, l.productId, l.description, l.qty, l.unitName || null, l.unitPrice, l.amount, l.note || null)
     })
 
     if (bookType) syncCounterWithUsedNumber(bookType, docNumber)
@@ -749,7 +760,7 @@ export function registerSalesHandlers(): void {
     const lines = getDb()
       .prepare(
         `SELECT line_no AS lineNo, product_id AS productId, description, qty,
-                unit_name AS unitName, unit_price AS unitPrice, amount
+                unit_name AS unitName, unit_price AS unitPrice, amount, note
          FROM order_doc_lines WHERE order_id = ? ORDER BY line_no`
       )
       .all(id) as SaleLineView[]

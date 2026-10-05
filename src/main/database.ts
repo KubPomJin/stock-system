@@ -418,6 +418,14 @@ function migrateSales(): void {
   // its own series (N69-0001) so it never uses up or leaves a hole in the
   // A-D books' numbering.
   add('no_ticket', 'INTEGER NOT NULL DEFAULT 0')
+  // v1.6.3: discount knocked off the whole bill (e.g. the odd 1 baht).
+  // grand_total = subtotal + delivery_fee - discount.
+  add('discount', 'REAL NOT NULL DEFAULT 0')
+
+  // v1.6.3: a note per line ("ปัดจาก 25.50", "แถมให้"). The line's own amount
+  // may differ from qty x unit_price when it was rounded by hand.
+  const lineCols = (d.prepare('PRAGMA table_info(order_doc_lines)').all() as { name: string }[]).map((c) => c.name)
+  if (!lineCols.includes('note')) d.exec('ALTER TABLE order_doc_lines ADD COLUMN note TEXT')
 
   d.exec('CREATE INDEX IF NOT EXISTS idx_order_docs_date ON order_docs(doc_date);')
   d.exec('CREATE INDEX IF NOT EXISTS idx_order_doc_lines_order ON order_doc_lines(order_id);')

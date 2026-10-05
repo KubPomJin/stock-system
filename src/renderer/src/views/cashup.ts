@@ -14,13 +14,78 @@ import { money, payLabel, thaiDate, thaiDateTime, todayIso, transferBadge, TRANS
 
 const DENOMS = [1000, 500, 100, 50, 20, 10, 5, 2, 1]
 const PAGE_CSS = '@media print{@page{size:A4 portrait;margin:12mm;}}'
-const PRINTER_KEY = 'printer.cashup'
+const PRINTER_KEY = 'printer.cashup' // A4
+const PRINTER_KEY_FORM = 'printer.cashup.form' // order-ticket form
+// Set on the order page (orders.ts) — the same printer and continuous paper.
+const ORDER_PRINTER_KEY = 'printer.orderTicket'
+const ORDER_PAPER_KEY = 'print.orderPaper'
+const ORDER_MARGIN_KEY = 'print.orderMargins'
+// This sheet's own paper width + margins on that form (falls back to the above).
+const FORM_SETTINGS_KEY = 'print.cashupForm'
 // A4 portrait with 12mm margins leaves 273mm of height per page.
 const PRINTABLE_HEIGHT_MM = 273
+
+// Which parts of the A4 sheet to print. Remembered per machine — the shop
+// settles on one layout and keeps it. Off parts are kept in code, not deleted,
+// so they can be switched back on later (the owner's request).
+interface SheetOpts {
+  // 'form' = the 9 x 5.5in order-ticket paper, printed portrait (owner's pick)
+  paper: 'form' | 'a4'
+  flip: boolean // turn the form 180deg if it comes out upside down
+  summary: boolean
+  cash: boolean
+  cashMode: 'auto' | 'blank' // figures from the system, or empty boxes to write in
+  denoms: boolean
+  bills: boolean
+  others: boolean
+  note: boolean
+  noteLines: number
+  sign: boolean
+}
+const SHEET_KEY = 'cashup.sheet'
+const DENOMS_KEY = 'cashup.useDenoms'
+const DEFAULT_OPTS: SheetOpts = {
+  paper: 'form',
+  flip: false,
+  summary: true,
+  cash: true,
+  cashMode: 'auto',
+  denoms: false,
+  bills: false,
+  others: false,
+  note: true,
+  noteLines: 5,
+  sign: true
+}
+type FlagKey = 'summary' | 'cash' | 'denoms' | 'bills' | 'others' | 'note' | 'sign'
 
 let day: DaySummary | null = null
 let dirty = false
 let goToView: (view: string) => void = () => {}
+let opts: SheetOpts = loadOpts()
+
+function loadOpts(): SheetOpts {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SHEET_KEY) ?? 'null')
+    return saved ? { ...DEFAULT_OPTS, ...saved } : { ...DEFAULT_OPTS }
+  } catch {
+    return { ...DEFAULT_OPTS }
+  }
+}
+
+function storeOpts(): void {
+  try {
+    localStorage.setItem(SHEET_KEY, JSON.stringify(opts))
+  } catch {
+    // not remembered — still prints with what is ticked now
+  }
+}
+
+// Count the drawer note by note, or just type the total (the default — the
+// counter staff don't count denominations).
+function useDenoms(): boolean {
+  return (document.getElementById('cu-use-denoms') as HTMLInputElement).checked
+}
 
 function num(id: string): number {
   return parseFloat(input(id).value) || 0
@@ -32,10 +97,21 @@ function r2(n: number): number {
 
 /* ---------- live calculation ---------- */
 
-function countedTotal(): number {
+function denomTotal(): number {
   let total = num('cu-coins-other')
   for (const d of DENOMS) total += (parseInt(input(`cu-d-${d}`).value, 10) || 0) * d
   return r2(total)
+}
+
+function countedTotal(): number {
+  return useDenoms() ? denomTotal() : r2(num('cu-counted-input'))
+}
+
+function applyDenomMode(): void {
+  const on = useDenoms()
+  $('cu-denom-wrap').style.display = on ? '' : 'none'
+  $('cu-total-wrap').style.display = on ? 'none' : ''
+  recalc()
 }
 
 function expectedCash(): number {
@@ -139,13 +215,15 @@ export async function renderCashup(): Promise<void> {
 
   // ---- cash count ----
   renderDenoms(c)
+  input('cu-counted-input').value = c?.countedTotal ? String(c.countedTotal) : ''
+  applyDenomMode()
   input('cu-float').value = c ? String(c.openingFloat || '') : ''
   input('cu-in').value = c ? String(c.cashInOther || '') : ''
   input('cu-out').value = c ? String(c.cashOut || '') : ''
   input('cu-adjust-note').value = c?.adjustNote ?? ''
   ;(document.getElementById('cu-note') as HTMLTextAreaElement).value = c?.note ?? ''
   $('cu-cash-sales').textContent = baht(d.cashTotal)
-  $('cu-count-sub').textContent = `ลิ้นชักควรมี = เงินทอนตั้งต้น + ขายเงินสด + เงินเข้าอื่นๆ − จ่ายออก`
+  $('cu-count-sub').textContent = `ยอดรวม = เงินทอนตั้งต้น − เงินใช้ระหว่างวัน + ขายเงินสด (+ เงินเข้าอื่นๆ)`
   recalc()
 
   // ---- transfers ----
@@ -209,7 +287,7 @@ export async function renderCashup(): Promise<void> {
   $('cu-close-sub').textContent = c ? `ปิดยอดล่าสุด ${thaiDateTime(c.closedAt)} โดย ${c.closedBy ?? ''}` : 'ยังไม่ได้ปิดยอดของวันนี้'
   ;($('cu-btn-save') as HTMLButtonElement).disabled = d.locked
   document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('#view-cashup input:not(#cu-date), #view-cashup textarea').forEach((el) => {
-    if (el.id !== 'cu-owner-note') el.disabled = d.locked
+    if (el.id !== 'cu-owner-note' && el.id !== 'cu-use-denoms') el.disabled = d.locked
   })
 
   $('cu-owner-panel').style.display = level() >= 3 ? '' : 'none'
@@ -227,10 +305,14 @@ export async function renderCashup(): Promise<void> {
 
 async function saveClose(silent = false): Promise<boolean> {
   if (!day) return false
+  // Total-only counting is stored as "other" money with no denominations, so
+  // the saved counted_total is the same either way.
   const counts: Record<string, number> = {}
-  for (const d of DENOMS) {
-    const c = parseInt(input(`cu-d-${d}`).value, 10) || 0
-    if (c > 0) counts[String(d)] = c
+  if (useDenoms()) {
+    for (const d of DENOMS) {
+      const c = parseInt(input(`cu-d-${d}`).value, 10) || 0
+      if (c > 0) counts[String(d)] = c
+    }
   }
   try {
     await window.api.sales.saveClose({
@@ -240,7 +322,7 @@ async function saveClose(silent = false): Promise<boolean> {
       cashOut: num('cu-out'),
       adjustNote: input('cu-adjust-note').value,
       counts,
-      coinsOther: num('cu-coins-other'),
+      coinsOther: useDenoms() ? num('cu-coins-other') : num('cu-counted-input'),
       note: (document.getElementById('cu-note') as HTMLTextAreaElement).value
     })
     await renderCashup()
@@ -254,17 +336,71 @@ async function saveClose(silent = false): Promise<boolean> {
 
 /* ---------- A4 sheet ---------- */
 
-function buildSheet(d: DaySummary, c: CashCloseView): string {
+function buildSheet(d: DaySummary, c: CashCloseView, o: SheetOpts): string {
   const live = d.sales.filter((s) => !s.voided)
-  const diff = diffHtml(c.difference)
-  const denomRows = DENOMS.map((v) => {
-    const n = c.counts?.[String(v)] ?? 0
-    return `<tr><td>${v.toLocaleString('th-TH')}</td><td class="n">${n || ''}</td><td class="n">${n ? money(n * v) : ''}</td></tr>`
-  }).join('')
+  const voided = d.sales.filter((s) => s.voided)
+  const noTicket = live.filter((s) => s.noTicket)
+  const blank = o.cashMode === 'blank'
+  // Section numbers follow whatever is switched on.
+  let n = 0
+  const h2 = (title: string): string => `<h2>${++n}. ${title}</h2>`
+  const parts: string[] = []
 
-  const billRows = live
-    .map(
-      (s, i) => `<tr>
+  if (o.summary) {
+    parts.push(`<table class="cu-sum">
+      <tr><th>จำนวนบิล</th><th>ยอดขายรวม</th><th>เงินสด</th><th>เงินโอน</th><th>เครดิต</th><th>บิลยกเลิก</th></tr>
+      <tr class="cu-big"><td class="n">${d.billCount}</td><td class="n">${money(d.grandTotal)}</td><td class="n">${money(d.cashTotal)}</td>
+        <td class="n">${money(d.transferTotal)}</td><td class="n">${money(d.creditTotal)}</td><td class="n">${d.voidCount}</td></tr>
+    </table>`)
+  }
+
+  // Cash check: "auto" prints what was keyed in; "blank" leaves the boxes empty
+  // to be written by hand (cash sales still come from the bills).
+  const cashTable = (): string => {
+    const v = (x: number): string => (blank ? '' : money(x))
+    const detail = (x: string): string => (blank ? '' : esc(x))
+    const diff = diffHtml(c.difference)
+    return `<table class="cu-cash${blank ? ' blank' : ''}">
+      <tr><th class="lbl">รายการ</th><th class="amt">จำนวนเงิน (บาท)</th><th>รายละเอียด</th></tr>
+      <tr><td>เงินทอนตั้งต้น</td><td class="n">${v(c.openingFloat)}</td><td></td></tr>
+      <tr><td>− เงินใช้ระหว่างวัน</td><td class="n">${v(c.cashOut)}</td><td>${detail(c.adjustNote ?? '')}</td></tr>
+      <tr><td>+ ขายเป็นเงินสด (จากบิล)</td><td class="n">${money(c.cashTotal)}</td><td></td></tr>
+      ${
+        // Rarely used — only printed when there actually was some.
+        !blank && c.cashInOther ? `<tr><td>+ เงินเข้าอื่นๆ</td><td class="n">${money(c.cashInOther)}</td><td></td></tr>` : ''
+      }
+      <tr><th style="text-align:left;">ยอดรวม (เงินสดที่ควรมี)</th><th class="n">${v(c.expectedCash)}</th><td></td></tr>
+      <tr><th style="text-align:left;">นับได้จริง</th><th class="n">${v(c.countedTotal)}</th><td></td></tr>
+      <tr class="cu-big"><td><b>ผลต่าง</b></td>
+        <td class="n">${blank ? '' : `<b>${esc(diff.text)}</b>`}</td>
+        <td>${blank ? '<span class="cu-hand">☐ ตรงพอดี &nbsp; ☐ ขาด &nbsp; ☐ เกิน</span>' : ''}</td></tr>
+    </table>`
+  }
+
+  // Denominations: the counted numbers when there are any, otherwise an empty
+  // grid to fill in by hand.
+  const denomTable = (): string => {
+    const rows = DENOMS.map((v) => {
+      const cnt = c.counts?.[String(v)] ?? 0
+      return `<tr><td>${v.toLocaleString('th-TH')}</td><td class="n">${cnt || ''}</td><td class="n">${cnt ? money(cnt * v) : ''}</td></tr>`
+    }).join('')
+    const hasCounts = Object.values(c.counts ?? {}).some((x) => x > 0)
+    return `<table>
+      <tr><th>ธนบัตร/เหรียญ</th><th>จำนวน</th><th>เป็นเงิน</th></tr>
+      ${rows}
+      <tr><td>เศษสตางค์/อื่นๆ</td><td></td><td class="n">${hasCounts && c.coinsOther ? money(c.coinsOther) : ''}</td></tr>
+      <tr><th colspan="2" style="text-align:left;">นับได้รวม</th><th class="n">${hasCounts && !blank ? money(c.countedTotal) : ''}</th></tr>
+    </table>`
+  }
+
+  if (o.cash && o.denoms) parts.push(h2('ตรวจนับเงินสด') + `<div class="cu-two">${denomTable()}${cashTable()}</div>`)
+  else if (o.cash) parts.push(h2('ตรวจเงินสด') + cashTable())
+  else if (o.denoms) parts.push(h2('นับธนบัตร / เหรียญ') + `<div class="cu-two">${denomTable()}<div></div></div>`)
+
+  if (o.bills) {
+    const billRows = live
+      .map(
+        (s, i) => `<tr>
         <td class="n">${i + 1}</td><td>${esc(s.docNumber)}${s.noTicket ? ' (ไม่มีใบ)' : ''}</td><td>${esc(s.docTime ?? '')}</td>
         <td>${esc(s.customerName ?? '')}</td><td class="n">${money(s.grandTotal)}</td>
         <td>${esc(payLabel(s.paymentMethod))}</td>
@@ -273,60 +409,22 @@ function buildSheet(d: DaySummary, c: CashCloseView): string {
         <td class="n">${s.creditAmount ? money(s.creditAmount) : ''}</td>
         <td>${s.transferStatus ? esc(TRANSFER_STATUS[s.transferStatus]?.label ?? '') : ''}</td>
       </tr>`
-    )
-    .join('')
-
-  const voided = d.sales.filter((s) => s.voided)
-  const noTicket = live.filter((s) => s.noTicket)
-  const gaps = d.gaps
-    .map((g) => `เล่ม ${esc(g.book)}: ${g.numbers.map(esc).join(', ')}${g.more ? ` และอีก ${g.more} ใบ` : ''}`)
-    .join('<br>')
-
-  return `<div class="cu-sheet">
-    <h1>ใบสรุปยอดขายประจำวัน</h1>
-    <div class="cu-sub">วันที่ <b>${thaiDate(d.date)}</b></div>
-    <div class="cu-meta">
-      ปิดยอดโดย: <b>${esc(c.closedBy ?? '')}</b> เมื่อ ${thaiDateTime(c.closedAt)}
-      · สถานะ: <b>${c.ownerCheckedAt ? `เจ้าของตรวจแล้ว (${esc(c.ownerCheckedBy ?? '')} ${thaiDateTime(c.ownerCheckedAt)})` : 'รอเจ้าของตรวจ'}</b>
-      · พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}
-      ${d.closeStale ? '<br><b>หมายเหตุ: มีการแก้บิลหลังปิดยอด — ตัวเลขด้านล่างเป็นยอดล่าสุด</b>' : ''}
-    </div>
-
-    <table class="cu-sum">
-      <tr><th>จำนวนบิล</th><th>ยอดขายรวม</th><th>เงินสด</th><th>เงินโอน</th><th>เครดิต</th><th>บิลยกเลิก</th></tr>
-      <tr class="cu-big"><td class="n">${d.billCount}</td><td class="n">${money(d.grandTotal)}</td><td class="n">${money(d.cashTotal)}</td>
-        <td class="n">${money(d.transferTotal)}</td><td class="n">${money(d.creditTotal)}</td><td class="n">${d.voidCount}</td></tr>
-    </table>
-
-    <h2>1. ตรวจนับเงินสด</h2>
-    <div class="cu-two">
-      <table>
-        <tr><th>ธนบัตร/เหรียญ</th><th>จำนวน</th><th>เป็นเงิน</th></tr>
-        ${denomRows}
-        <tr><td>เศษสตางค์/อื่นๆ</td><td></td><td class="n">${c.coinsOther ? money(c.coinsOther) : ''}</td></tr>
-        <tr><th colspan="2" style="text-align:left;">นับได้รวม</th><th class="n">${money(c.countedTotal)}</th></tr>
-      </table>
-      <table>
-        <tr><td>เงินทอนตั้งต้น</td><td class="n">${money(c.openingFloat)}</td></tr>
-        <tr><td>+ ขายเป็นเงินสด</td><td class="n">${money(c.cashTotal)}</td></tr>
-        <tr><td>+ เงินเข้าอื่นๆ</td><td class="n">${money(c.cashInOther)}</td></tr>
-        <tr><td>− จ่ายออก</td><td class="n">${money(c.cashOut)}</td></tr>
-        ${c.adjustNote ? `<tr><td colspan="2" style="font-size:10.5px;">รายละเอียด: ${esc(c.adjustNote)}</td></tr>` : ''}
-        <tr><th style="text-align:left;">ควรมีเงินสด</th><th class="n">${money(c.expectedCash)}</th></tr>
-        <tr><th style="text-align:left;">นับได้จริง</th><th class="n">${money(c.countedTotal)}</th></tr>
-        <tr class="cu-big"><td><b>ผลต่าง</b></td><td class="n"><b>${esc(diff.text)}</b></td></tr>
-      </table>
-    </div>
-
-    <h2>2. รายการบิลทั้งหมด (${live.length} ใบ)</h2>
+      )
+      .join('')
+    parts.push(`${h2(`รายการบิลทั้งหมด (${live.length} ใบ)`)}
     <table class="cu-bills">
       <tr><th>#</th><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th>ยอดรวม</th><th>ชำระ</th><th>เงินสด</th><th>โอน</th><th>เครดิต</th><th>ตรวจโอน</th></tr>
       ${billRows || '<tr><td colspan="10" style="text-align:center;">ไม่มีบิล</td></tr>'}
       <tr><th colspan="4" style="text-align:right;">รวม</th><th class="n">${money(d.grandTotal)}</th><th></th>
         <th class="n">${money(d.cashTotal)}</th><th class="n">${money(d.transferTotal)}</th><th class="n">${money(d.creditTotal)}</th><th></th></tr>
-    </table>
+    </table>`)
+  }
 
-    <h2>3. บิลยกเลิก / บิลที่ไม่มีใบ / เลขที่ใบที่ขาดหาย</h2>
+  if (o.others) {
+    const gaps = d.gaps
+      .map((g) => `เล่ม ${esc(g.book)}: ${g.numbers.map(esc).join(', ')}${g.more ? ` และอีก ${g.more} ใบ` : ''}`)
+      .join('<br>')
+    parts.push(`${h2('บิลยกเลิก / บิลที่ไม่มีใบ / เลขที่ใบที่ขาดหาย')}
     <div class="cu-notebox" style="min-height:0;">
       <b>บิลยกเลิก:</b> ${voided.length ? voided.map((s) => `${esc(s.docNumber)} (${esc(s.voidReason ?? '')})`).join(', ') : 'ไม่มี'}<br>
       <b>บิลที่ไม่มีใบ:</b> ${
@@ -335,23 +433,227 @@ function buildSheet(d: DaySummary, c: CashCloseView): string {
           : 'ไม่มี'
       }<br>
       <b>เลขที่ขาดหาย:</b> ${gaps || 'ไม่มี'}
-    </div>
+    </div>`)
+  }
 
-    <h2>4. หมายเหตุ</h2>
-    <div class="cu-notebox">${esc(c.note ?? '')}${c.ownerNote ? `<br><b>เจ้าของ:</b> ${esc(c.ownerNote)}` : ''}</div>
+  if (o.note) {
+    // What was typed into the system goes on the top lines; the rest are
+    // empty dotted lines for writing by hand.
+    const typed = [c.note?.trim(), c.ownerNote?.trim() ? `เจ้าของ: ${c.ownerNote.trim()}` : '']
+      .filter((x): x is string => !!x)
+      .map((t) => `<div class="cu-noteline text">${esc(t)}</div>`)
+      .join('')
+    const blanks = '<div class="cu-noteline"></div>'.repeat(o.noteLines)
+    parts.push(
+      h2('หมายเหตุ') +
+        (typed || blanks
+          ? `<div class="cu-notebox lined">${typed}${blanks}</div>`
+          : '<div class="cu-notebox"></div>')
+    )
+  }
 
-    <div class="cu-sign">
+  if (o.sign) {
+    parts.push(`<div class="cu-sign">
       <div><div class="cu-line"></div>ผู้ปิดยอด (${esc(c.closedBy ?? '')})<br>วันที่ ........./........./.........</div>
       <div><div class="cu-line"></div>ผู้ตรวจ (เจ้าของร้าน)<br>วันที่ ........./........./.........</div>
+    </div>`)
+  }
+
+  return `<div class="cu-sheet${o.paper === 'form' ? ' small' : ''}">
+    <h1>ใบสรุปยอดขายประจำวัน</h1>
+    <div class="cu-sub">วันที่ <b>${thaiDate(d.date)}</b></div>
+    <div class="cu-meta">
+      ปิดยอดโดย: <b>${esc(c.closedBy ?? '')}</b> เมื่อ ${thaiDateTime(c.closedAt)}
+      · สถานะ: <b>${c.ownerCheckedAt ? `เจ้าของตรวจแล้ว (${esc(c.ownerCheckedBy ?? '')} ${thaiDateTime(c.ownerCheckedAt)})` : 'รอเจ้าของตรวจ'}</b>
+      · พิมพ์เมื่อ ${new Date().toLocaleString('th-TH')}
+      ${d.closeStale ? '<br><b>หมายเหตุ: มีการแก้บิลหลังปิดยอด — ตัวเลขด้านล่างเป็นยอดล่าสุด</b>' : ''}
     </div>
+    ${parts.join('\n')}
   </div>`
 }
 
+// The order-ticket continuous form. This sheet keeps its OWN paper width and
+// margins (dialled in on the cash-up print dialog), starting from whatever the
+// order page uses — same printer, same paper — until someone changes them
+// here. The order page's settings are only ever read, never written.
+interface FormMargins {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+interface FormGeometry {
+  paperIn: number // 9 = full sheet incl. tractor strips, 8 = printable part only
+  m: FormMargins
+  // The PORTRAIT content box: across the 5.5in side, along the 9in side.
+  widthMm: number
+  heightMm: number
+}
+
+function defaultFormMargins(paperIn: number): FormMargins {
+  const side = paperIn === 9 ? 12.7 : 0
+  return { top: 5.1, right: side, bottom: 5.1, left: side }
+}
+
+function orderPageForm(): { paperIn: number; m: FormMargins } {
+  let paperIn = 9
+  let m = defaultFormMargins(9)
+  try {
+    paperIn = localStorage.getItem(ORDER_PAPER_KEY) === '8' ? 8 : 9
+    m = defaultFormMargins(paperIn)
+    const saved = localStorage.getItem(ORDER_MARGIN_KEY)
+    if (saved) m = { ...m, ...(JSON.parse(saved) as FormMargins) }
+  } catch {
+    // defaults above
+  }
+  return { paperIn, m }
+}
+
+function formGeometry(): FormGeometry {
+  let f = orderPageForm()
+  try {
+    const own = localStorage.getItem(FORM_SETTINGS_KEY)
+    if (own) {
+      const o = JSON.parse(own) as { paperIn: number; m: FormMargins }
+      const paperIn = o.paperIn === 8 ? 8 : 9
+      f = { paperIn, m: { ...defaultFormMargins(paperIn), ...o.m } }
+    }
+  } catch {
+    // fall back to the order page's settings
+  }
+  return {
+    paperIn: f.paperIn,
+    m: f.m,
+    widthMm: r2(5.5 * 25.4 - f.m.top - f.m.bottom),
+    heightMm: r2(f.paperIn * 25.4 - f.m.left - f.m.right)
+  }
+}
+
+// Read the paper/margin boxes and remember them for this sheet.
+function storeFormSettings(paperChanged: boolean): void {
+  const paperIn = select('cu-form-paper').value === '8' ? 8 : 9
+  // Side margins mean something different per paper width (tractor strips or
+  // not), so a width change starts from that width's defaults.
+  const d = defaultFormMargins(paperIn)
+  const n = (id: string, fallback: number): number => {
+    const v = parseFloat(input(id).value)
+    return isNaN(v) ? fallback : Math.max(0, Math.min(60, v))
+  }
+  const m = paperChanged
+    ? d
+    : { top: n('cu-m-top', d.top), right: n('cu-m-right', d.right), bottom: n('cu-m-bottom', d.bottom), left: n('cu-m-left', d.left) }
+  try {
+    localStorage.setItem(FORM_SETTINGS_KEY, JSON.stringify({ paperIn, m }))
+  } catch {
+    // not remembered — still used for this print
+  }
+}
+
+// The physical page stays exactly the driver's 9 x 5.5in form (asking for any
+// other size made the paper creep on the order ticket), and the portrait sheet
+// is turned 90deg onto it. Unflipped, the top of the sheet sits at the LEFT
+// edge of the form: tear it off and turn it clockwise to read.
+function formPageHtml(sheet: string, g: FormGeometry): string {
+  const transform = opts.flip
+    ? `translate(${g.m.left + g.heightMm}mm, ${g.m.top}mm) rotate(90deg)`
+    : `translate(${g.m.left}mm, ${g.m.top + g.widthMm}mm) rotate(-90deg)`
+  return `<div class="cu-form-page" style="width:${g.paperIn}in;height:5.5in;">
+    <div class="cu-form-rot" style="width:${g.widthMm}mm;height:${g.heightMm}mm;transform:${transform};">${sheet}</div>
+  </div>`
+}
+
+// Same sheet into the on-screen preview and the real print area, and the
+// option boxes set to match. The preview shows the form UPRIGHT (as it is
+// read); only the print copy is rotated.
+function drawSheet(): void {
+  if (!day?.close) return
+  const html = buildSheet(day, day.close, opts)
+  const paper = $('cashup-preview-paper')
+  const form = opts.paper === 'form'
+  paper.classList.toggle('form', form)
+  if (form) {
+    const g = formGeometry()
+    paper.innerHTML = `<div class="cu-form-preview" style="width:${g.widthMm}mm;height:${g.heightMm}mm;">${html}</div>`
+    $('cashup-print-area').innerHTML = formPageHtml(html, g)
+    $('cu-paper-hint').textContent =
+      `กระดาษต่อเนื่องเดียวกับใบสั่งสินค้า พิมพ์หมุนเป็นแนวตั้ง — ฉีกแล้วหมุนอ่าน · ` +
+      `พื้นที่พิมพ์ ${g.widthMm.toFixed(0)} × ${g.heightMm.toFixed(0)} มม.`
+  } else {
+    paper.innerHTML = html
+    $('cashup-print-area').innerHTML = html
+    $('cu-paper-hint').textContent = ''
+  }
+
+  const box = $('cu-pv-options')
+  box.querySelectorAll<HTMLInputElement>('input[name="cu-paper"]').forEach((el) => {
+    el.checked = el.value === opts.paper
+  })
+  input('cu-flip').checked = opts.flip
+  $('cu-form-settings').style.display = form ? '' : 'none'
+  if (form) {
+    const g = formGeometry()
+    select('cu-form-paper').value = String(g.paperIn)
+    input('cu-m-top').value = String(g.m.top)
+    input('cu-m-bottom').value = String(g.m.bottom)
+    input('cu-m-left').value = String(g.m.left)
+    input('cu-m-right').value = String(g.m.right)
+  }
+  box.querySelectorAll<HTMLInputElement>('input[data-opt]').forEach((el) => {
+    el.checked = opts[el.dataset.opt as FlagKey]
+  })
+  box.querySelectorAll<HTMLInputElement>('input[name="cu-cash-mode"]').forEach((el) => {
+    el.checked = el.value === opts.cashMode
+    el.disabled = !opts.cash
+  })
+  select('cu-note-lines').value = String(opts.noteLines)
+  select('cu-note-lines').disabled = !opts.note
+
+  // One form = one page. Anything taller is cut off, so say so up front.
+  const over = form && formOverflowing()
+  const warn = $('cu-pv-warn')
+  warn.classList.toggle('show', over)
+  const msg = warn.querySelector('span')
+  if (msg) msg.textContent = 'เนื้อหายาวเกินกระดาษ — ส่วนล่างจะหายตอนพิมพ์ · ปิดบางส่วน ลดบรรทัดหมายเหตุ หรือเลือกกระดาษ A4'
+  updatePrinterHint()
+}
+
+function formOverflowing(): boolean {
+  const frame = document.querySelector<HTMLElement>('#cashup-preview-paper .cu-form-preview')
+  const sheet = frame?.querySelector<HTMLElement>('.cu-sheet')
+  return !!frame && !!sheet && sheet.scrollHeight > frame.clientHeight + 1
+}
+
 function estimatePages(): number {
+  if (opts.paper === 'form') return 1
   const sheet = document.querySelector<HTMLElement>('#cashup-preview-paper .cu-sheet')
   if (!sheet) return 1
   const mm = (sheet.scrollHeight * 25.4) / 96
   return Math.max(1, Math.ceil(mm / PRINTABLE_HEIGHT_MM))
+}
+
+// A separate remembered printer per paper: the form goes to the dot matrix,
+// A4 never can (the LQ-310 holds no A4 — that job fails outright).
+function printerKey(): string {
+  return opts.paper === 'form' ? PRINTER_KEY_FORM : PRINTER_KEY
+}
+
+function pickPrinter(): void {
+  const sel = select('cu-printer')
+  const names = [...sel.options].map((o) => o.value)
+  const stored = (key: string): string | null => {
+    try {
+      const v = localStorage.getItem(key)
+      return v && names.includes(v) ? v : null
+    } catch {
+      return null
+    }
+  }
+  const find = (re: RegExp): string | undefined => names.find((n) => re.test(n))
+  const choice =
+    opts.paper === 'form'
+      ? stored(PRINTER_KEY_FORM) ?? stored(ORDER_PRINTER_KEY) ?? find(/LQ-?\d|dot ?matrix/i)
+      : stored(PRINTER_KEY) ?? find(/print to pdf/i)
+  if (choice) sel.value = choice
 }
 
 async function openPreview(): Promise<void> {
@@ -366,31 +668,22 @@ async function openPreview(): Promise<void> {
     showToast('ยังไม่ได้บันทึกปิดยอดของวันนี้', true)
     return
   }
-  const html = buildSheet(day, day.close)
-  $('cashup-preview-paper').innerHTML = html
-  $('cashup-print-area').innerHTML = html
   $('cashup-preview-modal').classList.add('active')
-  await loadPrinters(select('cu-printer'), PRINTER_KEY)
-  // The shop's only physical printer is the LQ-310 dot matrix, which holds the
-  // 9 x 5.5in form and NO A4 — sending this sheet there fails with "Print job
-  // failed". Until someone picks a printer for this sheet, default to the PDF
-  // writer so the first attempt produces a file instead of an error.
-  let remembered: string | null = null
-  try {
-    remembered = localStorage.getItem(PRINTER_KEY)
-  } catch {
-    remembered = null
-  }
-  if (!remembered) {
-    const pdf = [...select('cu-printer').options].find((o) => /print to pdf/i.test(o.value))
-    if (pdf) select('cu-printer').value = pdf.value
-  }
+  drawSheet()
+  await loadPrinters(select('cu-printer'))
+  pickPrinter()
   updatePrinterHint()
 }
 
 function updatePrinterHint(): void {
+  const printer = select('cu-printer').value
+  const dotMatrix = /LQ-?\d|dot ?matrix/i.test(printer)
+  if (opts.paper === 'form') {
+    const g = formGeometry()
+    $('cu-pv-pages').textContent = `1 แผ่น · ใบสั่งสินค้า ${g.paperIn} × 5.5 นิ้ว (พิมพ์แนวตั้ง)`
+    return
+  }
   const pages = `ประมาณ ${estimatePages()} หน้า A4 แนวตั้ง`
-  const dotMatrix = /LQ-?\d|dot ?matrix/i.test(select('cu-printer').value)
   $('cu-pv-pages').innerHTML = dotMatrix
     ? `${pages} · <b style="color:var(--danger);">เครื่องนี้ไม่มีกระดาษ A4 — เลือก PDF แล้วนำไฟล์ไปพิมพ์ที่เครื่องอื่น</b>`
     : pages
@@ -403,18 +696,26 @@ function closePreview(): void {
 async function doPrint(pdfOnly: boolean): Promise<void> {
   if (!day?.close) return
   const fileName = `สรุปยอดขาย-${day.date}.pdf`
+  const form = opts.paper === 'form'
+  const g = formGeometry()
+  // margin:0 for the form — its edges are already inside the rotated box.
+  const pageCss = form ? `@media print{@page{size:${g.paperIn}in 5.5in;margin:0;}}` : PAGE_CSS
   try {
     const res = pdfOnly
-      ? await savePdf({ bodyClass: 'printing-cashup', pageCss: PAGE_CSS, landscape: false, defaultFileName: fileName })
+      ? await savePdf({ bodyClass: 'printing-cashup', pageCss, landscape: false, defaultFileName: fileName })
       : await runPrint({
           bodyClass: 'printing-cashup',
           deviceName: select('cu-printer').value,
           copies: Math.max(1, Math.min(20, parseInt(input('cu-copies').value, 10) || 1)),
           landscape: false,
-          // Hard cap: pages actually laid out, plus one for rounding.
-          pageCount: estimatePages() + 1,
-          pageSize: 'A4',
-          pageCss: PAGE_CSS,
+          // Hard cap: pages actually laid out, plus one for rounding (the form
+          // is always exactly one page).
+          pageCount: form ? 1 : estimatePages() + 1,
+          pageSize: form ? { widthIn: g.paperIn, heightIn: 5.5 } : 'A4',
+          // Same as the order ticket: the LQ-310 form is defined with a zero
+          // edge. Never for A4 — laser/inkjet drivers reject borderless.
+          ...(form ? { margins: { marginType: 'none' as const } } : {}),
+          pageCss,
           defaultFileName: fileName
         })
     if (res.ok) {
@@ -448,12 +749,68 @@ export function initCashup(navigate: (view: string) => void): void {
   goToView = navigate
   input('cu-date').value = todayIso()
   input('cu-date').addEventListener('change', () => void renderCashup())
-  for (const id of ['cu-float', 'cu-in', 'cu-out']) {
+  for (const id of ['cu-float', 'cu-in', 'cu-out', 'cu-counted-input']) {
     input(id).addEventListener('input', () => {
       dirty = true
       recalc()
     })
   }
+
+  const denomBox = input('cu-use-denoms')
+  try {
+    denomBox.checked = localStorage.getItem(DENOMS_KEY) === '1'
+  } catch {
+    denomBox.checked = false
+  }
+  denomBox.addEventListener('change', () => {
+    // Carry the figure across so switching modes never loses the count.
+    if (denomBox.checked) {
+      const counted = DENOMS.some((d) => (parseInt(input(`cu-d-${d}`).value, 10) || 0) > 0) || num('cu-coins-other') > 0
+      if (!counted) input('cu-coins-other').value = input('cu-counted-input').value
+    } else {
+      const t = denomTotal()
+      input('cu-counted-input').value = t ? String(t) : ''
+    }
+    try {
+      localStorage.setItem(DENOMS_KEY, denomBox.checked ? '1' : '0')
+    } catch {
+      // the choice just isn't remembered
+    }
+    dirty = true
+    applyDenomMode()
+  })
+
+  // Print-dialog options: every change redraws the preview straight away.
+  $('cu-pv-options').addEventListener('change', (e) => {
+    const el = e.target as HTMLInputElement | HTMLSelectElement
+    if (el instanceof HTMLInputElement && el.dataset.opt) opts[el.dataset.opt as FlagKey] = el.checked
+    else if (el instanceof HTMLInputElement && el.name === 'cu-paper') {
+      opts.paper = el.value as SheetOpts['paper']
+      pickPrinter()
+    } else if (el.id === 'cu-flip') opts.flip = (el as HTMLInputElement).checked
+    else if (el.id === 'cu-form-paper' || el.id.startsWith('cu-m-')) {
+      storeFormSettings(el.id === 'cu-form-paper')
+      drawSheet()
+      return
+    } else if (el instanceof HTMLInputElement && el.name === 'cu-cash-mode') opts.cashMode = el.value as SheetOpts['cashMode']
+    else if (el.id === 'cu-note-lines') opts.noteLines = parseInt(el.value, 10) || 0
+    storeOpts()
+    drawSheet()
+  })
+  $('cu-m-reset').addEventListener('click', () => {
+    try {
+      localStorage.removeItem(FORM_SETTINGS_KEY)
+    } catch {
+      // nothing stored
+    }
+    drawSheet()
+  })
+  $('cu-pv-reset').addEventListener('click', () => {
+    opts = { ...DEFAULT_OPTS }
+    storeOpts()
+    pickPrinter()
+    drawSheet()
+  })
   for (const id of ['cu-adjust-note', 'cu-note']) {
     $(id).addEventListener('input', () => {
       dirty = true
@@ -465,7 +822,14 @@ export function initCashup(navigate: (view: string) => void): void {
   $('cu-btn-owner-check').addEventListener('click', () => void ownerCheck(true))
   $('cu-btn-owner-undo').addEventListener('click', () => void ownerCheck(false))
   $('cu-pv-close').addEventListener('click', closePreview)
-  select('cu-printer').addEventListener('change', updatePrinterHint)
+  select('cu-printer').addEventListener('change', () => {
+    try {
+      if (select('cu-printer').value) localStorage.setItem(printerKey(), select('cu-printer').value)
+    } catch {
+      // the choice just isn't remembered
+    }
+    updatePrinterHint()
+  })
   $('cu-pv-print').addEventListener('click', () => void doPrint(false))
   $('cu-pv-pdf').addEventListener('click', () => void doPrint(true))
 }

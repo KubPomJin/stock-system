@@ -468,6 +468,10 @@ export interface SaleLinePayload {
   qty: number
   unitName: string
   unitPrice: number
+  // Set when the line total was changed by hand (e.g. 25.50 rounded to 26 on a
+  // weighed item). null/undefined = qty x unitPrice.
+  amount?: number | null
+  note?: string
 }
 
 export interface SalePayload {
@@ -485,6 +489,7 @@ export interface SalePayload {
   transferAmount: number | null // only read for MIXED; TRANSFER = the whole bill
   transferRef: string
   deliveryFee: number
+  discount?: number // knocked off the whole bill (e.g. the odd 1 baht)
   note: string
   lines: SaleLinePayload[]
 }
@@ -511,6 +516,7 @@ export interface SaleView {
   transferNote: string | null
   subtotal: number
   deliveryFee: number
+  discount: number
   grandTotal: number
   note: string | null
   voided: boolean
@@ -529,6 +535,7 @@ export interface SaleLineView {
   unitName: string | null
   unitPrice: number | null
   amount: number | null
+  note: string | null
 }
 
 export interface SaleFilter {
