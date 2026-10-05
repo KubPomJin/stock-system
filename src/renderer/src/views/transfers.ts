@@ -64,7 +64,7 @@ export async function renderTransfers(): Promise<void> {
       lastDay = r.docDate
       const dayRows = rows.filter((x) => x.docDate === r.docDate)
       const dayTotal = dayRows.reduce((s, x) => s + x.transferAmount, 0)
-      html += `<tr class="tr-day"><td colspan="9"><b>${thaiDate(r.docDate)}</b> · ${dayRows.length} บิล · รวม ${money(dayTotal)}</td></tr>`
+      html += `<tr class="tr-day"><td colspan="10"><b>${thaiDate(r.docDate)}</b> · ${dayRows.length} บิล · รวม ${money(dayTotal)}</td></tr>`
     }
     html += `<tr>
       <td><input type="checkbox" class="tr-check" data-id="${r.id}"${selected.has(r.id) ? ' checked' : ''}></td>
@@ -72,6 +72,7 @@ export async function renderTransfers(): Promise<void> {
       <td class="mono"><b>${esc(r.docNumber)}</b>${r.noTicket ? '<div class="pl-tag">ไม่มีใบ</div>' : ''}</td>
       <td>${esc(r.customerName ?? '')}</td>
       <td class="num"><b>${money(r.transferAmount)}</b>${r.paymentMethod === 'MIXED' ? '<div class="pl-tag">(จ่ายสด+โอน)</div>' : ''}</td>
+      <td class="mono">${esc(r.transferTime ?? '')}</td>
       <td>${esc(r.transferRef ?? '')}</td>
       <td>${transferBadge(r.transferStatus)}</td>
       <td style="font-size:13px;">${r.transferVerifiedBy ? `${esc(r.transferVerifiedBy)}<div class="pl-tag">${thaiDateTime(r.transferVerifiedAt)}</div>` : ''}</td>
@@ -80,7 +81,7 @@ export async function renderTransfers(): Promise<void> {
   }
   $('tr-body').innerHTML =
     html ||
-    `<tr><td colspan="9"><div class="empty-state"><i class="ti ti-checks"></i>${
+    `<tr><td colspan="10"><div class="empty-state"><i class="ti ti-checks"></i>${
       status === 'PENDING' ? 'ไม่มีบิลโอนที่รอตรวจ' : 'ไม่พบบิลโอนตามเงื่อนไข'
     }</div></td></tr>`
 

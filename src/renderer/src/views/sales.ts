@@ -33,8 +33,10 @@ const NO_TICKET = 'NONE'
 
 let lines: Line[] = []
 let editingId: number | null = null
-let book = 'A'
-let lastPaperBook = 'A' // where to go back to after a no-ticket bill
+// v1.6.5: most counter sales are now written on tickets WITHOUT a printed
+// number, so every new bill starts as "ไม่มีใบ"; A-D is one click away.
+let book = NO_TICKET
+let lastPaperBook = 'A' // last paper book used — bare numbers typed go to it
 let editingNoTicketNumber = '' // N-number of the no-ticket bill being edited
 let pay: SalePayMethod = 'CASH'
 let nextNumbers: BookNextNumber[] = []
@@ -544,6 +546,7 @@ function setPay(m: SalePayMethod): void {
   show('pos-f-transfer', m === 'MIXED')
   show('pos-f-received', m === 'CASH' || m === 'MIXED')
   show('pos-f-ref', m === 'TRANSFER' || m === 'MIXED')
+  show('pos-f-ttime', m === 'TRANSFER' || m === 'MIXED')
   $('pos-pay-hint').textContent =
     m === 'TRANSFER'
       ? 'ยอดทั้งบิลเป็นเงินโอน — จะไปอยู่ในหน้า "ตรวจยอดโอน" ให้เช็กกับบัญชีธนาคาร'
@@ -675,9 +678,9 @@ async function checkDoc(): Promise<void> {
 function resetForm(keepDate = true): void {
   editingId = null
   editingNoTicketNumber = ''
-  // A no-ticket bill is the exception — the next one is normally on paper again.
-  if (book === NO_TICKET) {
-    book = lastPaperBook
+  // Back to the default for the next bill (owner: most bills have no number).
+  if (book !== NO_TICKET) {
+    book = NO_TICKET
     renderBooks()
   }
   applyDocMode()
@@ -685,7 +688,7 @@ function resetForm(keepDate = true): void {
   const date = keepDate && input('pos-date').value ? input('pos-date').value : todayIso()
   input('pos-date').value = date
   input('pos-time').value = ''
-  for (const id of ['pos-customer', 'pos-contact', 'pos-transfer-amount', 'pos-cash-received', 'pos-transfer-ref', 'pos-note']) {
+  for (const id of ['pos-customer', 'pos-contact', 'pos-transfer-amount', 'pos-cash-received', 'pos-transfer-ref', 'pos-transfer-time', 'pos-note']) {
     input(id).value = ''
   }
   input('pos-delivery').value = '0'
@@ -737,6 +740,7 @@ async function loadForEdit(id: number): Promise<void> {
     input('pos-delivery').value = String(sale.deliveryFee || 0)
     input('pos-discount').value = String(sale.discount || 0)
     input('pos-transfer-ref').value = sale.transferRef ?? ''
+    input('pos-transfer-time').value = sale.transferTime ?? ''
     input('pos-note').value = sale.note ?? ''
     const method = (['CASH', 'TRANSFER', 'MIXED', 'CREDIT'] as SalePayMethod[]).includes(sale.paymentMethod as SalePayMethod)
       ? (sale.paymentMethod as SalePayMethod)
@@ -818,6 +822,7 @@ async function doSave(): Promise<void> {
       cashReceived: received > 0 ? received : null,
       transferAmount: pay === 'MIXED' ? numVal('pos-transfer-amount') : null,
       transferRef: input('pos-transfer-ref').value,
+      transferTime: pay === 'TRANSFER' || pay === 'MIXED' ? input('pos-transfer-time').value : '',
       deliveryFee: numVal('pos-delivery'),
       discount: t.discount,
       note: input('pos-note').value,
@@ -836,8 +841,8 @@ async function doSave(): Promise<void> {
     resetForm(true)
     await renderDayList()
     showToast(`${wasEditing ? 'แก้ไข' : 'บันทึก'}บิล ${res.docNumber} แล้ว · ${baht(t.grand)}`)
-    input('pos-doc').focus()
-    input('pos-doc').select()
+    // Ready for the next bill: no number to type, straight to the first item.
+    focusCell(0, 'pl-item')
   } catch (err) {
     toastError(err)
   }

@@ -72,6 +72,7 @@ const SALE_SELECT = `
          ${TRANSFER}        AS transferAmount,
          ${CREDIT}          AS creditAmount,
          o.transfer_ref     AS transferRef,
+         o.transfer_time    AS transferTime,
          ${T_STATUS}        AS transferStatus,
          o.transfer_verified_at AS transferVerifiedAt,
          vu.display_name    AS transferVerifiedBy,
@@ -268,6 +269,10 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
     cashChange = round2(cashReceived - cashPart)
   }
 
+  // Slip time only means something on a bill that has a transfer.
+  const tt = String(p.transferTime ?? '').trim()
+  const transferTime = transferAmount && /^\d{2}:\d{2}$/.test(tt) ? tt : null
+
   const run = db.transaction((): { id: number; docNumber: string } => {
     // No-ticket bills keep the number they already have when edited; a new one
     // (or a paper bill switched to "no ticket") takes the next N number. Done
@@ -302,7 +307,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
       db.prepare(
         `UPDATE order_docs SET
            doc_number = ?, no_ticket = ?, book_type = ?, doc_date = ?, doc_time = ?, customer_name = ?, customer_contact = ?,
-           payment_method = ?, cash_received = ?, cash_change = ?, transfer_amount = ?, transfer_ref = ?,
+           payment_method = ?, cash_received = ?, cash_change = ?, transfer_amount = ?, transfer_ref = ?, transfer_time = ?,
            note = ?, subtotal = ?, delivery_fee = ?, discount = ?, grand_total = ?,
            transfer_status = ?,
            transfer_verified_at = CASE WHEN ? THEN transfer_verified_at ELSE NULL END,
@@ -322,6 +327,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         cashChange,
         transferAmount,
         p.transferRef?.trim() || null,
+        transferTime,
         p.note?.trim() || null,
         subtotal,
         deliveryFee,
@@ -342,9 +348,9 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
           .prepare(
             `INSERT INTO order_docs
                (doc_number, no_ticket, book_type, doc_date, doc_time, customer_name, customer_contact,
-                payment_method, cash_received, cash_change, transfer_amount, transfer_ref,
+                payment_method, cash_received, cash_change, transfer_amount, transfer_ref, transfer_time,
                 note, subtotal, delivery_fee, discount, grand_total, transfer_status, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             docNumber,
@@ -359,6 +365,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
             cashChange,
             transferAmount,
             p.transferRef?.trim() || null,
+            transferTime,
             p.note?.trim() || null,
             subtotal,
             deliveryFee,

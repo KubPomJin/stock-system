@@ -421,6 +421,9 @@ function migrateSales(): void {
   // v1.6.3: discount knocked off the whole bill (e.g. the odd 1 baht).
   // grand_total = subtotal + delivery_fee - discount.
   add('discount', 'REAL NOT NULL DEFAULT 0')
+  // v1.6.6: time on the transfer slip ('HH:MM') — what the bank statement is
+  // matched against, so it gets its own box instead of living in transfer_ref.
+  add('transfer_time', 'TEXT')
 
   // v1.6.3: a note per line ("ปัดจาก 25.50", "แถมให้"). The line's own amount
   // may differ from qty x unit_price when it was rounded by hand.

@@ -1428,7 +1428,8 @@
                 <div id="pos-f-received"><label>รับเงินสดมา (บาท)</label>
                   <div style="display:flex;gap:6px;"><input type="number" id="pos-cash-received" step="0.01" min="0" style="flex:1;min-width:0;">
                     <button type="button" class="btn small" id="pos-btn-exact" style="height:44px;">พอดี</button></div></div>
-                <div id="pos-f-ref"><label>โอนเข้าบัญชี / อ้างอิง (ถ้ามี)</label><input type="text" id="pos-transfer-ref" placeholder="เช่น กสิกร 14:32"></div>
+                <div id="pos-f-ttime"><label>เวลาโอน (ตามสลิป)</label><input type="time" id="pos-transfer-time"></div>
+                <div id="pos-f-ref"><label>โอนเข้าบัญชี / อ้างอิง (ถ้ามี)</label><input type="text" id="pos-transfer-ref" placeholder="เช่น กสิกร, ชื่อคนโอน"></div>
               </div>
               <div class="field-hint" id="pos-pay-hint" style="margin:0 0 12px;"></div>
               <label>หมายเหตุ</label>
@@ -1511,7 +1512,7 @@
             <div class="panel-actions"><button class="btn small" id="cu-btn-goto-transfers"><i class="ti ti-building-bank"></i>ไปตรวจยอดโอน</button></div>
           </div>
           <div class="table-scroll"><table>
-            <thead><tr><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>อ้างอิง</th><th>สถานะ</th></tr></thead>
+            <thead><tr><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>เวลาโอน</th><th>อ้างอิง</th><th>สถานะ</th></tr></thead>
             <tbody id="cu-transfer-body"></tbody>
           </table></div>
         </div>
@@ -1559,7 +1560,7 @@
             <div class="filter-meta"><span id="tr-count"></span></div>
           </div>
           <div class="table-scroll"><table>
-            <thead><tr><th style="width:44px;"><input type="checkbox" id="tr-check-all" style="width:auto;height:auto;"></th><th>วันที่</th><th>เลขที่</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>อ้างอิง</th><th>สถานะ</th><th>ตรวจโดย</th><th>หมายเหตุการตรวจ</th></tr></thead>
+            <thead><tr><th style="width:44px;"><input type="checkbox" id="tr-check-all" style="width:auto;height:auto;"></th><th>วันที่</th><th>เลขที่</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>เวลาโอน</th><th>อ้างอิง</th><th>สถานะ</th><th>ตรวจโดย</th><th>หมายเหตุการตรวจ</th></tr></thead>
             <tbody id="tr-body"></tbody>
           </table></div>
           <div class="tr-foot">

@@ -492,6 +492,7 @@ export interface SalePayload {
   cashReceived: number | null
   transferAmount: number | null // only read for MIXED; TRANSFER = the whole bill
   transferRef: string
+  transferTime?: string // 'HH:MM' on the slip; kept only when the bill has a transfer
   deliveryFee: number
   discount?: number // knocked off the whole bill (e.g. the odd 1 baht)
   note: string
@@ -514,6 +515,7 @@ export interface SaleView {
   transferAmount: number // transfer part of the bill
   creditAmount: number // not paid yet
   transferRef: string | null
+  transferTime: string | null // 'HH:MM' on the transfer slip
   transferStatus: TransferStatus | null // null = bill has no transfer
   transferVerifiedAt: string | null
   transferVerifiedBy: string | null

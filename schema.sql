@@ -330,7 +330,9 @@ CREATE TABLE order_docs (
     -- counters and are left out of the missing-number check.
     no_ticket INTEGER NOT NULL DEFAULT 0,
     -- v1.6.3: knocked off the whole bill (e.g. the odd 1 baht)
-    discount REAL NOT NULL DEFAULT 0
+    discount REAL NOT NULL DEFAULT 0,
+    -- v1.6.6: 'HH:MM' on the transfer slip (only on bills with a transfer)
+    transfer_time TEXT
 );
 CREATE INDEX idx_order_docs_date ON order_docs(doc_date);
 
