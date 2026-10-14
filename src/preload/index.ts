@@ -98,6 +98,7 @@ const api: Api = {
     ownerCheck: (payload) => call('sales:ownerCheck', payload),
     years: () => call('sales:years'),
     monthly: (year) => call('sales:monthly', year),
+    daily: (payload) => call('sales:daily', payload),
     topProducts: (payload) => call('sales:topProducts', payload),
     productTrend: (payload) => call('sales:productTrend', payload)
   },

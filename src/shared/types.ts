@@ -441,6 +441,7 @@ export interface Api {
     ownerCheck(payload: { date: string; checked: boolean; note: string }): Promise<void>
     years(): Promise<number[]>
     monthly(year: number): Promise<MonthlyRow[]>
+    daily(payload: { year: number; month: number }): Promise<DailyRow[]>
     topProducts(payload: { dateFrom: string; dateTo: string; limit?: number }): Promise<ProductSalesRow[]>
     productTrend(payload: { year: number; key: string }): Promise<ProductTrendRow[]>
   }
@@ -623,6 +624,16 @@ export interface DaySummary {
 
 export interface MonthlyRow {
   month: number // 1-12
+  billCount: number
+  grandTotal: number
+  cashTotal: number
+  transferTotal: number
+  creditTotal: number
+}
+
+// One day of a month (v1.6.8) — the calendar on the sales report.
+export interface DailyRow {
+  date: string // YYYY-MM-DD
   billCount: number
   grandTotal: number
   cashTotal: number

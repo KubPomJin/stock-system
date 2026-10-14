@@ -243,7 +243,7 @@ function bootstrap(): void {
   initSales(switchView)
   initCashup(switchView)
   initTransfers()
-  initSalesReport()
+  initSalesReport(switchView)
 
   input('login-username').focus()
 }

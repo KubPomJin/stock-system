@@ -29,7 +29,9 @@ interface Line {
 }
 
 // v1.6.7: a paper ticket holds 8 lines; a bigger sale runs over several
-// tickets with the total carried forward. Tickets 2..n of the bill being
+// tickets with the total carried forward. v1.6.8: 8 is only the default for a
+// NUMBERED ticket (staff sometimes squeeze a 9th line into the margin — add it
+// with the ticket's own "+" button); a ticket with no number has no limit. Tickets 2..n of the bill being
 // keyed — '' = a ticket with no printed number. Ticket 1 is the number box
 // at the top of the form.
 const LINES_PER_SHEET = 8
@@ -324,9 +326,29 @@ function sheetHeadHtml(s: number): string {
 }
 
 function sheetFootHtml(s: number): string {
-  return `<tr class="pl-sheet-foot"><td colspan="7">
-    รวมใบที่ ${s} <b class="mono" id="ps-sub-${s}"></b>
-    <span class="ps-out" id="ps-out-${s}"></span></td></tr>`
+  return `<tr class="pl-sheet-foot"><td colspan="7"><div class="ps-foot">
+    <button type="button" class="btn small ps-add" data-s="${s}"><i class="ti ti-plus"></i>เพิ่มบรรทัดในใบนี้</button>
+    <span class="ps-cnt" id="ps-cnt-${s}"></span>
+    <span class="ps-sum">รวมใบที่ ${s} <b class="mono" id="ps-sub-${s}"></b>
+    <span class="ps-out" id="ps-out-${s}"></span></span></div></td></tr>`
+}
+
+// Ticket 1 is numbered unless the bill is "ไม่มีใบ"; tickets 2..n when their
+// number box is filled in.
+function sheetHasNumber(s: number): boolean {
+  return s === 1 ? book !== NO_TICKET : !!extraSheets[s - 2]?.docNumber.trim()
+}
+
+// Add a line at the END OF THAT TICKET — also to an earlier ticket after
+// later ones exist (something was missed on ticket 1).
+function addLineToSheet(s: number): void {
+  let last = -1
+  lines.forEach((l, j) => {
+    if (l.sheet === s) last = j
+  })
+  lines.splice(last + 1, 0, emptyLine(false, s))
+  renderLines()
+  focusCell(last + 1, 'pl-item')
 }
 
 // Live per-ticket totals and carried amounts (items only — delivery and
@@ -343,6 +365,12 @@ function updateSheetSums(): void {
     cum = round2(cum + sub)
     const subEl = document.getElementById(`ps-sub-${s}`)
     if (subEl) subEl.textContent = money(sub)
+    const cntEl = document.getElementById(`ps-cnt-${s}`)
+    if (cntEl) {
+      const n = lines.filter((l) => l.sheet === s && l.description.trim()).length
+      cntEl.textContent = `${n} รายการ${sheetHasNumber(s) ? '' : ' · ไม่มีเลข (ไม่จำกัดจำนวน)'}`
+      cntEl.classList.toggle('over', sheetHasNumber(s) && n > LINES_PER_SHEET)
+    }
     const outEl = document.getElementById(`ps-out-${s}`)
     if (outEl) {
       outEl.innerHTML =
@@ -404,7 +432,11 @@ function addSheet(auto = false): void {
   renderLines()
   void checkSheetDoc(s)
   focusCell(lines.findIndex((l) => l.sheet === s), 'pl-item')
-  if (auto) showToast(`ใบที่ ${s - 1} ครบ ${LINES_PER_SHEET} รายการ — ขึ้นใบที่ ${s} (ยกยอด) ให้แล้ว · ถ้าไม่ใช่ กด "ลบใบนี้"`)
+  if (auto) {
+    showToast(
+      `ใบที่ ${s - 1} ครบ ${LINES_PER_SHEET} รายการ — ขึ้นใบที่ ${s} (ยกยอด) ให้แล้ว · ถ้าใบเดิมยังเขียนต่อ กด "ลบใบนี้" แล้ว "เพิ่มบรรทัดในใบนี้"`
+    )
+  }
 }
 
 function deleteSheet(s: number): void {
@@ -435,15 +467,19 @@ function bindSheets(root: HTMLElement): void {
   root.querySelectorAll<HTMLButtonElement>('.ps-del').forEach((btn) =>
     btn.addEventListener('click', () => deleteSheet(Number(btn.dataset.s)))
   )
+  root.querySelectorAll<HTMLButtonElement>('.ps-add').forEach((btn) =>
+    btn.addEventListener('click', () => addLineToSheet(Number(btn.dataset.s)))
+  )
 }
 
 // Enter on the last box of a line: next line; at the end of the last
-// ticket, a new line — or, once that ticket's 8 lines are full, a new ticket.
+// ticket, a new line — or, once a NUMBERED ticket's 8 lines are full, a new
+// ticket. A ticket without a number just keeps growing.
 function enterNext(i: number): void {
   const s = lines[i].sheet
   const lastOfSheet = !lines.some((l, j) => j > i && l.sheet === s)
   if (lastOfSheet && s === sheetCount()) {
-    if (lines.filter((l) => l.sheet === s).length >= LINES_PER_SHEET) addSheet(true)
+    if (sheetHasNumber(s) && lines.filter((l) => l.sheet === s).length >= LINES_PER_SHEET) addSheet(true)
     else addLineAndFocus()
   } else {
     focusCell(i + 1, 'pl-item')
@@ -1136,6 +1172,12 @@ async function restoreSale(id: number): Promise<void> {
 /* =========================================================================
    Entry points
    ========================================================================= */
+
+// From the sales report: open one bill in this form for editing (v1.6.8).
+export async function openSaleForEdit(id: number): Promise<void> {
+  await loadForEdit(id)
+  await renderDayList()
+}
 
 export async function renderSalesView(): Promise<void> {
   await refreshNextNumbers()

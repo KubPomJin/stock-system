@@ -31,6 +31,7 @@ import type {
   SaleLineView,
   SalePayload,
   SaleSheetView,
+  DailyRow,
   SalePayMethod,
   SaleView,
   TransferStatus
@@ -951,6 +952,40 @@ export function registerSalesHandlers(): void {
       const r = rows.find((x) => x.month === i + 1)
       return {
         month: i + 1,
+        billCount: r?.billCount ?? 0,
+        grandTotal: round2(r?.grandTotal ?? 0),
+        cashTotal: round2(r?.cashTotal ?? 0),
+        transferTotal: round2(r?.transferTotal ?? 0),
+        creditTotal: round2(r?.creditTotal ?? 0)
+      }
+    })
+  })
+
+  // Every day of one month, zero-filled — the report's calendar (v1.6.8).
+  handle('sales:daily', 2, (p: { year: number; month: number }): DailyRow[] => {
+    const y = Math.floor(Number(p?.year))
+    const m = Math.floor(Number(p?.month))
+    if (!(y > 2000 && m >= 1 && m <= 12)) throw new Error('เดือนที่เลือกไม่ถูกต้อง')
+    const days = new Date(y, m, 0).getDate()
+    const mm = String(m).padStart(2, '0')
+    const rows = getDb()
+      .prepare(
+        `SELECT ${DAY} AS date,
+                COUNT(*) AS billCount,
+                SUM(o.grand_total) AS grandTotal,
+                SUM(${CASH}) AS cashTotal,
+                SUM(${TRANSFER}) AS transferTotal,
+                SUM(${CREDIT}) AS creditTotal
+         FROM order_docs o
+         WHERE o.voided = 0 AND ${DAY} BETWEEN ? AND ?
+         GROUP BY date`
+      )
+      .all(`${y}-${mm}-01`, `${y}-${mm}-${String(days).padStart(2, '0')}`) as DailyRow[]
+    return Array.from({ length: days }, (_, i) => {
+      const date = `${y}-${mm}-${String(i + 1).padStart(2, '0')}`
+      const r = rows.find((x) => x.date === date)
+      return {
+        date,
         billCount: r?.billCount ?? 0,
         grandTotal: round2(r?.grandTotal ?? 0),
         cashTotal: round2(r?.cashTotal ?? 0),

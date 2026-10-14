@@ -785,6 +785,10 @@
   .pos-lines .ps-carry b{color:var(--text-primary);}
   .pos-lines tr.pl-sheet-foot td{background:#F7F9F9;text-align:right;padding:7px 12px;font-size:14px;color:var(--text-secondary);}
   .pos-lines tr.pl-sheet-foot b{color:var(--text-primary);}
+  .pos-lines .ps-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .pos-lines .ps-foot .ps-sum{margin-left:auto;}
+  .pos-lines .ps-cnt{font-size:13px;}
+  .pos-lines .ps-cnt.over{color:var(--warn);font-weight:600;}
   .pl-tag{font-size:12px;margin-top:3px;color:var(--text-secondary);text-decoration:none;}
   .pl-tag.free{color:var(--warn);}
   #pos-suggest{position:fixed;z-index:90;background:#fff;border:1px solid var(--border-input);border-radius:8px;
@@ -840,6 +844,41 @@
   tr.sr-click{cursor:pointer;}
   tr.sr-click.selected td{background:var(--accent-soft);}
   tr.sr-total td{background:#F2F5F6;}
+  .sr-chg{font-size:13px;font-weight:600;white-space:nowrap;}
+  .sr-chg.up{color:var(--ok);}
+  .sr-chg.down{color:var(--danger);}
+  /* v1.6.8: month calendar (heat map) + weekday averages + bill drill-down */
+  .sr-cal-wrap{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,1fr);gap:24px;padding:16px 20px 20px;align-items:start;}
+  @media (max-width:1050px){.sr-cal-wrap{grid-template-columns:1fr;}}
+  .sr-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;}
+  .sr-cal-h{text-align:center;font-size:13px;font-weight:700;color:var(--text-secondary);padding:2px 0 4px;}
+  .sr-day{all:unset;box-sizing:border-box;cursor:pointer;min-height:78px;border:1px solid var(--border);border-radius:8px;
+    padding:6px 8px;display:flex;flex-direction:column;gap:1px;
+    background:color-mix(in srgb, var(--accent) calc(var(--lvl, 0) * 100%), #fff);}
+  .sr-day:hover{outline:2px solid var(--accent-dark);}
+  .sr-day.selected{outline:3px solid #3F4A4F;outline-offset:1px;}
+  .sr-day.future{opacity:.45;cursor:default;}
+  .sr-day.future:hover{outline:none;}
+  .sr-day.blank{visibility:hidden;}
+  .sr-dnum{font-weight:700;font-size:13px;align-self:flex-start;padding:0 4px;border-radius:9px;}
+  .sr-day.today .sr-dnum{background:#3F4A4F;color:#fff;}
+  .sr-damt{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-weight:700;font-size:14px;margin-top:auto;}
+  .sr-dbills{font-size:11.5px;color:var(--text-secondary);}
+  .sr-day.hot{color:#fff;}
+  .sr-day.hot .sr-dbills{color:#fff;opacity:.9;}
+  .sr-cal-legend{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary);margin-top:10px;}
+  .sr-cal-legend i{display:inline-block;width:22px;height:12px;border-radius:3px;border:1px solid var(--border);}
+  .sr-week h3{font-size:14.5px;margin:0 0 4px;}
+  .sr-week .field-hint{margin:0 0 12px;}
+  .sr-wk-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:9px;font-size:13.5px;}
+  .sr-wk-row .sr-bar{height:14px;}
+  .sr-wk-row.best b{color:var(--accent-dark);}
+  .sr-bill-meta{padding:14px 18px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 20px;font-size:14px;}
+  .sr-bill-meta span{color:var(--text-secondary);}
+  table.sr-bill-lines tr.sr-sheet td{background:#EEF2F3;font-weight:700;}
+  table.sr-bill-lines tr.sr-ret td{color:var(--danger);}
+  .sr-bill-totals{padding:12px 18px 16px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:14.5px;}
+  .sr-bill-totals .grand{font-size:19px;font-weight:800;}
 
   /* ---- ใบสรุปยอดขาย A4 ----
      The printed copy sits in #cashup-print-area, a direct child of <body>, and
@@ -1423,7 +1462,7 @@
             <button class="btn small" id="pos-btn-add-line"><i class="ti ti-plus"></i>เพิ่มบรรทัด</button>
             <button class="btn small" id="pos-btn-add-return" style="color:var(--danger);"><i class="ti ti-arrow-back-up"></i>เพิ่มบรรทัดคืนของ</button>
             <button class="btn small" id="pos-btn-add-sheet"><i class="ti ti-files"></i>ขึ้นใบใหม่ (ยกยอด)</button>
-            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · ยอดมีเศษสตางค์ กด <b>ปัด</b> หรือแก้ช่องจำนวนเงินเอง · ของที่ลูกค้าคืน กด <b>คืน</b> ที่บรรทัด · ใบละ 8 รายการ ครบแล้วกด Enter = <b>ขึ้นใบใหม่ (ยกยอด)</b> · <b>Ctrl+Enter</b> = บันทึกบิล</span>
+            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · ยอดมีเศษสตางค์ กด <b>ปัด</b> หรือแก้ช่องจำนวนเงินเอง · ของที่ลูกค้าคืน กด <b>คืน</b> ที่บรรทัด · ใบที่มีเลข 8 รายการ ครบแล้วกด Enter = <b>ขึ้นใบใหม่ (ยกยอด)</b> (ใบไม่มีเลขเพิ่มได้ไม่จำกัด) · <b>Ctrl+Enter</b> = บันทึกบิล</span>
           </div>
           <div class="pos-bottom" style="padding:18px 20px 20px;">
             <div>
@@ -1592,8 +1631,30 @@
           </div>
           <div style="padding:16px 20px 0;"><div class="kpi-row" id="sr-kpis"></div></div>
           <div class="table-scroll"><table>
-            <thead><tr><th>เดือน</th><th class="num">จำนวนบิล</th><th class="num">ยอดขาย</th><th class="num">เงินสด</th><th class="num">โอน</th><th class="num">เครดิต</th><th class="num">เฉลี่ย/บิล</th><th></th></tr></thead>
+            <thead><tr><th>เดือน</th><th class="num">จำนวนบิล</th><th class="num">ยอดขาย</th><th class="num">เทียบเดือนก่อน</th><th class="num">เงินสด</th><th class="num">โอน</th><th class="num">เครดิต</th><th class="num">เฉลี่ย/บิล</th><th></th></tr></thead>
             <tbody id="sr-month-body"></tbody>
+          </table></div>
+        </div>
+        <div class="panel" id="sr-day-panel" style="display:none;">
+          <div class="panel-head"><h2 id="sr-cal-title"></h2><span class="panel-head-sub">สีเข้ม = ขายได้มาก · กดที่วันเพื่อดูบิลของวันนั้น</span>
+            <div class="panel-actions">
+              <button class="btn small" id="sr-prev-month" title="เดือนก่อน"><i class="ti ti-chevron-left"></i>เดือนก่อน</button>
+              <button class="btn small" id="sr-next-month" title="เดือนถัดไป">เดือนถัดไป<i class="ti ti-chevron-right"></i></button>
+            </div>
+          </div>
+          <div style="padding:16px 20px 0;"><div class="kpi-row" id="sr-month-kpis"></div></div>
+          <div class="sr-cal-wrap">
+            <div><div class="sr-cal" id="sr-cal"></div>
+              <div class="sr-cal-legend">ขายน้อย <i style="background:color-mix(in srgb, var(--accent) 12%, #fff);"></i><i style="background:color-mix(in srgb, var(--accent) 45%, #fff);"></i><i style="background:color-mix(in srgb, var(--accent) 80%, #fff);"></i> ขายมาก</div>
+            </div>
+            <div class="sr-week" id="sr-week"></div>
+          </div>
+        </div>
+        <div class="panel" id="sr-bills-panel" style="display:none;">
+          <div class="panel-head"><h2 id="sr-bills-title"></h2><span class="panel-head-sub">กดที่บิลเพื่อดูรายการสินค้าในบิล</span></div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>เวลา</th><th>เลขที่</th><th>ลูกค้า</th><th class="num">รายการ</th><th class="num">ยอดรวม</th><th>ชำระ</th></tr></thead>
+            <tbody id="sr-bills-body"></tbody>
           </table></div>
         </div>
         <div class="panel">
@@ -1872,6 +1933,31 @@
   </div>
 </div>
 <div id="cashup-print-area"></div>
+
+<!-- สรุปยอดขาย: one bill, every line (v1.6.8) -->
+<div class="preview-backdrop" id="sr-bill-modal">
+  <div class="preview-dialog" style="width:min(940px,95vw);">
+    <div class="preview-head">
+      <h2 id="sr-bill-title"></h2>
+      <button class="icon-btn" id="sr-bill-close" style="margin-left:auto;" aria-label="ปิด"><i class="ti ti-x" style="font-size:18px;"></i></button>
+    </div>
+    <div class="preview-body" style="background:#fff;padding:0;">
+      <div class="sr-bill-meta" id="sr-bill-meta"></div>
+      <div class="table-scroll"><table class="sr-bill-lines">
+        <thead><tr><th class="num">#</th><th>รายการสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th></tr></thead>
+        <tbody id="sr-bill-lines"></tbody>
+      </table></div>
+      <div class="sr-bill-totals" id="sr-bill-totals"></div>
+    </div>
+    <div class="preview-foot">
+      <span class="preview-hint" id="sr-bill-hint"></span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="sr-bill-edit"><i class="ti ti-pencil"></i>เปิดแก้ไขในหน้าคีย์บิล</button>
+        <button class="btn primary" id="sr-bill-ok">ปิด</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Session detail: shows every counted line of one stocktake round -->
 <div class="preview-backdrop" id="session-detail-modal">
