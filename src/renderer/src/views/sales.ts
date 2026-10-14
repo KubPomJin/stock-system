@@ -746,37 +746,6 @@ function updateTotals(): void {
   }
 }
 
-// v1.6.9: times are typed as 24-hour digits — "1430", "930", "9", "14.30" —
-// instead of the system time box, which shows AM/PM on this machine.
-// Returns 'HH:MM', '' for an empty box, or null when it can't be a time.
-function normalizeTime(raw: string): string | null {
-  const t = raw.trim().replace(/\s+/g, '')
-  if (!t) return ''
-  let h: number
-  let m: number
-  const sep = t.match(/^(\d{1,2})[:.](\d{1,2})$/)
-  if (sep) {
-    h = Number(sep[1])
-    m = Number(sep[2])
-  } else if (/^\d{1,4}$/.test(t)) {
-    h = t.length <= 2 ? Number(t) : Number(t.slice(0, t.length - 2))
-    m = t.length <= 2 ? 0 : Number(t.slice(-2))
-  } else {
-    return null
-  }
-  if (h > 23 || m > 59) return null
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
-
-// Tidy a time box in place; marks it red when it isn't a time.
-function tidyTime(id: string): string | null {
-  const el = input(id)
-  const v = normalizeTime(el.value)
-  if (v != null) el.value = v
-  el.classList.toggle('bad', v == null)
-  return v
-}
-
 // F2 / F3 / F4: pick the payment and jump to the box that comes next.
 function payShortcut(m: SalePayMethod): void {
   setPay(m)
@@ -1072,13 +1041,8 @@ async function doSave(): Promise<void> {
     showToast(`รับเงินมา ${money(received)} ยังไม่พอ (ต้องจ่ายเงินสด ${money(t.cashPart)})`, true)
     return
   }
-  const docTime = tidyTime('pos-time')
-  const slipTime = pay === 'TRANSFER' || pay === 'MIXED' ? tidyTime('pos-transfer-time') : ''
-  if (docTime == null || slipTime == null) {
-    showToast('เวลาไม่ถูกต้อง — พิมพ์แบบ 24 ชั่วโมง เช่น 930 หรือ 1430', true)
-    input(docTime == null ? 'pos-time' : 'pos-transfer-time').focus()
-    return
-  }
+  const docTime = input('pos-time').value
+  const slipTime = pay === 'TRANSFER' || pay === 'MIXED' ? input('pos-transfer-time').value : ''
   try {
     const wasEditing = editingId != null
     const res = await window.api.sales.save({
@@ -1255,11 +1219,6 @@ export function initSales(navigate: (view: string) => void): void {
   document.querySelectorAll<HTMLButtonElement>('#pos-pay .pos-pay-btn').forEach((b) =>
     b.addEventListener('click', () => setPay(b.dataset.pay as SalePayMethod))
   )
-  // 24-hour time boxes: tidied on leaving the box or pressing Enter.
-  for (const id of ['pos-time', 'pos-transfer-time']) {
-    input(id).addEventListener('blur', () => void tidyTime(id))
-    input(id).addEventListener('input', () => input(id).classList.remove('bad'))
-  }
   // Enter walks through the transfer boxes: time -> phone -> name -> account.
   const walk: [string, string][] = [
     ['pos-time', 'pos-customer'],
@@ -1271,7 +1230,6 @@ export function initSales(navigate: (view: string) => void): void {
     input(from).addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' || e.ctrlKey || e.metaKey) return
       e.preventDefault()
-      if (from.endsWith('time')) tidyTime(from)
       input(to).focus()
     })
   }

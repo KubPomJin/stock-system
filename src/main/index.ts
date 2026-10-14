@@ -17,6 +17,12 @@ import { registerCatalogHandlers } from './ipc/catalog'
 
 const isDev = !!process.env['ELECTRON_RENDERER_URL']
 
+// The app is Thai-only. Pin Chromium's locale so the system time boxes
+// (<input type="time">) are 24-hour on every machine — on a Windows set to
+// English they showed AM/PM, which slowed down keying bills (v1.6.10). All
+// dates and numbers in the UI already name 'th-TH' explicitly.
+app.commandLine.appendSwitch('lang', 'th')
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
