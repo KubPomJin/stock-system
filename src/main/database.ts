@@ -424,6 +424,10 @@ function migrateSales(): void {
   // v1.6.6: time on the transfer slip ('HH:MM') — what the bank statement is
   // matched against, so it gets its own box instead of living in transfer_ref.
   add('transfer_time', 'TEXT')
+  // v1.6.9: who sent the transfer — PromptPay phone number and the sender's
+  // name, both checked against the bank statement.
+  add('transfer_phone', 'TEXT')
+  add('transfer_name', 'TEXT')
 
   // v1.6.3: a note per line ("ปัดจาก 25.50", "แถมให้"). The line's own amount
   // may differ from qty x unit_price when it was rounded by hand.

@@ -73,7 +73,9 @@ export async function renderTransfers(): Promise<void> {
       <td>${esc(r.customerName ?? '')}</td>
       <td class="num"><b>${money(r.transferAmount)}</b>${r.paymentMethod === 'MIXED' ? '<div class="pl-tag">(จ่ายสด+โอน)</div>' : ''}</td>
       <td class="mono">${esc(r.transferTime ?? '')}</td>
-      <td>${esc(r.transferRef ?? '')}</td>
+      <td>${esc(r.transferName ?? '')}${r.transferPhone ? `<div class="pl-tag mono">${esc(r.transferPhone)}</div>` : ''}${
+        r.transferRef ? `<div class="pl-tag">${esc(r.transferRef)}</div>` : ''
+      }</td>
       <td>${transferBadge(r.transferStatus)}</td>
       <td style="font-size:13px;">${r.transferVerifiedBy ? `${esc(r.transferVerifiedBy)}<div class="pl-tag">${thaiDateTime(r.transferVerifiedAt)}</div>` : ''}</td>
       <td style="font-size:13px;">${esc(r.transferNote ?? '')}</td>

@@ -806,6 +806,10 @@
   .pos-pay-btn i{font-size:20px;}
   .pos-pay-btn:hover{border-color:var(--accent);}
   .pos-pay-btn.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-dark);}
+  .pos-pay-btn kbd{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;font-size:11.5px;font-weight:700;
+    border:1px solid var(--border-input);border-bottom-width:2px;border-radius:4px;padding:0 5px;margin-left:6px;color:var(--text-secondary);background:#fff;}
+  input.time-24{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;}
+  input.time-24.bad{border-color:var(--danger);background:var(--danger-bg);}
   .pos-bottom{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start;}
   .pos-total-box{border:2px solid #3F4A4F;border-radius:10px;padding:14px 18px;background:#fff;}
   .pos-total-row{display:flex;justify-content:space-between;align-items:center;font-size:15px;padding:4px 0;gap:10px;}
@@ -1448,7 +1452,7 @@
               <div><label>เล่ม</label><div class="seg" id="pos-books"></div></div>
               <div><label>เลขที่ใบสั่งสินค้า</label><input type="text" id="pos-doc" autocomplete="off" placeholder="A69-0001"></div>
               <div><label>วันที่ขาย</label><input type="date" id="pos-date"></div>
-              <div><label>เวลา (ถ้ามี)</label><input type="time" id="pos-time"></div>
+              <div><label>เวลา (ถ้ามี)</label><input type="text" id="pos-time" class="time-24" inputmode="numeric" maxlength="5" placeholder="เช่น 1430" autocomplete="off" style="width:120px;"></div>
               <div style="flex:1;min-width:190px;"><label>ชื่อลูกค้า (ถ้ามี)</label><input type="text" id="pos-customer" autocomplete="off"></div>
               <div style="flex:1;min-width:170px;"><label>โทร / ที่อยู่ (ถ้ามี)</label><input type="text" id="pos-contact" autocomplete="off"></div>
             </div>
@@ -1468,9 +1472,9 @@
             <div>
               <label>วิธีชำระเงิน</label>
               <div class="pos-pay" id="pos-pay">
-                <button type="button" class="pos-pay-btn" data-pay="CASH"><i class="ti ti-cash"></i>เงินสด</button>
-                <button type="button" class="pos-pay-btn" data-pay="TRANSFER"><i class="ti ti-building-bank"></i>โอน</button>
-                <button type="button" class="pos-pay-btn" data-pay="MIXED"><i class="ti ti-arrows-split-2"></i>เงินสด + โอน</button>
+                <button type="button" class="pos-pay-btn" data-pay="CASH"><i class="ti ti-cash"></i>เงินสด<kbd>F2</kbd></button>
+                <button type="button" class="pos-pay-btn" data-pay="TRANSFER"><i class="ti ti-building-bank"></i>โอน<kbd>F3</kbd></button>
+                <button type="button" class="pos-pay-btn" data-pay="MIXED"><i class="ti ti-arrows-split-2"></i>เงินสด + โอน<kbd>F4</kbd></button>
                 <button type="button" class="pos-pay-btn" data-pay="CREDIT"><i class="ti ti-clock-dollar"></i>เครดิต</button>
               </div>
               <div class="field-row c3" style="margin-bottom:6px;">
@@ -1478,8 +1482,10 @@
                 <div id="pos-f-received"><label>รับเงินสดมา (บาท)</label>
                   <div style="display:flex;gap:6px;"><input type="number" id="pos-cash-received" step="0.01" min="0" style="flex:1;min-width:0;">
                     <button type="button" class="btn small" id="pos-btn-exact" style="height:44px;">พอดี</button></div></div>
-                <div id="pos-f-ttime"><label>เวลาโอน (ตามสลิป)</label><input type="time" id="pos-transfer-time"></div>
-                <div id="pos-f-ref"><label>โอนเข้าบัญชี / อ้างอิง (ถ้ามี)</label><input type="text" id="pos-transfer-ref" placeholder="เช่น กสิกร, ชื่อคนโอน"></div>
+                <div id="pos-f-ttime"><label>เวลาโอน (ตามสลิป)</label><input type="text" id="pos-transfer-time" class="time-24" inputmode="numeric" maxlength="5" placeholder="เช่น 1432" autocomplete="off"></div>
+                <div id="pos-f-tphone"><label>เบอร์โทร / พร้อมเพย์</label><input type="text" id="pos-transfer-phone" inputmode="tel" placeholder="เช่น 0812345678" autocomplete="off"></div>
+                <div id="pos-f-tname"><label>ชื่อผู้โอน (ไว้เช็ก)</label><input type="text" id="pos-transfer-name" placeholder="ชื่อตามสลิป" autocomplete="off"></div>
+                <div id="pos-f-ref"><label>โอนเข้าบัญชี / อ้างอิง (ถ้ามี)</label><input type="text" id="pos-transfer-ref" placeholder="เช่น กสิกร" autocomplete="off"></div>
               </div>
               <div class="field-hint" id="pos-pay-hint" style="margin:0 0 12px;"></div>
               <label>หมายเหตุ</label>
@@ -1562,7 +1568,7 @@
             <div class="panel-actions"><button class="btn small" id="cu-btn-goto-transfers"><i class="ti ti-building-bank"></i>ไปตรวจยอดโอน</button></div>
           </div>
           <div class="table-scroll"><table>
-            <thead><tr><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>เวลาโอน</th><th>อ้างอิง</th><th>สถานะ</th></tr></thead>
+            <thead><tr><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>เวลาโอน</th><th>ผู้โอน / อ้างอิง</th><th>สถานะ</th></tr></thead>
             <tbody id="cu-transfer-body"></tbody>
           </table></div>
         </div>
@@ -1610,7 +1616,7 @@
             <div class="filter-meta"><span id="tr-count"></span></div>
           </div>
           <div class="table-scroll"><table>
-            <thead><tr><th style="width:44px;"><input type="checkbox" id="tr-check-all" style="width:auto;height:auto;"></th><th>วันที่</th><th>เลขที่</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>เวลาโอน</th><th>อ้างอิง</th><th>สถานะ</th><th>ตรวจโดย</th><th>หมายเหตุการตรวจ</th></tr></thead>
+            <thead><tr><th style="width:44px;"><input type="checkbox" id="tr-check-all" style="width:auto;height:auto;"></th><th>วันที่</th><th>เลขที่</th><th>ลูกค้า</th><th class="num">ยอดโอน</th><th>เวลาโอน</th><th>ผู้โอน / อ้างอิง</th><th>สถานะ</th><th>ตรวจโดย</th><th>หมายเหตุการตรวจ</th></tr></thead>
             <tbody id="tr-body"></tbody>
           </table></div>
           <div class="tr-foot">

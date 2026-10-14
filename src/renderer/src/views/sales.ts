@@ -746,6 +746,45 @@ function updateTotals(): void {
   }
 }
 
+// v1.6.9: times are typed as 24-hour digits — "1430", "930", "9", "14.30" —
+// instead of the system time box, which shows AM/PM on this machine.
+// Returns 'HH:MM', '' for an empty box, or null when it can't be a time.
+function normalizeTime(raw: string): string | null {
+  const t = raw.trim().replace(/\s+/g, '')
+  if (!t) return ''
+  let h: number
+  let m: number
+  const sep = t.match(/^(\d{1,2})[:.](\d{1,2})$/)
+  if (sep) {
+    h = Number(sep[1])
+    m = Number(sep[2])
+  } else if (/^\d{1,4}$/.test(t)) {
+    h = t.length <= 2 ? Number(t) : Number(t.slice(0, t.length - 2))
+    m = t.length <= 2 ? 0 : Number(t.slice(-2))
+  } else {
+    return null
+  }
+  if (h > 23 || m > 59) return null
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+// Tidy a time box in place; marks it red when it isn't a time.
+function tidyTime(id: string): string | null {
+  const el = input(id)
+  const v = normalizeTime(el.value)
+  if (v != null) el.value = v
+  el.classList.toggle('bad', v == null)
+  return v
+}
+
+// F2 / F3 / F4: pick the payment and jump to the box that comes next.
+function payShortcut(m: SalePayMethod): void {
+  setPay(m)
+  const target = m === 'CASH' ? 'pos-cash-received' : m === 'TRANSFER' ? 'pos-transfer-time' : 'pos-transfer-amount'
+  input(target).focus()
+  input(target).select()
+}
+
 function setPay(m: SalePayMethod): void {
   pay = m
   document.querySelectorAll<HTMLButtonElement>('#pos-pay .pos-pay-btn').forEach((b) => {
@@ -758,6 +797,8 @@ function setPay(m: SalePayMethod): void {
   show('pos-f-received', m === 'CASH' || m === 'MIXED')
   show('pos-f-ref', m === 'TRANSFER' || m === 'MIXED')
   show('pos-f-ttime', m === 'TRANSFER' || m === 'MIXED')
+  show('pos-f-tphone', m === 'TRANSFER' || m === 'MIXED')
+  show('pos-f-tname', m === 'TRANSFER' || m === 'MIXED')
   $('pos-pay-hint').textContent =
     m === 'TRANSFER'
       ? 'ยอดทั้งบิลเป็นเงินโอน — จะไปอยู่ในหน้า "ตรวจยอดโอน" ให้เช็กกับบัญชีธนาคาร'
@@ -900,7 +941,7 @@ function resetForm(keepDate = true): void {
   const date = keepDate && input('pos-date').value ? input('pos-date').value : todayIso()
   input('pos-date').value = date
   input('pos-time').value = ''
-  for (const id of ['pos-customer', 'pos-contact', 'pos-transfer-amount', 'pos-cash-received', 'pos-transfer-ref', 'pos-transfer-time', 'pos-note']) {
+  for (const id of ['pos-customer', 'pos-contact', 'pos-transfer-amount', 'pos-cash-received', 'pos-transfer-ref', 'pos-transfer-time', 'pos-transfer-phone', 'pos-transfer-name', 'pos-note']) {
     input(id).value = ''
   }
   input('pos-delivery').value = '0'
@@ -955,6 +996,8 @@ async function loadForEdit(id: number): Promise<void> {
     input('pos-discount').value = String(sale.discount || 0)
     input('pos-transfer-ref').value = sale.transferRef ?? ''
     input('pos-transfer-time').value = sale.transferTime ?? ''
+    input('pos-transfer-phone').value = sale.transferPhone ?? ''
+    input('pos-transfer-name').value = sale.transferName ?? ''
     input('pos-note').value = sale.note ?? ''
     const method = (['CASH', 'TRANSFER', 'MIXED', 'CREDIT'] as SalePayMethod[]).includes(sale.paymentMethod as SalePayMethod)
       ? (sale.paymentMethod as SalePayMethod)
@@ -1029,6 +1072,13 @@ async function doSave(): Promise<void> {
     showToast(`รับเงินมา ${money(received)} ยังไม่พอ (ต้องจ่ายเงินสด ${money(t.cashPart)})`, true)
     return
   }
+  const docTime = tidyTime('pos-time')
+  const slipTime = pay === 'TRANSFER' || pay === 'MIXED' ? tidyTime('pos-transfer-time') : ''
+  if (docTime == null || slipTime == null) {
+    showToast('เวลาไม่ถูกต้อง — พิมพ์แบบ 24 ชั่วโมง เช่น 930 หรือ 1430', true)
+    input(docTime == null ? 'pos-time' : 'pos-transfer-time').focus()
+    return
+  }
   try {
     const wasEditing = editingId != null
     const res = await window.api.sales.save({
@@ -1036,14 +1086,16 @@ async function doSave(): Promise<void> {
       docNumber: doc,
       noTicket,
       docDate: input('pos-date').value,
-      docTime: input('pos-time').value,
+      docTime,
       customerName: input('pos-customer').value,
       customerContact: input('pos-contact').value,
       paymentMethod: pay,
       cashReceived: received > 0 ? received : null,
       transferAmount: pay === 'MIXED' ? numVal('pos-transfer-amount') : null,
       transferRef: input('pos-transfer-ref').value,
-      transferTime: pay === 'TRANSFER' || pay === 'MIXED' ? input('pos-transfer-time').value : '',
+      transferTime: slipTime,
+      transferPhone: pay === 'TRANSFER' || pay === 'MIXED' ? input('pos-transfer-phone').value : '',
+      transferName: pay === 'TRANSFER' || pay === 'MIXED' ? input('pos-transfer-name').value : '',
       deliveryFee: numVal('pos-delivery'),
       discount: t.discount,
       note: input('pos-note').value,
@@ -1203,6 +1255,36 @@ export function initSales(navigate: (view: string) => void): void {
   document.querySelectorAll<HTMLButtonElement>('#pos-pay .pos-pay-btn').forEach((b) =>
     b.addEventListener('click', () => setPay(b.dataset.pay as SalePayMethod))
   )
+  // 24-hour time boxes: tidied on leaving the box or pressing Enter.
+  for (const id of ['pos-time', 'pos-transfer-time']) {
+    input(id).addEventListener('blur', () => void tidyTime(id))
+    input(id).addEventListener('input', () => input(id).classList.remove('bad'))
+  }
+  // Enter walks through the transfer boxes: time -> phone -> name -> account.
+  const walk: [string, string][] = [
+    ['pos-time', 'pos-customer'],
+    ['pos-transfer-time', 'pos-transfer-phone'],
+    ['pos-transfer-phone', 'pos-transfer-name'],
+    ['pos-transfer-name', 'pos-transfer-ref']
+  ]
+  for (const [from, to] of walk) {
+    input(from).addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.ctrlKey || e.metaKey) return
+      e.preventDefault()
+      if (from.endsWith('time')) tidyTime(from)
+      input(to).focus()
+    })
+  }
+  // F2 cash · F3 transfer · F4 cash + transfer — only on this page.
+  document.addEventListener('keydown', (e) => {
+    if (!$('view-sales').classList.contains('active')) return
+    const m = ({ F2: 'CASH', F3: 'TRANSFER', F4: 'MIXED' } as Record<string, SalePayMethod>)[e.key]
+    if (!m) return
+    const target = e.target as HTMLElement
+    if (target !== document.body && !target.closest('#view-sales')) return
+    e.preventDefault()
+    payShortcut(m)
+  })
   for (const id of ['pos-delivery', 'pos-discount', 'pos-transfer-amount', 'pos-cash-received']) {
     input(id).addEventListener('input', updateTotals)
   }

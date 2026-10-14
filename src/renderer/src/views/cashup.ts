@@ -236,7 +236,9 @@ export async function renderCashup(): Promise<void> {
         .map(
           (s) => `<tr><td class="mono"><b>${esc(s.docNumber)}</b></td><td>${esc(s.docTime ?? '')}</td>
             <td>${esc(s.customerName ?? '')}</td><td class="num">${money(s.transferAmount)}</td>
-            <td class="mono">${esc(s.transferTime ?? '')}</td><td>${esc(s.transferRef ?? '')}</td><td>${transferBadge(s.transferStatus)}</td></tr>`
+            <td class="mono">${esc(s.transferTime ?? '')}</td><td>${esc(s.transferName ?? '')}${s.transferPhone ? `<div class="pl-tag mono">${esc(s.transferPhone)}</div>` : ''}${
+              s.transferRef ? `<div class="pl-tag">${esc(s.transferRef)}</div>` : ''
+            }</td><td>${transferBadge(s.transferStatus)}</td></tr>`
         )
         .join('')
     : `<tr><td colspan="7"><div class="empty-state" style="padding:20px;">ไม่มีบิลโอน</div></td></tr>`

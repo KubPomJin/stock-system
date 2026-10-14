@@ -324,7 +324,9 @@ async function openBill(id: number): Promise<void> {
   ]
   if (s.sheetCount > 1) meta.push(['ใบที่ใช้', esc(sheetsLabel(s))])
   if (s.transferAmount) {
-    meta.push(['เงินโอน', `${money(s.transferAmount)}${s.transferTime ? ` · เวลา ${esc(s.transferTime)}` : ''}${s.transferRef ? ` · ${esc(s.transferRef)}` : ''} ${transferBadge(s.transferStatus)}`])
+    meta.push(['เงินโอน', `${money(s.transferAmount)}${s.transferTime ? ` · เวลา ${esc(s.transferTime)}` : ''} ${transferBadge(s.transferStatus)}`])
+    const who = [s.transferName, s.transferPhone, s.transferRef].filter(Boolean).map((x) => esc(String(x)))
+    if (who.length) meta.push(['ผู้โอน', who.join(' · ')])
   }
   if (s.note) meta.push(['หมายเหตุ', esc(s.note)])
   if (s.voided) meta.push(['ยกเลิก', esc(s.voidReason ?? '')])

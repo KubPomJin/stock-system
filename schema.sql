@@ -332,7 +332,10 @@ CREATE TABLE order_docs (
     -- v1.6.3: knocked off the whole bill (e.g. the odd 1 baht)
     discount REAL NOT NULL DEFAULT 0,
     -- v1.6.6: 'HH:MM' on the transfer slip (only on bills with a transfer)
-    transfer_time TEXT
+    transfer_time TEXT,
+    -- v1.6.9: who sent it — PromptPay phone (digits only) and name on the slip
+    transfer_phone TEXT,
+    transfer_name TEXT
 );
 CREATE INDEX idx_order_docs_date ON order_docs(doc_date);
 

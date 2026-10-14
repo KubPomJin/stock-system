@@ -75,6 +75,8 @@ const SALE_SELECT = `
          ${CREDIT}          AS creditAmount,
          o.transfer_ref     AS transferRef,
          o.transfer_time    AS transferTime,
+         o.transfer_phone   AS transferPhone,
+         o.transfer_name    AS transferName,
          ${T_STATUS}        AS transferStatus,
          o.transfer_verified_at AS transferVerifiedAt,
          vu.display_name    AS transferVerifiedBy,
@@ -178,10 +180,11 @@ function listSales(filter: SaleFilter, opts: { transfersOnly?: boolean; order?: 
     const like = `%${q}%`
     where.push(
       `(o.doc_number LIKE ? OR o.customer_name LIKE ? OR o.transfer_ref LIKE ? OR o.transfer_note LIKE ?
+        OR o.transfer_phone LIKE ? OR o.transfer_name LIKE ?
         OR EXISTS (SELECT 1 FROM order_doc_lines l WHERE l.order_id = o.id AND l.description LIKE ?)
         OR EXISTS (SELECT 1 FROM order_doc_sheets s WHERE s.order_id = o.id AND s.doc_number LIKE ?))`
     )
-    args.push(like, like, like, like, like, like)
+    args.push(like, like, like, like, like, like, like, like)
   }
   const dir = opts.order === 'asc' ? 'ASC' : 'DESC'
   const sql = `${SALE_SELECT}
@@ -304,6 +307,11 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
   // Slip time only means something on a bill that has a transfer.
   const tt = String(p.transferTime ?? '').trim()
   const transferTime = transferAmount && /^\d{2}:\d{2}$/.test(tt) ? tt : null
+  // Who sent it (v1.6.9) — likewise only on a bill with a transfer.
+  const transferPhone = transferAmount ? String(p.transferPhone ?? '').replace(/[\s-]/g, '') || null : null
+  const transferName = transferAmount ? String(p.transferName ?? '').trim() || null : null
+  // The ticket's own time: 'HH:MM' or nothing.
+  const docTime = /^\d{2}:\d{2}$/.test(String(p.docTime ?? '').trim()) ? String(p.docTime).trim() : null
 
   const run = db.transaction((): { id: number; docNumber: string } => {
     // No-ticket bills keep the number they already have when edited; a new one
@@ -353,6 +361,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         `UPDATE order_docs SET
            doc_number = ?, no_ticket = ?, book_type = ?, doc_date = ?, doc_time = ?, customer_name = ?, customer_contact = ?,
            payment_method = ?, cash_received = ?, cash_change = ?, transfer_amount = ?, transfer_ref = ?, transfer_time = ?,
+           transfer_phone = ?, transfer_name = ?,
            note = ?, subtotal = ?, delivery_fee = ?, discount = ?, grand_total = ?,
            transfer_status = ?,
            transfer_verified_at = CASE WHEN ? THEN transfer_verified_at ELSE NULL END,
@@ -364,7 +373,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         noTicket ? 1 : 0,
         bookType,
         p.docDate,
-        p.docTime || null,
+        docTime,
         p.customerName?.trim() || null,
         p.customerContact?.trim() || null,
         p.paymentMethod,
@@ -373,6 +382,8 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         transferAmount,
         p.transferRef?.trim() || null,
         transferTime,
+        transferPhone,
+        transferName,
         p.note?.trim() || null,
         subtotal,
         deliveryFee,
@@ -395,15 +406,16 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
             `INSERT INTO order_docs
                (doc_number, no_ticket, book_type, doc_date, doc_time, customer_name, customer_contact,
                 payment_method, cash_received, cash_change, transfer_amount, transfer_ref, transfer_time,
+                transfer_phone, transfer_name,
                 note, subtotal, delivery_fee, discount, grand_total, transfer_status, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             docNumber,
             noTicket ? 1 : 0,
             bookType,
             p.docDate,
-            p.docTime || null,
+            docTime,
             p.customerName?.trim() || null,
             p.customerContact?.trim() || null,
             p.paymentMethod,
@@ -412,6 +424,8 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
             transferAmount,
             p.transferRef?.trim() || null,
             transferTime,
+            transferPhone,
+            transferName,
             p.note?.trim() || null,
             subtotal,
             deliveryFee,
