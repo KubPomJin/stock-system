@@ -76,7 +76,7 @@ npx tsc --noEmit # ตรวจ type
 - ตัดสินใจ: **การขาย 1 ครั้ง = 1 แถว `order_docs` จ่ายครั้งเดียว** ใบต่อ (2..n) อยู่ใน `order_doc_sheets` + `order_doc_lines.sheet_no`
   — ไม่ได้ทำเป็นหลายบิลผูกกัน เพราะเงินสด/โอน/ปิดยอด/รายงานคิดจาก `grand_total` ต่อบิล ถ้าแยกแถวต้องแก้ทุกที่และเสี่ยงนับซ้ำ
 - ฝั่งฟอร์ม: `extraSheets` + `Line.sheet` ใน `views/sales.ts` · `LINES_PER_SHEET = 8` Enter หลังรายการที่ 8 ของใบสุดท้าย = ขึ้นใบใหม่
-- v1.6.7 **commit แล้ว แต่ยังไม่ได้ push** (14 ต.ค. 2569) · installer `release\StockKeep Setup 1.6.7.exe`
+- v1.6.7 **commit + push ขึ้น GitHub แล้ว** (`89a0e8d`, 14 ต.ค. 2569) · installer `release\StockKeep Setup 1.6.7.exe`
 
 ### v1.6.6 — เวลาโอนตามสลิป (5 ต.ค. 2569)
 - `order_docs.transfer_time` + ช่อง "เวลาโอน (ตามสลิป)" (โอน / เงินสด+โอน) · แสดงในหน้าตรวจยอดโอนและปิดยอด
