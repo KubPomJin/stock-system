@@ -1,5 +1,15 @@
 // Shared bits for the ขายหน้าร้าน pages (sales entry, cash-up, transfers, report).
+
 import type { SaleView } from '../../../shared/types'
+
+// v1.6.7: "3 ใบ: + A69-0013, ไม่มีเลข ×1" for a sale that ran over several
+// paper tickets; '' for a normal one-ticket bill.
+export function sheetsLabel(s: { sheetCount: number; sheetNumbers: string | null }): string {
+  if (!s.sheetCount || s.sheetCount <= 1) return ''
+  const nums = s.sheetNumbers ? s.sheetNumbers.split(', ') : []
+  const blank = s.sheetCount - 1 - nums.length
+  return `${s.sheetCount} ใบ: + ${[...nums, ...(blank > 0 ? [`ไม่มีเลข ×${blank}`] : [])].join(', ')}`
+}
 
 export const PAY_LABEL: Record<string, string> = {
   CASH: 'เงินสด',

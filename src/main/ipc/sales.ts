@@ -18,7 +18,7 @@
 import { getDb } from '../database'
 import { getSession } from '../session'
 import { handle } from './helpers'
-import { BOOK_TYPES, counterKey, formatDocNumber, readCounter, syncCounterWithUsedNumber, yearPart } from './orders'
+import { BOOK_TYPES, counterKey, formatDocNumber, numberInUse, readCounter, syncCounterWithUsedNumber, yearPart } from './orders'
 import type {
   BookNextNumber,
   CashCloseView,
@@ -30,6 +30,7 @@ import type {
   SaleFilter,
   SaleLineView,
   SalePayload,
+  SaleSheetView,
   SalePayMethod,
   SaleView,
   TransferStatus
@@ -85,6 +86,10 @@ const SALE_SELECT = `
          o.voided,
          o.void_reason      AS voidReason,
          (SELECT COUNT(*) FROM order_doc_lines l WHERE l.order_id = o.id) AS lineCount,
+         1 + (SELECT COUNT(*) FROM order_doc_sheets s WHERE s.order_id = o.id) AS sheetCount,
+         (SELECT GROUP_CONCAT(x.doc_number, ', ') FROM
+            (SELECT doc_number FROM order_doc_sheets WHERE order_id = o.id AND doc_number IS NOT NULL ORDER BY sheet_no) x
+         ) AS sheetNumbers,
          o.created_at       AS createdAt,
          cu.display_name    AS createdBy,
          o.updated_at       AS updatedAt
@@ -172,9 +177,10 @@ function listSales(filter: SaleFilter, opts: { transfersOnly?: boolean; order?: 
     const like = `%${q}%`
     where.push(
       `(o.doc_number LIKE ? OR o.customer_name LIKE ? OR o.transfer_ref LIKE ? OR o.transfer_note LIKE ?
-        OR EXISTS (SELECT 1 FROM order_doc_lines l WHERE l.order_id = o.id AND l.description LIKE ?))`
+        OR EXISTS (SELECT 1 FROM order_doc_lines l WHERE l.order_id = o.id AND l.description LIKE ?)
+        OR EXISTS (SELECT 1 FROM order_doc_sheets s WHERE s.order_id = o.id AND s.doc_number LIKE ?))`
     )
-    args.push(like, like, like, like, like)
+    args.push(like, like, like, like, like, like)
   }
   const dir = opts.order === 'asc' ? 'ASC' : 'DESC'
   const sql = `${SALE_SELECT}
@@ -211,6 +217,23 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
   }
   if (!PAY_METHODS.includes(p.paymentMethod)) throw new Error('กรุณาเลือกวิธีชำระเงิน')
 
+  // v1.6.7: tickets 2..n when the sale ran over more than one paper ticket.
+  // '' = a ticket with no printed number. Same number rules as ticket 1.
+  const sheets = (p.sheets ?? []).map((s, i) => ({
+    sheetNo: i + 2,
+    docNumber: String(s.docNumber ?? '').trim().toUpperCase()
+  }))
+  for (const s of sheets) {
+    if (!s.docNumber) continue
+    if (!/^[A-Z]{1,2}\d{2,4}-\d{1,5}$/.test(s.docNumber)) {
+      throw new Error(`ใบที่ ${s.sheetNo}: รูปแบบเลขที่ใบไม่ถูกต้อง "${s.docNumber}" — ต้องเป็นแบบ A69-0012 หรือเว้นว่างถ้าไม่มีเลข`)
+    }
+    if (s.docNumber.startsWith(NO_TICKET_PREFIX)) {
+      throw new Error(`ใบที่ ${s.sheetNo}: เลขที่ขึ้นต้นด้วย ${NO_TICKET_PREFIX} ใช้ไม่ได้ — ใบที่ไม่มีเลขให้เว้นช่องเลขที่ว่างไว้`)
+    }
+  }
+  const sheetCount = sheets.length + 1
+
   const lines = (p.lines ?? [])
     .map((l) => ({
       productId: l.productId ?? null,
@@ -221,11 +244,19 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
       // A hand-set line total (rounded weighed goods) wins over qty x price.
       amount: l.amount == null || !Number.isFinite(Number(l.amount)) ? null : round2(Number(l.amount)),
       note: String(l.note ?? '').trim(),
-      isReturn: !!l.isReturn
+      isReturn: !!l.isReturn,
+      sheet: Math.min(Math.max(Math.floor(Number(l.sheet) || 1), 1), sheetCount)
     }))
     .filter((l) => l.description !== '')
     .map((l) => ({ ...l, amount: l.amount ?? round2(l.qty * l.unitPrice) }))
   if (!lines.length) throw new Error('กรุณาใส่รายการสินค้าอย่างน้อย 1 รายการ')
+  for (let n = 1; n <= sheetCount; n++) {
+    if (!lines.some((l) => l.sheet === n)) {
+      throw new Error(`ใบที่ ${n} ยังไม่มีรายการสินค้า — ใส่รายการ หรือลบใบนี้ออก`)
+    }
+  }
+  // Lines are stored ticket by ticket, so line_no reads in paper order.
+  lines.sort((a, b) => a.sheet - b.sheet)
   for (const l of lines) {
     if (!(l.qty > 0)) throw new Error(`จำนวนของ "${l.description}" ต้องมากกว่า 0`)
     if (l.unitPrice < 0) throw new Error(`ราคาของ "${l.description}" ติดลบไม่ได้`)
@@ -287,8 +318,21 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
     }
     const bookType = !noTicket && BOOK_TYPES.includes(docNumber[0]) ? docNumber[0] : null
 
-    const dup = db.prepare('SELECT id FROM order_docs WHERE doc_number = ? AND id IS NOT ?').get(docNumber, p.id ?? null)
-    if (dup) throw new Error(`เลขที่ใบ ${docNumber} คีย์ไปแล้ว — ถ้าจะแก้ ให้กด "แก้ไข" ที่บิลนั้นในรายการ`)
+    // Every ticket number of this sale: not used twice here, not used by any
+    // other bill — as its own number or as one of its extra tickets.
+    const seen = new Set<string>()
+    for (const n of [docNumber, ...sheets.map((s) => s.docNumber).filter(Boolean)]) {
+      if (seen.has(n)) throw new Error(`เลขที่ใบ ${n} ใส่ซ้ำในบิลนี้`)
+      seen.add(n)
+      const owner = numberInUse(n, p.id ?? null)
+      if (owner) {
+        throw new Error(
+          owner === n
+            ? `เลขที่ใบ ${n} คีย์ไปแล้ว — ถ้าจะแก้ ให้กด "แก้ไข" ที่บิลนั้นในรายการ`
+            : `เลขที่ใบ ${n} เป็นใบต่อของบิล ${owner} ที่คีย์ไปแล้ว — ถ้าจะแก้ ให้กด "แก้ไข" ที่บิล ${owner}`
+        )
+      }
+    }
 
     let id: number
     if (p.id) {
@@ -340,6 +384,7 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         p.id
       )
       db.prepare('DELETE FROM order_doc_lines WHERE order_id = ?').run(p.id)
+      db.prepare('DELETE FROM order_doc_sheets WHERE order_id = ?').run(p.id)
       id = p.id
     } else {
       assertDayOpen(p.docDate)
@@ -378,8 +423,8 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
     }
 
     const ins = db.prepare(
-      `INSERT INTO order_doc_lines (order_id, line_no, product_id, description, location_name, qty, unit_name, unit_price, amount, note, is_return)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO order_doc_lines (order_id, line_no, product_id, description, location_name, qty, unit_name, unit_price, amount, note, is_return, sheet_no)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`
     )
     lines.forEach((l, i) => {
       ins.run(
@@ -392,9 +437,17 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
         l.unitPrice,
         sign(l) * l.amount,
         l.note || null,
-        l.isReturn ? 1 : 0
+        l.isReturn ? 1 : 0,
+        l.sheet
       )
     })
+
+    const insSheet = db.prepare('INSERT INTO order_doc_sheets (order_id, sheet_no, doc_number, book_type) VALUES (?, ?, ?, ?)')
+    for (const s of sheets) {
+      const book = s.docNumber && BOOK_TYPES.includes(s.docNumber[0]) ? s.docNumber[0] : null
+      insSheet.run(id, s.sheetNo, s.docNumber || null, book)
+      if (book) syncCounterWithUsedNumber(book, s.docNumber)
+    }
 
     if (bookType) syncCounterWithUsedNumber(bookType, docNumber)
     return { id, docNumber }
@@ -415,8 +468,11 @@ function findGaps(books: Set<string>): DaySummary['gaps'] {
     const book = bookYear.slice(0, 1)
     const yy = bookYear.slice(1)
     const rows = db
-      .prepare('SELECT doc_number FROM order_docs WHERE doc_number LIKE ? AND no_ticket = 0')
-      .all(`${book}${yy}-%`) as { doc_number: string }[]
+      .prepare(
+        `SELECT doc_number FROM order_docs WHERE doc_number LIKE ? AND no_ticket = 0
+         UNION ALL SELECT doc_number FROM order_doc_sheets WHERE doc_number LIKE ?`
+      )
+      .all(`${book}${yy}-%`, `${book}${yy}-%`) as { doc_number: string }[]
     const nums = new Set<number>()
     let width = 4
     for (const r of rows) {
@@ -762,8 +818,8 @@ export function registerSalesHandlers(): void {
     const yy = yearPart()
     return BOOK_TYPES.map((book) => {
       const rows = getDb()
-        .prepare('SELECT doc_number FROM order_docs WHERE doc_number LIKE ?')
-        .all(`${book}${yy}-%`) as { doc_number: string }[]
+        .prepare('SELECT doc_number FROM order_docs WHERE doc_number LIKE ? UNION ALL SELECT doc_number FROM order_doc_sheets WHERE doc_number LIKE ?')
+        .all(`${book}${yy}-%`, `${book}${yy}-%`) as { doc_number: string }[]
       let max = 0
       for (const r of rows) {
         const m = r.doc_number.match(/-(\d+)$/)
@@ -786,11 +842,14 @@ export function registerSalesHandlers(): void {
     const lines = getDb()
       .prepare(
         `SELECT line_no AS lineNo, product_id AS productId, description, qty,
-                unit_name AS unitName, unit_price AS unitPrice, amount, note, is_return AS isReturn
+                unit_name AS unitName, unit_price AS unitPrice, amount, note, is_return AS isReturn, sheet_no AS sheet
          FROM order_doc_lines WHERE order_id = ? ORDER BY line_no`
       )
       .all(id) as (Omit<SaleLineView, 'isReturn'> & { isReturn: number })[]
-    return { sale, lines: lines.map((l) => ({ ...l, isReturn: l.isReturn === 1 })) }
+    const sheets = getDb()
+      .prepare('SELECT sheet_no AS sheetNo, doc_number AS docNumber FROM order_doc_sheets WHERE order_id = ? ORDER BY sheet_no')
+      .all(id) as SaleSheetView[]
+    return { sale, lines: lines.map((l) => ({ ...l, isReturn: l.isReturn === 1 })), sheets }
   })
 
   handle('sales:save', 1, (payload: SalePayload) => saveSale(payload))

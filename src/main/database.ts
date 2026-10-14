@@ -433,6 +433,23 @@ function migrateSales(): void {
   // qty and amount (so SUMs in the reports net them out); the flag is for
   // display and for telling a return apart from a data-entry mistake.
   if (!lineCols.includes('is_return')) d.exec('ALTER TABLE order_doc_lines ADD COLUMN is_return INTEGER NOT NULL DEFAULT 0')
+  // v1.6.7: one sale can run over several paper tickets (a ticket holds 8
+  // lines; the total is carried to the next one). Lines say which ticket they
+  // were written on; tickets 2..n are listed in order_doc_sheets — ticket 1 is
+  // the bill itself (order_docs.doc_number). doc_number NULL = a ticket with
+  // no printed number. Numbers stay unique across both tables.
+  if (!lineCols.includes('sheet_no')) d.exec('ALTER TABLE order_doc_lines ADD COLUMN sheet_no INTEGER NOT NULL DEFAULT 1')
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS order_doc_sheets (
+      id INTEGER PRIMARY KEY,
+      order_id INTEGER NOT NULL REFERENCES order_docs(id),
+      sheet_no INTEGER NOT NULL,
+      doc_number TEXT UNIQUE,
+      book_type TEXT,
+      UNIQUE (order_id, sheet_no)
+    );
+    CREATE INDEX IF NOT EXISTS idx_order_doc_sheets_order ON order_doc_sheets(order_id);
+  `)
 
   d.exec('CREATE INDEX IF NOT EXISTS idx_order_docs_date ON order_docs(doc_date);')
   d.exec('CREATE INDEX IF NOT EXISTS idx_order_doc_lines_order ON order_doc_lines(order_id);')

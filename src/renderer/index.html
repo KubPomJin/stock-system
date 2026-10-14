@@ -775,6 +775,16 @@
   .pos-lines tr.is-return .pl-minus{visibility:visible;}
   .pos-lines tr.is-return .pl-amt{color:var(--danger);}
   .pos-total-row.grand.refund{color:var(--danger);}
+  /* A sale over several paper tickets (v1.6.7) */
+  .pos-lines tr.pl-sheet-head td{background:#EEF2F3;border-top:2px solid #3F4A4F;padding:8px 10px;}
+  .pos-lines .ps-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:15px;}
+  .pos-lines .ps-head input.ps-doc{width:230px;height:36px;}
+  .pos-lines .ps-hint{font-size:13px;color:var(--text-secondary);}
+  .pos-lines .ps-hint.bad{color:var(--danger);font-weight:600;}
+  .pos-lines .ps-carry{margin-left:auto;color:var(--text-secondary);}
+  .pos-lines .ps-carry b{color:var(--text-primary);}
+  .pos-lines tr.pl-sheet-foot td{background:#F7F9F9;text-align:right;padding:7px 12px;font-size:14px;color:var(--text-secondary);}
+  .pos-lines tr.pl-sheet-foot b{color:var(--text-primary);}
   .pl-tag{font-size:12px;margin-top:3px;color:var(--text-secondary);text-decoration:none;}
   .pl-tag.free{color:var(--warn);}
   #pos-suggest{position:fixed;z-index:90;background:#fff;border:1px solid var(--border-input);border-radius:8px;
@@ -1412,7 +1422,8 @@
           <div style="padding:10px 20px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
             <button class="btn small" id="pos-btn-add-line"><i class="ti ti-plus"></i>เพิ่มบรรทัด</button>
             <button class="btn small" id="pos-btn-add-return" style="color:var(--danger);"><i class="ti ti-arrow-back-up"></i>เพิ่มบรรทัดคืนของ</button>
-            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · ยอดมีเศษสตางค์ กด <b>ปัด</b> หรือแก้ช่องจำนวนเงินเอง · ของที่ลูกค้าคืน กด <b>คืน</b> ที่บรรทัด · <b>Ctrl+Enter</b> = บันทึกบิล</span>
+            <button class="btn small" id="pos-btn-add-sheet"><i class="ti ti-files"></i>ขึ้นใบใหม่ (ยกยอด)</button>
+            <span class="field-hint" style="margin:0;">พิมพ์ชื่อหรือบาร์โค้ด → ↑↓ เลือก → Enter · Enter ที่ช่องราคา = ขึ้นบรรทัดใหม่ · ยอดมีเศษสตางค์ กด <b>ปัด</b> หรือแก้ช่องจำนวนเงินเอง · ของที่ลูกค้าคืน กด <b>คืน</b> ที่บรรทัด · ใบละ 8 รายการ ครบแล้วกด Enter = <b>ขึ้นใบใหม่ (ยกยอด)</b> · <b>Ctrl+Enter</b> = บันทึกบิล</span>
           </div>
           <div class="pos-bottom" style="padding:18px 20px 20px;">
             <div>

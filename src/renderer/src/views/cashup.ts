@@ -10,7 +10,7 @@ import { level } from '../state'
 import { loadPrinters, runPrint, savePdf } from '../print'
 import { showToast, toastError } from '../ui'
 import type { CashCloseView, DaySummary } from '../../../shared/types'
-import { money, payLabel, thaiDate, thaiDateTime, todayIso, transferBadge, TRANSFER_STATUS } from './salesCommon'
+import { money, payLabel, sheetsLabel, thaiDate, thaiDateTime, todayIso, transferBadge, TRANSFER_STATUS } from './salesCommon'
 
 const DENOMS = [1000, 500, 100, 50, 20, 10, 5, 2, 1]
 const PAGE_CSS = '@media print{@page{size:A4 portrait;margin:12mm;}}'
@@ -401,7 +401,7 @@ function buildSheet(d: DaySummary, c: CashCloseView, o: SheetOpts): string {
     const billRows = live
       .map(
         (s, i) => `<tr>
-        <td class="n">${i + 1}</td><td>${esc(s.docNumber)}${s.noTicket ? ' (ไม่มีใบ)' : ''}</td><td>${esc(s.docTime ?? '')}</td>
+        <td class="n">${i + 1}</td><td>${esc(s.docNumber)}${s.noTicket ? ' (ไม่มีใบ)' : ''}${s.sheetCount > 1 ? `<br><span style="font-size:9.5px;">${esc(sheetsLabel(s))}</span>` : ''}</td><td>${esc(s.docTime ?? '')}</td>
         <td>${esc(s.customerName ?? '')}</td><td class="n">${money(s.grandTotal)}</td>
         <td>${esc(payLabel(s.paymentMethod))}</td>
         <td class="n">${s.cashAmount ? money(s.cashAmount) : ''}</td>

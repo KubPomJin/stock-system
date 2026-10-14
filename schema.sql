@@ -356,6 +356,21 @@ CREATE TABLE order_doc_lines (
 );
 CREATE INDEX idx_order_doc_lines_order ON order_doc_lines(order_id);
 
+-- v1.6.7: a sale written over several paper tickets (8 lines per ticket, total
+-- carried forward). Ticket 1 is order_docs.doc_number; tickets 2..n are here.
+-- doc_number NULL = a ticket without a printed number. Ticket numbers must be
+-- unique across order_docs AND this table (numberInUse() in orders.ts).
+-- order_doc_lines.sheet_no INTEGER NOT NULL DEFAULT 1 says which ticket a line is on.
+CREATE TABLE order_doc_sheets (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES order_docs(id),
+    sheet_no INTEGER NOT NULL,
+    doc_number TEXT UNIQUE,
+    book_type TEXT,
+    UNIQUE (order_id, sheet_no)
+);
+CREATE INDEX idx_order_doc_sheets_order ON order_doc_sheets(order_id);
+
 -- Last number handed out per book per BE year: key 'A-69' -> counter 12.
 CREATE TABLE order_counters (
     key TEXT PRIMARY KEY,

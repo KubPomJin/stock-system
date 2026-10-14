@@ -9,7 +9,7 @@ import { $, baht, esc, input } from '../format'
 import { level, state } from '../state'
 import { promptModal, showToast, toastError } from '../ui'
 import type { BookNextNumber, ProductView, SalePayMethod, SaleView } from '../../../shared/types'
-import { money, payLabel, splitText, thaiDate, thaiDateTime, todayIso, transferBadge } from './salesCommon'
+import { money, payLabel, sheetsLabel, splitText, thaiDate, thaiDateTime, todayIso, transferBadge } from './salesCommon'
 
 interface Line {
   productId: number | null
@@ -24,6 +24,19 @@ interface Line {
   // Goods brought back and taken off the bill. qty/price/amount stay positive
   // on screen; the line counts negative in the totals (and in the database).
   ret: boolean
+  // Which paper ticket the line was written on (1 = the bill's own number).
+  sheet: number
+}
+
+// v1.6.7: a paper ticket holds 8 lines; a bigger sale runs over several
+// tickets with the total carried forward. Tickets 2..n of the bill being
+// keyed — '' = a ticket with no printed number. Ticket 1 is the number box
+// at the top of the form.
+const LINES_PER_SHEET = 8
+let extraSheets: { docNumber: string }[] = []
+
+function sheetCount(): number {
+  return extraSheets.length + 1
 }
 
 const BOOKS = ['A', 'B', 'C', 'D']
@@ -198,7 +211,8 @@ function applyProduct(i: number, p: ProductView): void {
     unitPrice: Math.round(retailPerBase(p) * (bu?.qtyPerBase ?? 1) * 100) / 100,
     amount: null,
     note: lines[i].note,
-    ret: lines[i].ret
+    ret: lines[i].ret,
+    sheet: lines[i].sheet
   }
 }
 
@@ -206,8 +220,8 @@ function applyProduct(i: number, p: ProductView): void {
    Line grid
    ========================================================================= */
 
-function emptyLine(ret = false): Line {
-  return { productId: null, description: '', qty: 1, unitName: '', unitPrice: 0, amount: null, note: '', ret }
+function emptyLine(ret = false, sheet = 1): Line {
+  return { productId: null, description: '', qty: 1, unitName: '', unitPrice: 0, amount: null, note: '', ret, sheet }
 }
 
 function round2(n: number): number {
@@ -241,8 +255,10 @@ function rowHtml(l: Line, i: number): string {
       ? '<div class="pl-tag free">ไม่อยู่ในรายการสินค้า — บันทึกเป็นข้อความ</div>'
       : ''
   const unitOpts = (p?.units ?? []).map((u) => `<option value="${esc(u.name)}"></option>`).join('')
+  // Numbered within its own ticket, like the paper (1-8 on each).
+  const k = lines.filter((x, j) => j <= i && x.sheet === l.sheet).length
   return `<tr data-i="${i}"${l.ret ? ' class="is-return"' : ''}>
-    <td class="pl-no">${i + 1}
+    <td class="pl-no">${k}
       <button type="button" class="pl-ret${l.ret ? ' on' : ''}" data-i="${i}" tabindex="-1"
         title="ของที่ลูกค้าเอามาคืน — หักออกจากบิล">คืน</button>
     </td>
@@ -268,10 +284,170 @@ function rowHtml(l: Line, i: number): string {
 }
 
 function renderLines(): void {
-  if (!lines.length) lines.push(emptyLine())
-  $('pos-lines-body').innerHTML = lines.map(rowHtml).join('')
+  // Every ticket keeps at least one line, and lines stay grouped ticket by
+  // ticket (sort is stable, so the order inside a ticket is kept).
+  for (let s = 1; s <= sheetCount(); s++) {
+    if (!lines.some((l) => l.sheet === s)) lines.push(emptyLine(false, s))
+  }
+  lines.sort((a, b) => a.sheet - b.sheet)
+  const multi = sheetCount() > 1
+  let html = ''
+  for (let s = 1; s <= sheetCount(); s++) {
+    if (multi) html += sheetHeadHtml(s)
+    lines.forEach((l, i) => {
+      if (l.sheet === s) html += rowHtml(l, i)
+    })
+    if (multi) html += sheetFootHtml(s)
+  }
+  $('pos-lines-body').innerHTML = html
   bindRows($('pos-lines-body'))
+  bindSheets($('pos-lines-body'))
   updateTotals()
+}
+
+/* ---------- several paper tickets in one sale (v1.6.7) ---------- */
+
+function sheetHeadHtml(s: number): string {
+  if (s === 1) {
+    return `<tr class="pl-sheet-head"><td colspan="7"><div class="ps-head">
+      <b>ใบที่ 1</b><span class="mono" id="ps-num-1"></span>
+      <span class="field-hint" style="margin:0;">เลขที่ใบนี้อยู่ช่องด้านบน</span></div></td></tr>`
+  }
+  return `<tr class="pl-sheet-head"><td colspan="7"><div class="ps-head">
+    <b>ใบที่ ${s}</b>
+    <input type="text" class="ps-doc" data-s="${s}" value="${esc(extraSheets[s - 2]?.docNumber ?? '')}"
+      placeholder="เลขที่ใบ — เว้นว่าง = ไม่มีเลข" autocomplete="off">
+    <span class="ps-hint" data-s="${s}"></span>
+    <span class="ps-carry">ยกยอดมา <b class="mono" id="ps-in-${s}"></b></span>
+    <button type="button" class="btn small ps-del" data-s="${s}" tabindex="-1"><i class="ti ti-x"></i>ลบใบนี้</button>
+  </div></td></tr>`
+}
+
+function sheetFootHtml(s: number): string {
+  return `<tr class="pl-sheet-foot"><td colspan="7">
+    รวมใบที่ ${s} <b class="mono" id="ps-sub-${s}"></b>
+    <span class="ps-out" id="ps-out-${s}"></span></td></tr>`
+}
+
+// Live per-ticket totals and carried amounts (items only — delivery and
+// discount belong to the whole sale).
+function updateSheetSums(): void {
+  const n1 = document.getElementById('ps-num-1')
+  if (!n1) return
+  n1.textContent = book === NO_TICKET ? 'ไม่มีเลข' : input('pos-doc').value || '—'
+  let cum = 0
+  for (let s = 1; s <= sheetCount(); s++) {
+    const sub = round2(lines.filter((l) => l.sheet === s).reduce((t, l) => t + signedAmount(l), 0))
+    const inEl = document.getElementById(`ps-in-${s}`)
+    if (inEl) inEl.textContent = money(cum)
+    cum = round2(cum + sub)
+    const subEl = document.getElementById(`ps-sub-${s}`)
+    if (subEl) subEl.textContent = money(sub)
+    const outEl = document.getElementById(`ps-out-${s}`)
+    if (outEl) {
+      outEl.innerHTML =
+        s < sheetCount() ? `· ยกยอดไปใบที่ ${s + 1} <b class="mono">${money(cum)}</b>` : `· รวมทุกใบ <b class="mono">${money(cum)}</b>`
+    }
+  }
+}
+
+// "13" / "A13" / "A69-13" -> "A69-0013". A bare number takes the book letter
+// of the nearest earlier ticket that has one.
+function normalizeSheetDoc(raw: string, s: number): string {
+  const t = raw.trim().toUpperCase().replace(/\s+/g, '')
+  if (!t) return ''
+  if (/^\d{1,5}$/.test(t)) {
+    const earlier = [book === NO_TICKET ? '' : input('pos-doc').value, ...extraSheets.slice(0, s - 2).map((x) => x.docNumber)]
+    const letter = earlier.reverse().find((d) => /^[A-D]/.test(d))?.[0] ?? lastPaperBook
+    return `${letter}${yy()}-${t.padStart(4, '0')}`
+  }
+  return normalizeDoc(t)
+}
+
+// Next number after a ticket's own: A69-0012 -> A69-0013 ('' if none).
+function numberAfter(doc: string): string {
+  const m = doc.match(/^([A-Z]{1,2}\d{2,4})-(\d{1,5})$/)
+  return m ? `${m[1]}-${String(Number(m[2]) + 1).padStart(m[2].length, '0')}` : ''
+}
+
+async function checkSheetDoc(s: number): Promise<void> {
+  const hint = document.querySelector<HTMLElement>(`.ps-hint[data-s="${s}"]`)
+  const doc = extraSheets[s - 2]?.docNumber ?? ''
+  if (!hint) return
+  hint.className = 'ps-hint'
+  hint.textContent = doc ? '' : 'ไม่มีเลข'
+  if (!doc) return
+  const all = [book === NO_TICKET ? '' : input('pos-doc').value, ...extraSheets.map((x) => x.docNumber)]
+  if (all.filter((d) => d === doc).length > 1) {
+    hint.className = 'ps-hint bad'
+    hint.textContent = 'เลขซ้ำกับใบอื่นในบิลนี้'
+    return
+  }
+  try {
+    const found = (await window.api.sales.list({ search: doc, includeVoided: true, limit: 20 })).find(
+      (x) => x.id !== editingId && (x.docNumber === doc || (x.sheetNumbers ?? '').split(', ').includes(doc))
+    )
+    if (found) {
+      hint.className = 'ps-hint bad'
+      hint.textContent = `คีย์ไปแล้วในบิล ${found.docNumber} (${thaiDate(found.docDate)})`
+    }
+  } catch {
+    // the server checks again on save
+  }
+}
+
+function addSheet(auto = false): void {
+  const prev = extraSheets.length ? extraSheets[extraSheets.length - 1].docNumber : book === NO_TICKET ? '' : normalizeDoc(input('pos-doc').value)
+  extraSheets.push({ docNumber: numberAfter(prev) })
+  const s = sheetCount()
+  lines.push(emptyLine(false, s))
+  renderLines()
+  void checkSheetDoc(s)
+  focusCell(lines.findIndex((l) => l.sheet === s), 'pl-item')
+  if (auto) showToast(`ใบที่ ${s - 1} ครบ ${LINES_PER_SHEET} รายการ — ขึ้นใบที่ ${s} (ยกยอด) ให้แล้ว · ถ้าไม่ใช่ กด "ลบใบนี้"`)
+}
+
+function deleteSheet(s: number): void {
+  if (lines.some((l) => l.sheet === s && l.description.trim()) && !confirm(`ลบใบที่ ${s} และรายการในใบนี้?`)) return
+  lines = lines.filter((l) => l.sheet !== s)
+  for (const l of lines) if (l.sheet > s) l.sheet--
+  extraSheets.splice(s - 2, 1)
+  renderLines()
+}
+
+function bindSheets(root: HTMLElement): void {
+  root.querySelectorAll<HTMLInputElement>('.ps-doc').forEach((el) => {
+    const s = Number(el.dataset.s)
+    el.addEventListener('input', () => {
+      extraSheets[s - 2].docNumber = el.value
+    })
+    el.addEventListener('blur', () => {
+      el.value = normalizeSheetDoc(el.value, s)
+      extraSheets[s - 2].docNumber = el.value
+      void checkSheetDoc(s)
+    })
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return
+      e.preventDefault()
+      focusCell(lines.findIndex((l) => l.sheet === s), 'pl-item')
+    })
+  })
+  root.querySelectorAll<HTMLButtonElement>('.ps-del').forEach((btn) =>
+    btn.addEventListener('click', () => deleteSheet(Number(btn.dataset.s)))
+  )
+}
+
+// Enter on the last box of a line: next line; at the end of the last
+// ticket, a new line — or, once that ticket's 8 lines are full, a new ticket.
+function enterNext(i: number): void {
+  const s = lines[i].sheet
+  const lastOfSheet = !lines.some((l, j) => j > i && l.sheet === s)
+  if (lastOfSheet && s === sheetCount()) {
+    if (lines.filter((l) => l.sheet === s).length >= LINES_PER_SHEET) addSheet(true)
+    else addLineAndFocus()
+  } else {
+    focusCell(i + 1, 'pl-item')
+  }
 }
 
 // Replace one row in place (keeps the other rows' focus/caret untouched).
@@ -294,7 +470,7 @@ function focusCell(i: number, cls: string): void {
 }
 
 function addLineAndFocus(): void {
-  lines.push(emptyLine())
+  lines.push(emptyLine(false, sheetCount()))
   renderLines()
   focusCell(lines.length - 1, 'pl-item')
 }
@@ -389,8 +565,7 @@ function bindRows(root: HTMLElement): void {
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return
       e.preventDefault()
-      if (i === lines.length - 1) addLineAndFocus()
-      else focusCell(i + 1, 'pl-item')
+      enterNext(i)
     })
   })
 
@@ -418,8 +593,7 @@ function bindRows(root: HTMLElement): void {
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return
       e.preventDefault()
-      if (i === lines.length - 1) addLineAndFocus()
-      else focusCell(i + 1, 'pl-item')
+      enterNext(i)
     })
   })
 
@@ -508,6 +682,7 @@ function updateTotals(): void {
   $('pos-grand-row').classList.toggle('refund', refund)
   $('pos-grand-label').textContent = refund ? 'ต้องคืนเงินลูกค้า' : 'รวมเป็นเงิน'
   $('pos-grand').textContent = baht(refund ? -t.grand : t.grand)
+  updateSheetSums()
 
   // Split line under the total — what the drawer / bank should receive.
   const splitRow = $('pos-split-row')
@@ -660,7 +835,7 @@ async function checkDoc(): Promise<void> {
   if (!doc) return
   try {
     const found = (await window.api.sales.list({ search: doc, includeVoided: true, limit: 20 })).find(
-      (s) => s.docNumber === doc && s.id !== editingId
+      (s) => s.id !== editingId && (s.docNumber === doc || (s.sheetNumbers ?? '').split(', ').includes(doc))
     )
     if (found) {
       hint.className = 'pos-hint bad'
@@ -684,6 +859,7 @@ function resetForm(keepDate = true): void {
     renderBooks()
   }
   applyDocMode()
+  extraSheets = []
   lines = [emptyLine()]
   const date = keepDate && input('pos-date').value ? input('pos-date').value : todayIso()
   input('pos-date').value = date
@@ -703,7 +879,7 @@ function resetForm(keepDate = true): void {
 
 async function loadForEdit(id: number): Promise<void> {
   try {
-    const { sale, lines: saleLines } = await window.api.sales.get(id)
+    const { sale, lines: saleLines, sheets } = await window.api.sales.get(id)
     if (sale.voided) {
       showToast('บิลนี้ถูกยกเลิกแล้ว แก้ไขไม่ได้', true)
       return
@@ -723,8 +899,10 @@ async function loadForEdit(id: number): Promise<void> {
           ? Math.abs(l.amount)
           : null,
       note: l.note ?? '',
-      ret: l.isReturn
+      ret: l.isReturn,
+      sheet: l.sheet || 1
     }))
+    extraSheets = sheets.map((s) => ({ docNumber: s.docNumber ?? '' }))
     for (const l of lines) l.qty = Math.abs(l.qty)
     editingNoTicketNumber = sale.noTicket ? sale.docNumber : ''
     const m = sale.docNumber.match(/^([A-D])/)
@@ -797,6 +975,13 @@ async function doSave(): Promise<void> {
     focusCell(0, 'pl-item')
     return
   }
+  for (let s = 2; s <= sheetCount(); s++) {
+    if (!filled.some((l) => l.sheet === s)) {
+      showToast(`ใบที่ ${s} ยังไม่มีรายการสินค้า — ใส่รายการ หรือกด "ลบใบนี้"`, true)
+      focusCell(lines.findIndex((l) => l.sheet === s), 'pl-item')
+      return
+    }
+  }
   const t = totals()
   if (t.discount > 0 && t.grand < 0) {
     showToast('ส่วนลดมากกว่ายอดของบิล', true)
@@ -834,8 +1019,10 @@ async function doSave(): Promise<void> {
         unitPrice: l.unitPrice,
         amount: l.amount,
         note: l.note.trim(),
-        isReturn: l.ret
-      }))
+        isReturn: l.ret,
+        sheet: l.sheet
+      })),
+      sheets: extraSheets.map((x, k) => ({ docNumber: normalizeSheetDoc(x.docNumber, k + 2) }))
     })
     await refreshNextNumbers()
     resetForm(true)
@@ -905,7 +1092,9 @@ function dayRowHtml(s: SaleView): string {
       : `<button class="btn small pd-edit" data-id="${s.id}">แก้ไข</button>
          <button class="btn small pd-void" data-id="${s.id}" data-doc="${esc(s.docNumber)}">ยกเลิก</button>`
   return `<tr class="${s.voided ? 'is-void' : ''}">
-    <td class="mono"><b>${esc(s.docNumber)}</b>${s.noTicket ? '<div class="pl-tag no-strike"><span class="badge muted">ไม่มีใบ</span></div>' : ''}</td>
+    <td class="mono"><b>${esc(s.docNumber)}</b>${s.noTicket ? '<div class="pl-tag no-strike"><span class="badge muted">ไม่มีใบ</span></div>' : ''}${
+       s.sheetCount > 1 ? `<div class="pl-tag no-strike">${esc(sheetsLabel(s))}</div>` : ''
+     }</td>
     <td>${esc(s.docTime ?? '')}</td>
     <td>${esc(s.customerName ?? '')}${s.voided ? `<div class="pl-tag no-strike" style="color:var(--danger);">ยกเลิก: ${esc(s.voidReason ?? '')}</div>` : ''}</td>
     <td class="num">${s.lineCount}</td>
@@ -980,6 +1169,8 @@ export function initSales(navigate: (view: string) => void): void {
     updateTotals()
   })
   $('pos-btn-add-line').addEventListener('click', addLineAndFocus)
+  $('pos-btn-add-sheet').addEventListener('click', () => addSheet())
+  input('pos-doc').addEventListener('input', updateSheetSums)
   $('pos-btn-add-return').addEventListener('click', () => {
     lines.push(emptyLine(true))
     renderLines()

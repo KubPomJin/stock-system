@@ -430,7 +430,7 @@ export interface Api {
   sales: {
     nextNumbers(): Promise<BookNextNumber[]>
     list(filter: SaleFilter): Promise<SaleView[]>
-    get(id: number): Promise<{ sale: SaleView; lines: SaleLineView[] }>
+    get(id: number): Promise<{ sale: SaleView; lines: SaleLineView[]; sheets: SaleSheetView[] }>
     save(payload: SalePayload): Promise<{ id: number; docNumber: string }>
     void(payload: { id: number; reason: string }): Promise<void>
     restore(id: number): Promise<void>
@@ -476,6 +476,12 @@ export interface SaleLinePayload {
   // bill. qty / unitPrice / amount stay POSITIVE here; the server stores the
   // line with negative qty and amount so every report nets it out.
   isReturn?: boolean
+  sheet?: number // which paper ticket of the bill (1 = the bill's own number)
+}
+
+// Tickets 2..n of a bill that ran over more than one paper ticket.
+export interface SaleSheetPayload {
+  docNumber: string // '' = a ticket with no printed number
 }
 
 export interface SalePayload {
@@ -497,12 +503,15 @@ export interface SalePayload {
   discount?: number // knocked off the whole bill (e.g. the odd 1 baht)
   note: string
   lines: SaleLinePayload[]
+  sheets?: SaleSheetPayload[] // tickets 2..n, in order (v1.6.7)
 }
 
 export interface SaleView {
   id: number
   docNumber: string
   noTicket: boolean // no printed ticket behind this bill (N-series number)
+  sheetCount: number // paper tickets the bill ran over (1 = a normal bill)
+  sheetNumbers: string | null // numbers of tickets 2..n, ', '-joined (no-number tickets left out)
   bookType: string | null
   docDate: string // falls back to the save date for old tickets without one
   docTime: string | null
@@ -543,6 +552,12 @@ export interface SaleLineView {
   amount: number | null // negative on a return line
   note: string | null
   isReturn: boolean
+  sheet: number
+}
+
+export interface SaleSheetView {
+  sheetNo: number // 2..n
+  docNumber: string | null
 }
 
 export interface SaleFilter {

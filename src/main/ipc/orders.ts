@@ -40,6 +40,22 @@ export { BOOK_TYPES, yearPart, counterKey, readCounter, formatDocNumber }
 // it was typed by hand — so the next suggestion continues correctly instead of
 // handing back a number already printed on paper. Shared with sales.ts, which
 // keys in tickets that were printed blank and filled in by hand.
+// A ticket number is taken if it is a bill's own number OR one of the extra
+// tickets a bill ran over onto (order_doc_sheets, v1.6.7). Returns the bill
+// that holds it, so the message can say where.
+export function numberInUse(docNumber: string, exceptOrderId?: number | null): string | null {
+  const row = getDb()
+    .prepare(
+      `SELECT doc_number AS owner FROM order_docs WHERE doc_number = ? AND id IS NOT ?
+       UNION ALL
+       SELECT o.doc_number FROM order_doc_sheets s JOIN order_docs o ON o.id = s.order_id
+        WHERE s.doc_number = ? AND s.order_id IS NOT ?
+       LIMIT 1`
+    )
+    .get(docNumber, exceptOrderId ?? null, docNumber, exceptOrderId ?? null) as { owner: string } | undefined
+  return row ? row.owner : null
+}
+
 export function syncCounterWithUsedNumber(bookType: string, docNumber: string): void {
   const yy = yearPart()
   const match = docNumber.match(new RegExp(`^${bookType}${yy}-(\\d{1,5})$`))
@@ -118,7 +134,7 @@ export function registerOrderHandlers(): void {
     const user = getSession()!
 
     const save = db.transaction((): { id: number; docNumber: string } => {
-      if (db.prepare('SELECT id FROM order_docs WHERE doc_number = ?').get(docNumber)) {
+      if (numberInUse(docNumber)) {
         throw new Error(`เลขที่เอกสาร ${docNumber} ถูกใช้ไปแล้ว`)
       }
 
