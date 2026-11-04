@@ -309,10 +309,7 @@
   .st-save:hover{background:var(--accent-dark);}
   .st-save i{font-size:19px;}
 
-  @media (max-width:1200px){
-    .st-form{grid-template-columns:repeat(2,1fr);}
-    .st-cols{grid-template-columns:46px minmax(180px,1fr) repeat(var(--loc-count,2),160px) 170px 120px;}
-  }
+  /* Narrow layouts for this screen: see .st-panel in the RESPONSIVE block. */
 
   .pv-overflow{outline:3px solid #C0392B !important;outline-offset:-3px;}
   .pv-warn{display:none;align-items:center;gap:8px;padding:9px 12px;margin-bottom:12px;
@@ -340,10 +337,7 @@
   .print-options .po-total b{color:var(--text-primary);font-size:14px;}
   .po-radio{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:7px;cursor:pointer;font-weight:500;color:var(--text-primary);}
   .po-radio input{width:auto;margin:0;}
-  @media (max-width:900px){
-    .print-layout{flex-direction:column;}
-    .print-options{width:auto;border-right:none;border-bottom:1px solid var(--border);}
-  }
+  /* Narrow print dialogs: see the RESPONSIVE block at the end. */
   .preview-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;}
   .preview-hint{font-size:11.5px;color:var(--text-secondary);}
 
@@ -595,32 +589,8 @@
   #sidebar-overlay{position:fixed;inset:0;background:rgba(20,24,26,.4);z-index:50;display:none;}
   #sidebar-overlay.active{display:block;}
 
-  @media (max-width:1024px){
-    .app{grid-template-columns:1fr;}
-    .sidebar{position:fixed;top:0;left:0;bottom:0;width:240px;z-index:55;transform:translateX(-100%);transition:transform .2s ease;}
-    .sidebar.open{transform:translateX(0);}
-    #btn-menu-toggle{display:flex;align-items:center;}
-    .slideover{width:94vw;}
-    .slideover-body{grid-template-columns:1fr;}
-  }
-  @media (max-width:768px){
-    .content{padding:16px;}
-    .kpi-row{grid-template-columns:repeat(2,1fr);gap:10px;}
-    .field-row.c2,.field-row.c3,.field-row.c4{grid-template-columns:1fr;}
-    .topbar{padding:0 14px;gap:10px;}
-    .topbar-org{display:none;}
-    .panel-head{flex-wrap:wrap;row-gap:8px;}
-    .panel-actions{margin-left:0;width:100%;justify-content:flex-start;}
-  }
-  @media (max-width:480px){
-    .kpi-row{grid-template-columns:1fr;}
-    .slideover{width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0;}
-    .user-meta{display:none;}
-    .user-avatar{display:none;}
-    .user-chip{padding-left:8px;margin-left:8px;gap:6px;}
-    .topbar h1{font-size:14px;}
-    .login-card{width:92vw;padding:24px 20px 20px;}
-  }
+  /* Small-screen rules live in the RESPONSIVE block at the very end of this
+     stylesheet — they have to come after DESIGN v2 or it overrides them. */
 
   /* ==========================================================================
      DESIGN v2 — from Claude Design "StockKeep App Redesign"
@@ -940,6 +910,165 @@
   .cu-sheet tr{page-break-inside:avoid;break-inside:avoid;}
   .cu-sheet .cu-sign{page-break-inside:avoid;break-inside:avoid;}
 
+
+  /* ==========================================================================
+     RESPONSIVE — keep this block LAST in the stylesheet.
+
+     StockKeep runs on several PCs with different screens and Windows scaling,
+     and is often used in a half-screen window. On a 1920x1080 screen at 125%
+     (Windows' own default for that size) half a screen is only 768 CSS px.
+
+     These rules used to sit above DESIGN v2, which re-declares .app's two
+     columns, .topbar and .content later in the file — so on a narrow window
+     the sidebar was hidden but its 236px column stayed, and every page was
+     squeezed into that column with the rest of the window empty. Anything
+     that must win on a small screen goes down here, after everything else.
+
+     Every rule here is "screen and" on purpose: a printed page is narrower
+     than 768px (A4, the 8in order form), so an unqualified max-width rule
+     would also reshape printed documents.
+     ========================================================================== */
+  @media screen and (max-width:1024px){
+    .app{grid-template-columns:1fr;}
+    .sidebar{position:fixed;top:0;left:0;bottom:0;width:240px;z-index:55;transform:translateX(-100%);transition:transform .2s ease;}
+    .sidebar.open{transform:translateX(0);}
+    #btn-menu-toggle{display:flex;align-items:center;}
+    .slideover{width:94vw;}
+    .slideover-body{grid-template-columns:1fr;}
+  }
+  @media screen and (max-width:768px){
+    .content{padding:16px;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);gap:10px;}
+    .field-row.c2,.field-row.c3,.field-row.c4{grid-template-columns:1fr;}
+    .topbar{padding:0 14px;gap:10px;}
+    .topbar-org{display:none;}
+    .panel-head{flex-wrap:wrap;row-gap:8px;}
+    .panel-actions{margin-left:0;width:100%;justify-content:flex-start;}
+    /* A long page title gives way to the user chip instead of pushing the
+       logout button off the edge of the window. */
+    .topbar h1{flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  }
+  @media screen and (max-width:640px){
+    .user-meta{display:none;}
+    .user-chip{padding-left:10px;margin-left:10px;gap:6px;}
+    #btn-logout{font-size:0;gap:0;padding:0 10px;}    /* icon only; the title attribute names it */
+    #btn-logout i{font-size:18px;}
+  }
+  @media screen and (max-width:480px){
+    .kpi-row{grid-template-columns:1fr;}
+    .slideover{width:100vw;max-width:100vw;height:100%;max-height:100%;border-radius:0;}
+    .user-meta{display:none;}
+    .user-avatar{display:none;}
+    .user-chip{padding-left:8px;margin-left:8px;gap:6px;}
+    .topbar h1{font-size:14px;}
+    .login-card{width:92vw;padding:24px 20px 20px;}
+  }
+
+  /* ---- คีย์บิลขาย: a narrow line table turns into two-row cards ----------
+     All seven columns need ~1030px. Below that each line becomes a small grid:
+     the item across the top, the numbers underneath with their own labels
+     (the column headers are hidden). Only the layout moves — the inputs, their
+     order and every Enter / arrow shortcut in views/sales.ts are untouched, so
+     keying a bill works exactly the same.
+     A container query rather than a media query, because what matters is the
+     width this table actually gets, and that depends on the sidebar as well as
+     the window. The container is the table's own wrapper on purpose: a query
+     container traps position:fixed descendants, and #pos-suggest / the column
+     picker must stay free to float over the page. */
+  .pos-lines-wrap{container:poslines / inline-size;}
+  @container poslines (max-width:980px){
+    table.pos-lines,table.pos-lines tbody{display:block;width:100%;}
+    table.pos-lines thead{display:none;}
+    table.pos-lines tr[data-i]{display:grid;
+      grid-template-columns:40px repeat(3,minmax(0,1fr)) minmax(0,1.6fr) 36px;
+      grid-template-areas:"no item item item item del" "no qty unit price amt amt";
+      gap:6px 8px;padding:10px 8px 12px;border-bottom:1px solid #E3E8EA;}
+    table.pos-lines tr[data-i] > td{display:block;padding:0;border:0;min-width:0;width:auto;}
+    table.pos-lines tr[data-i] > td.pl-no{grid-area:no;padding-top:12px !important;}
+    table.pos-lines tr[data-i] > td.pl-item-cell{grid-area:item;}
+    table.pos-lines tr[data-i] > td:nth-child(3){grid-area:qty;}
+    table.pos-lines tr[data-i] > td:nth-child(4){grid-area:unit;}
+    table.pos-lines tr[data-i] > td:nth-child(5){grid-area:price;}
+    table.pos-lines tr[data-i] > td.pl-amount-cell{grid-area:amt;}
+    table.pos-lines tr[data-i] > td:nth-child(7){grid-area:del;align-self:start;}
+    table.pos-lines tr[data-i] > td:nth-child(n+3):nth-child(-n+6)::before{display:block;margin-bottom:3px;
+      font-size:12.5px;font-weight:600;color:var(--text-secondary);}
+    table.pos-lines tr[data-i] > td:nth-child(3)::before{content:'จำนวน';}
+    table.pos-lines tr[data-i] > td:nth-child(4)::before{content:'หน่วย';}
+    table.pos-lines tr[data-i] > td:nth-child(5)::before{content:'ราคา/หน่วย';}
+    table.pos-lines tr[data-i] > td:nth-child(6)::before{content:'จำนวนเงิน';}
+    table.pos-lines tr.is-return[data-i]{background:#FFF3F1;}
+    .pos-lines .pl-item-cell{min-width:0;}
+    .pos-lines .pl-qty,.pos-lines .pl-unit,.pos-lines .pl-price{width:100%;}
+    .pos-lines .pl-amt{width:auto;flex:1;min-width:0;}
+    table.pos-lines tr.pl-sheet-head,table.pos-lines tr.pl-sheet-foot,
+    table.pos-lines tr.pl-sheet-head > td,table.pos-lines tr.pl-sheet-foot > td{display:block;}
+    .pos-lines .ps-head input.ps-doc{width:min(230px,100%);}
+  }
+  /* Very narrow: the amount gets its own row so it never shrinks below the
+     width of a real total. */
+  @container poslines (max-width:560px){
+    table.pos-lines tr[data-i]{grid-template-columns:34px repeat(3,minmax(0,1fr)) 34px;
+      grid-template-areas:"no item item item del" "no qty unit price ." "no amt amt amt .";}
+  }
+
+  /* ---- ตรวจนับสต๊อก: rows turn into cards when the panel is narrow ------
+     A row is: mark | name | one box per location | total | goods-in button.
+     With two locations that needs ~1070px, which the panel only gets on a
+     full-width window with the sidebar open — at 1280px it already spilled
+     past the panel edge. Narrower than that, each row becomes three lines:
+     the name on top, the count boxes (+ total) side by side, then the goods-in
+     button. The header stays as a legend over the count boxes, because the
+     location names only appear there. The panel holds no position:fixed
+     element (every modal lives outside the views), so it can safely be the
+     query container. */
+  .st-panel{container:stpanel / inline-size;}
+  @container stpanel (max-width:1100px){
+    .st-head,.st-sum,.st-filter,.st-foot,.st-foot-right{flex-wrap:wrap;}
+    .st-foot-right{margin-left:0;}
+    .st-cols{grid-template-columns:40px repeat(var(--loc-count,2),minmax(0,1fr)) minmax(0,1fr);gap:8px 10px;}
+    .st-row .st-cols > :first-child{grid-column:1;grid-row:1 / span 3;align-self:start;}
+    .st-row .st-cols > :nth-child(2){grid-column:2 / -1;grid-row:1;}
+    .st-row .st-cols > :last-child{grid-column:2 / -1;grid-row:3;text-align:left;}
+    .st-loc{padding:0;}
+    .st-grid-head .st-cols > :first-child,.st-grid-head .st-cols > :nth-child(2),
+    .st-grid-head .st-cols > :last-child{display:none;}
+    .st-grid-head .st-cols > :nth-child(3){grid-column-start:2;}
+    .st-extra{grid-template-columns:repeat(2,minmax(0,1fr));padding-left:50px;}
+  }
+  @container stpanel (max-width:900px){
+    .st-form{grid-template-columns:repeat(2,minmax(0,1fr));}
+  }
+  @container stpanel (max-width:520px){
+    .st-form{grid-template-columns:1fr;}
+    .st-form > .st-f{grid-column:auto !important;}   /* the note field spans 2 inline */
+    .st-extra{grid-template-columns:1fr;padding-left:0;}
+    .st-row,.st-grid-head{padding-left:12px;padding-right:12px;}
+    .st-cols{grid-template-columns:32px repeat(var(--loc-count,2),minmax(0,1fr)) minmax(0,1fr);}
+  }
+
+  /* Data tables: the design's 16px cell padding is comfortable on a full
+     screen, but on a half-screen window it is exactly what tips a table into
+     sideways scrolling. Tables that genuinely have too many columns (products,
+     the stock ledger) still scroll inside their own frame — the products table
+     keeps its barcode and name pinned while the rest scroll. More specific
+     table rules (bill lines, cash-up denominations) keep their own spacing. */
+  @media screen and (max-width:1280px){ th,td{padding-left:12px;padding-right:12px;} }
+  @media screen and (max-width:768px){ th,td{padding:10px 9px;} }
+
+  /* ---- Print dialogs (order form, count sheet, cash-up sheet) ------------
+     Side by side, the settings column and the true-size paper share the
+     dialog. Stacked on a narrow window they used to break: .print-options is
+     flex-shrink:0, so the stacked settings ran out of the bottom of the dialog,
+     over the Print / Cancel bar, and the paper preview got no height at all.
+     Stacked now means ONE scrolling column — settings, then the paper — with
+     the footer, and its Print button, pinned underneath. */
+  @media screen and (max-width:900px){
+    .print-layout{flex-direction:column;overflow-y:auto;}
+    .print-options{width:auto;overflow:visible;border-right:none;border-bottom:1px solid var(--border);}
+    .preview-body{flex:none;overflow-x:auto;overflow-y:visible;}
+    .preview-foot{flex-wrap:wrap;row-gap:10px;}
+  }
 </style>
 </head>
 <body>
@@ -990,7 +1119,7 @@
           <div class="user-name" id="user-name-label">-</div>
           <div class="user-role" id="user-role-label">-</div>
         </div>
-        <button class="btn small" id="btn-logout"><i class="ti ti-logout"></i>ออกจากระบบ</button>
+        <button class="btn small" id="btn-logout" title="ออกจากระบบ"><i class="ti ti-logout"></i>ออกจากระบบ</button>
       </div>
     </div>
 
@@ -1456,7 +1585,7 @@
             </div>
             <div class="pos-hint" id="pos-doc-hint"></div>
           </div>
-          <div class="table-scroll"><table class="pos-lines">
+          <div class="table-scroll pos-lines-wrap"><table class="pos-lines">
             <thead><tr><th>#</th><th>รายการสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th><th></th></tr></thead>
             <tbody id="pos-lines-body"></tbody>
           </table></div>
