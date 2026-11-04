@@ -785,6 +785,33 @@
   .pos-total-row.grand{font-size:25px;font-weight:800;border-top:1px solid var(--border);margin-top:6px;padding-top:10px;}
   .pos-total-row.change{font-size:18px;font-weight:700;color:var(--ok);}
   .pos-total-row.change.short{color:var(--danger);}
+  /* Totals strip pinned to the bottom of the window (v1.6.12). On a long bill or a
+     half-width window the real total box is far below what's being typed, so the
+     strip repeats discount / total / change until that box is on screen.
+     position:fixed, not sticky: the WINDOW scrolls in this app, but .content is still
+     a scroll box, so a sticky strip would stick to .content and never move.
+     placeSumbar() in sales.ts lines it up with the panel and shows / hides it;
+     scroll-padding keeps a focused box from landing underneath it. */
+  html:has(#view-sales.active),.content:has(#view-sales.active){scroll-padding-bottom:96px;}
+  .pos-sumbar{position:fixed;bottom:10px;right:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px 28px;
+    padding:8px 18px;background:#fff;border:2px solid #3F4A4F;border-radius:10px;box-shadow:0 8px 24px rgba(20,24,26,.22);
+    transition:opacity .15s ease,transform .15s ease,visibility .15s;}
+  .pos-sumbar.off{opacity:0;transform:translateY(8px);visibility:hidden;pointer-events:none;}
+  .psb-item{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:2px 0;
+    font:inherit;color:var(--text-primary);background:none;border:0;text-align:left;}
+  .psb-item span{font-size:12.5px;color:var(--text-secondary);white-space:nowrap;}
+  .psb-item b{font-size:18px;font-weight:700;white-space:nowrap;}
+  .psb-btn{cursor:pointer;border-radius:6px;padding:2px 8px;margin:0 -8px;}
+  .psb-btn:hover{background:var(--accent-soft);}
+  .psb-btn:disabled{cursor:default;background:none;}
+  #psb-disc-btn.on b{color:var(--warn);}
+  .psb-grand{align-items:flex-end;}
+  .psb-grand b{font-size:25px;font-weight:800;}
+  .psb-grand.refund span,.psb-grand.refund b{color:var(--danger);}
+  .psb-change{align-items:flex-end;min-width:96px;}
+  .psb-change b{font-size:21px;}
+  .psb-change.ok b{color:var(--ok);}
+  .psb-change.short span,.psb-change.short b{color:var(--danger);}
   .pos-day-sum{display:flex;gap:22px;flex-wrap:wrap;font-size:15px;}
   .pos-day-sum b{font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;}
   tr.is-void td{color:#9AA3A8;text-decoration:line-through;}
@@ -1630,6 +1657,13 @@
               </div>
               <button class="btn primary" id="pos-btn-save" style="width:100%;justify-content:center;height:54px;font-size:17px;margin-top:12px;"><i class="ti ti-device-floppy"></i>บันทึกบิล (Ctrl+Enter)</button>
             </div>
+          </div>
+          <!-- Totals pinned to the bottom of the window while the total box is still below it (v1.6.12) -->
+          <div class="pos-sumbar off" id="pos-sumbar">
+            <button type="button" class="psb-item psb-btn" id="psb-disc-btn" title="กดเพื่อแก้ส่วนลด / ปัดเศษ"><span>ส่วนลด / ปัดเศษ</span><b class="mono" id="psb-disc">0.00</b></button>
+            <div class="psb-item" id="psb-delivery-item" style="display:none;"><span>ค่าจัดส่ง</span><b class="mono" id="psb-delivery"></b></div>
+            <div class="psb-item psb-grand" id="psb-grand-item"><span id="psb-grand-label">รวมเป็นเงิน</span><b class="mono" id="psb-grand">฿0.00</b></div>
+            <button type="button" class="psb-item psb-btn psb-change" id="psb-change-btn"><span id="psb-change-label">เงินทอน</span><b class="mono" id="psb-change">—</b></button>
           </div>
         </div>
 

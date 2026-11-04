@@ -736,14 +736,78 @@ function updateTotals(): void {
 
   const received = numVal('pos-cash-received')
   const changeRow = $('pos-change-row')
+  let change: number | null = null
   if ((pay === 'CASH' || pay === 'MIXED') && received > 0 && t.cashPart > 0) {
-    const change = Math.round((received - t.cashPart) * 100) / 100
+    change = Math.round((received - t.cashPart) * 100) / 100
     changeRow.style.display = 'flex'
     changeRow.classList.toggle('short', change < 0)
     $('pos-change').textContent = change < 0 ? `ขาดอีก ${money(-change)}` : baht(change)
   } else {
     changeRow.style.display = 'none'
   }
+  updateSumbar(t, change)
+}
+
+// The strip pinned to the bottom of the window (v1.6.12) repeats what the
+// counter needs while the real box is still below: discount, total, change.
+function updateSumbar(t: ReturnType<typeof totals>, change: number | null): void {
+  $('psb-disc').textContent = t.discount > 0 ? `−${money(t.discount)}` : '0.00'
+  $('psb-disc-btn').classList.toggle('on', t.discount > 0)
+  const delivery = round2(Math.max(numVal('pos-delivery'), 0))
+  $('psb-delivery-item').style.display = delivery > 0 ? '' : 'none'
+  $('psb-delivery').textContent = `+${money(delivery)}`
+  $('psb-grand-item').classList.toggle('refund', t.grand < 0)
+  $('psb-grand-label').textContent = $('pos-grand-label').textContent
+  $('psb-grand').textContent = $('pos-grand').textContent
+
+  let label = 'เงินทอน'
+  let value = '—'
+  if (pay === 'TRANSFER') {
+    label = 'ชำระโดย'
+    value = 'โอนทั้งบิล'
+  } else if (pay === 'CREDIT') {
+    label = 'ค้างชำระ (เครดิต)'
+    value = money(t.grand)
+  } else if (change != null) {
+    label = change < 0 ? 'ขาดอีก' : 'เงินทอน'
+    value = change < 0 ? money(-change) : baht(change)
+  }
+  $('psb-change-label').textContent = label
+  $('psb-change').textContent = value
+  const chip = $('psb-change-btn') as HTMLButtonElement
+  chip.classList.toggle('ok', change != null && change >= 0)
+  chip.classList.toggle('short', change != null && change < 0)
+  chip.disabled = pay === 'CREDIT'
+  chip.title = pay === 'TRANSFER' ? 'กดเพื่อใส่เวลาโอนตามสลิป' : pay === 'CREDIT' ? '' : 'กดเพื่อใส่เงินที่รับมา (หรือกด F2)'
+  placeSumbar()
+}
+
+// Show the strip only while the bottom of the real total box is still below
+// the window (and the form itself is on screen). Once the box is fully on
+// screen, or scrolled past, it hides. The strip is position:fixed, so it is
+// lined up with the panel's right edge by hand (as wide as its numbers need).
+function placeSumbar(): void {
+  const view = $('view-sales')
+  const bar = $('pos-sumbar')
+  const panel = bar.closest('.panel')
+  const box = view.querySelector('.pos-total-box')
+  if (!panel || !box || !view.classList.contains('active')) return
+  const vh = window.innerHeight
+  const p = panel.getBoundingClientRect()
+  const room = Math.round(p.width - 20)
+  bar.style.right = `${Math.round(document.documentElement.clientWidth - p.right + 10)}px`
+  bar.style.maxWidth = `${room}px`
+  bar.style.minWidth = `${Math.min(420, room)}px`
+  bar.classList.toggle('off', !(box.getBoundingClientRect().bottom > vh + 1 && p.top < vh - 160))
+}
+
+// Strip buttons: bring the real total box on screen with the cursor in a box.
+function jumpToBox(id: string): void {
+  const el = input(id)
+  el.focus({ preventScroll: true })
+  el.select()
+  document.querySelector('#view-sales .pos-total-box')?.scrollIntoView({ block: 'nearest' })
+  el.scrollIntoView({ block: 'nearest' })
 }
 
 // F2 / F3 / F4: pick the payment and jump to the box that comes next.
@@ -1250,6 +1314,16 @@ export function initSales(navigate: (view: string) => void): void {
     input('pos-cash-received').value = String(Math.max(totals().cashPart, 0))
     updateTotals()
   })
+  $('psb-disc-btn').addEventListener('click', () => jumpToBox('pos-discount'))
+  $('psb-change-btn').addEventListener('click', () =>
+    jumpToBox(pay === 'TRANSFER' ? 'pos-transfer-time' : 'pos-cash-received')
+  )
+  // Re-check the strip whenever anything scrolls (capture: scroll events don't
+  // bubble), the window changes size, or the form grows/shrinks (lines added,
+  // page opened — display:none -> block).
+  window.addEventListener('scroll', placeSumbar, { capture: true, passive: true })
+  window.addEventListener('resize', placeSumbar)
+  new ResizeObserver(placeSumbar).observe($('view-sales'))
   $('pos-btn-add-line').addEventListener('click', addLineAndFocus)
   $('pos-btn-add-sheet').addEventListener('click', () => addSheet())
   input('pos-doc').addEventListener('input', updateSheetSums)
