@@ -1669,11 +1669,19 @@
 
         <div class="panel">
           <div class="panel-head"><h2 id="pos-day-title">บิลของวันนี้</h2>
+            <span class="panel-head-sub" id="pos-day-sub">คีย์ผิดวัน? ติ๊กเลือกบิล แล้วกด "ย้ายวันที่" — ย้ายได้ทีละหลายใบ</span>
             <div class="panel-actions"><button class="btn small" id="pos-btn-goto-cashup"><i class="ti ti-calculator"></i>ไปปิดยอดวันนี้</button></div>
           </div>
-          <div class="filter-bar"><div class="pos-day-sum" id="pos-day-sum"></div></div>
+          <div class="filter-bar"><div class="pos-day-sum" id="pos-day-sum"></div>
+            <!-- Bills keyed under the wrong day: tick them, move them in one go (v1.6.13) -->
+            <div class="bulk-bar" id="pd-bulk">
+              <span id="pd-sel"></span>
+              <button class="btn small primary" id="pd-btn-move"><i class="ti ti-calendar-share"></i>ย้ายวันที่…</button>
+              <button class="btn small ghost" id="pd-btn-clear">ยกเลิกการเลือก</button>
+            </div>
+          </div>
           <div class="table-scroll"><table>
-            <thead><tr><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th class="num">รายการ</th><th class="num">ยอดรวม</th><th>ชำระ</th><th>ตรวจโอน</th><th>คีย์โดย</th><th></th></tr></thead>
+            <thead><tr><th style="width:44px;"><input type="checkbox" class="row-check" id="pd-check-all" title="เลือกทุกบิลของวันนี้"></th><th>เลขที่</th><th>เวลา</th><th>ลูกค้า</th><th class="num">รายการ</th><th class="num">ยอดรวม</th><th>ชำระ</th><th>ตรวจโอน</th><th>คีย์โดย</th><th></th></tr></thead>
             <tbody id="pos-day-body"></tbody>
           </table></div>
         </div>

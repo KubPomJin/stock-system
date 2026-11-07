@@ -91,6 +91,7 @@ const api: Api = {
     save: (payload) => call('sales:save', payload),
     void: (payload) => call('sales:void', payload),
     restore: (id) => call('sales:restore', id),
+    moveDate: (payload) => call('sales:moveDate', payload),
     transfers: (filter) => call('sales:transfers', filter),
     setTransferStatus: (payload) => call('sales:setTransferStatus', payload),
     day: (date) => call('sales:day', date),

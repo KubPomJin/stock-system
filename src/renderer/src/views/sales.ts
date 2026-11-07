@@ -1182,11 +1182,37 @@ async function renderDayList(): Promise<void> {
     <span>เครดิต <b>${baht(day.creditTotal)}</b></span>`
 
   const rows = [...day.sales].reverse()
+  dayRows = rows
+  // A locked day can't give bills away; another day's list keeps no ticks.
+  for (const id of [...daySelected]) if (day.locked || !rows.some((r) => r.id === id)) daySelected.delete(id)
+  $('pd-check-all').style.visibility = day.locked || !rows.length ? 'hidden' : ''
+  $('pos-day-sub').style.display = !rows.length ? 'none' : ''
+  $('pos-day-sub').textContent = day.locked
+    ? 'วันนี้เจ้าของตรวจยอดแล้ว — ถ้าจะย้ายบิลไปวันอื่น ให้กด "ยกเลิกการตรวจ" ที่หน้าปิดยอดประจำวันก่อน'
+    : 'คีย์ผิดวัน? ติ๊กเลือกบิล แล้วกด "ย้ายวันที่" — ย้ายได้ทีละหลายใบ (กด Shift ค้างแล้วติ๊ก = เลือกเป็นช่วง)'
   $('pos-day-body').innerHTML = rows.length
     ? rows.map(dayRowHtml).join('')
-    : `<tr><td colspan="9"><div class="empty-state"><i class="ti ti-receipt-off"></i>ยังไม่มีบิลของวันนี้</div></td></tr>`
+    : `<tr><td colspan="10"><div class="empty-state"><i class="ti ti-receipt-off"></i>ยังไม่มีบิลของวันนี้</div></td></tr>`
 
   const body = $('pos-day-body')
+  const checks = [...body.querySelectorAll<HTMLInputElement>('.pd-check')]
+  let lastTick = -1
+  checks.forEach((cb, i) =>
+    cb.addEventListener('click', (e) => {
+      // Shift-click ticks/unticks the whole run since the last tick.
+      const from = e.shiftKey && lastTick >= 0 ? Math.min(lastTick, i) : i
+      const to = e.shiftKey && lastTick >= 0 ? Math.max(lastTick, i) : i
+      for (let k = from; k <= to; k++) {
+        checks[k].checked = cb.checked
+        const id = Number(checks[k].dataset.id)
+        if (cb.checked) daySelected.add(id)
+        else daySelected.delete(id)
+      }
+      lastTick = i
+      renderDaySelection()
+    })
+  )
+  renderDaySelection()
   body.querySelectorAll<HTMLButtonElement>('.pd-edit').forEach((b) =>
     b.addEventListener('click', () => void loadForEdit(Number(b.dataset.id)))
   )
@@ -1207,7 +1233,11 @@ function dayRowHtml(s: SaleView): string {
       ? ''
       : `<button class="btn small pd-edit" data-id="${s.id}">แก้ไข</button>
          <button class="btn small pd-void" data-id="${s.id}" data-doc="${esc(s.docNumber)}">ยกเลิก</button>`
+  const tick = dayLocked
+    ? ''
+    : `<input type="checkbox" class="row-check pd-check" data-id="${s.id}"${daySelected.has(s.id) ? ' checked' : ''}>`
   return `<tr class="${s.voided ? 'is-void' : ''}">
+    <td>${tick}</td>
     <td class="mono"><b>${esc(s.docNumber)}</b>${s.noTicket ? '<div class="pl-tag no-strike"><span class="badge muted">ไม่มีใบ</span></div>' : ''}${
        s.sheetCount > 1 ? `<div class="pl-tag no-strike">${esc(sheetsLabel(s))}</div>` : ''
      }</td>
@@ -1220,6 +1250,62 @@ function dayRowHtml(s: SaleView): string {
     <td style="font-size:13px;">${esc(s.createdBy ?? '')}<div class="pl-tag">${thaiDateTime(s.createdAt)}</div></td>
     <td class="nowrap" style="white-space:nowrap;">${actions}</td>
   </tr>`
+}
+
+/* ---------- move ticked bills to another day (v1.6.13) ---------- */
+
+// Bills keyed while the date box still showed the wrong day.
+const daySelected = new Set<number>()
+let dayRows: SaleView[] = []
+
+function shiftIso(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00`)
+  d.setDate(d.getDate() + days)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+function renderDaySelection(): void {
+  const picked = dayRows.filter((r) => daySelected.has(r.id))
+  const live = picked.filter((r) => !r.voided)
+  const voided = picked.length - live.length
+  $('pd-bulk').classList.toggle('show', picked.length > 0)
+  $('pd-sel').innerHTML =
+    `เลือก <b>${picked.length}</b> บิล · รวม <b class="mono">${baht(live.reduce((s, r) => s + r.grandTotal, 0))}</b>` +
+    (voided ? ` <span class="text-muted">(รวมบิลที่ยกเลิก ${voided} ใบ)</span>` : '')
+  const all = $('pd-check-all') as HTMLInputElement
+  all.checked = dayRows.length > 0 && picked.length === dayRows.length
+  all.indeterminate = picked.length > 0 && picked.length < dayRows.length
+}
+
+async function moveSelectedBills(): Promise<void> {
+  const ids = dayRows.filter((r) => daySelected.has(r.id)).map((r) => r.id)
+  if (!ids.length) return
+  const from = input('pos-date').value || todayIso()
+  // Bills on an old day were usually today's, keyed while the box still showed
+  // that day (the owner's case: 19/10 -> today). On today's list they are
+  // usually yesterday's tickets keyed today.
+  const today = todayIso()
+  const suggest = from === today ? shiftIso(from, -1) : today
+  const v = await promptModal(
+    `ย้ายบิล ${ids.length} ใบ ไปวันที่ถูกต้อง`,
+    [{ key: 'date', type: 'date', label: `ตอนนี้อยู่วันที่ ${thaiDate(from)} — ย้ายไปวันที่`, value: suggest }],
+    (vals) => (!vals.date ? 'กรุณาเลือกวันที่' : vals.date === from ? 'บิลอยู่วันที่นี้อยู่แล้ว — เลือกวันอื่น' : null)
+  )
+  if (!v) return
+  try {
+    const res = await window.api.sales.moveDate({ ids, date: v.date })
+    // The form would save the bill straight back to the old day.
+    if (editingId != null && ids.includes(editingId)) resetForm(true)
+    daySelected.clear()
+    await renderDayList()
+    const stale = res.closedDays.length
+      ? ` · วันที่ ${res.closedDays.map(thaiDate).join(', ')} ปิดยอดไว้แล้ว ต้องบันทึกปิดยอดใหม่`
+      : ''
+    showToast(`ย้ายบิล ${res.moved} ใบไปวันที่ ${thaiDate(v.date)} แล้ว${stale}`)
+  } catch (err) {
+    toastError(err)
+  }
 }
 
 async function voidSale(id: number, doc: string): Promise<void> {
@@ -1345,6 +1431,23 @@ export function initSales(navigate: (view: string) => void): void {
   $('pos-btn-clear').addEventListener('click', () => resetForm(true))
   $('pos-btn-cancel-edit').addEventListener('click', () => resetForm(true))
   $('pos-btn-goto-cashup').addEventListener('click', () => goToView('cashup'))
+  ;($('pd-check-all') as HTMLInputElement).addEventListener('change', (e) => {
+    const on = (e.target as HTMLInputElement).checked
+    daySelected.clear()
+    if (on && !dayLocked) for (const r of dayRows) daySelected.add(r.id)
+    $('pos-day-body')
+      .querySelectorAll<HTMLInputElement>('.pd-check')
+      .forEach((cb) => (cb.checked = daySelected.has(Number(cb.dataset.id))))
+    renderDaySelection()
+  })
+  $('pd-btn-move').addEventListener('click', () => void moveSelectedBills())
+  $('pd-btn-clear').addEventListener('click', () => {
+    daySelected.clear()
+    $('pos-day-body')
+      .querySelectorAll<HTMLInputElement>('.pd-check')
+      .forEach((cb) => (cb.checked = false))
+    renderDaySelection()
+  })
 
   // Ctrl+Enter (or Ctrl+S) saves the bill from any box — only while this page
   // is on screen and not from a dialog on top of it. Capture phase so it wins

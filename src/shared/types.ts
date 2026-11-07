@@ -434,6 +434,7 @@ export interface Api {
     save(payload: SalePayload): Promise<{ id: number; docNumber: string }>
     void(payload: { id: number; reason: string }): Promise<void>
     restore(id: number): Promise<void>
+    moveDate(payload: { ids: number[]; date: string }): Promise<{ moved: number; closedDays: string[] }>
     transfers(filter: SaleFilter): Promise<SaleView[]>
     setTransferStatus(payload: { ids: number[]; status: TransferStatus; note: string }): Promise<{ changed: number }>
     day(date: string): Promise<DaySummary>

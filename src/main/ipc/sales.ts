@@ -471,6 +471,41 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
   return run()
 }
 
+/* ---------- move bills to another day (v1.6.13) ---------- */
+
+// Bills keyed while the date box still showed the wrong day: moved to the right
+// day in one go. Only doc_date changes — numbers, money and transfer checks stay
+// as they are. Every day involved must be open, and it is all or nothing.
+// Voided bills move too: they belong to the same day's tickets.
+function moveSalesDate(p: { ids: number[]; date: string }): { moved: number; closedDays: string[] } {
+  const date = String(p?.date ?? '')
+  if (!isIsoDate(date)) throw new Error('กรุณาเลือกวันที่ที่จะย้ายบิลไป')
+  const ids = [...new Set((p?.ids ?? []).map(Number).filter((n) => n > 0))]
+  if (!ids.length) throw new Error('กรุณาเลือกบิลอย่างน้อย 1 ใบ')
+  const user = getSession()!
+  const db = getDb()
+  const get = db.prepare(`SELECT ${DAY} AS day FROM order_docs o WHERE o.id = ?`)
+  const upd = db.prepare('UPDATE order_docs SET doc_date = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? WHERE id = ?')
+  const fromDays = new Set<string>()
+  let moved = 0
+  db.transaction(() => {
+    assertDayOpen(date)
+    for (const id of ids) {
+      const row = get.get(id) as { day: string } | undefined
+      if (!row) throw new Error('ไม่พบบิลที่เลือกบางใบ — ลองเปิดรายการใหม่')
+      if (row.day === date) continue
+      assertDayOpen(row.day)
+      fromDays.add(row.day)
+      moved += upd.run(date, user.id, id).changes
+    }
+  })()
+  // Days whose cash-up was already saved no longer match it — the cash-up page
+  // shows them as needing a new close (closeStale).
+  const hasClose = db.prepare('SELECT 1 FROM cash_closes WHERE close_date = ?')
+  const closedDays = moved ? [...fromDays, date].filter((d) => hasClose.get(d)) : []
+  return { moved, closedDays }
+}
+
 /* ---------- day summary + missing numbers ---------- */
 
 // Ticket numbers that were skipped inside each book's keyed sequence. A missing
@@ -881,6 +916,9 @@ export function registerSalesHandlers(): void {
       )
       .run(reason, getSession()!.id, p.id)
   })
+
+  // Same level as keying a bill: staff could already fix the date one bill at a time.
+  handle('sales:moveDate', 1, (p: { ids: number[]; date: string }) => moveSalesDate(p))
 
   handle('sales:restore', 2, (id: number) => {
     const sale = getSale(id)

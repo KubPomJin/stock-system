@@ -20,7 +20,7 @@ export function toastError(err: unknown): void {
 export interface ModalField {
   key: string
   label: string
-  type?: 'text' | 'password' | 'select'
+  type?: 'text' | 'password' | 'select' | 'date'
   placeholder?: string
   value?: string
   options?: { value: string; label: string }[]
