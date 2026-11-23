@@ -937,6 +937,143 @@
   .cu-sheet tr{page-break-inside:avoid;break-inside:avoid;}
   .cu-sheet .cu-sign{page-break-inside:avoid;break-inside:avoid;}
 
+  /* ==========================================================================
+     DARK MODE — html[data-theme="dark"], set by initTheme() in src/theme.ts
+     from localStorage "ui.theme" (per machine, default light).
+
+     A trailing override like DESIGN v2: the light rules above are untouched,
+     so the light theme renders exactly as before.
+
+     Everything is inside "@media screen" ON PURPOSE. Printing and printToPDF
+     use print media, so no rule here can reach a printed document — paper
+     stays black on white whatever theme the screen is in. The on-screen paper
+     previews (.pt-sheet, #order-print-area, #cashup-preview-paper) are not
+     listed here either: paper is drawn white in both themes.
+
+     New screens: use the variables (--bg-panel, --bg-input, --bg-subtle,
+     --bg-hover, --border-input, --text-*) instead of #fff / grey hex and they
+     work in both themes without a rule down here.
+     ========================================================================== */
+  /* Theme toggle in the top bar (both themes) */
+  #btn-theme{flex-shrink:0;}
+  #btn-theme i{font-size:20px;}
+  @media screen{
+    html[data-theme="dark"]{
+      color-scheme:dark;          /* native scrollbars, select lists, date/time pickers */
+      --bg-app:#111416;
+      --bg-sidebar:#0B0D0E;
+      --sidebar-hover:#1D2327;
+      --bg-panel:#1B2023;
+      --bg-input:#121618;
+      --bg-subtle:#20262A;
+      --bg-hover:#2A3236;
+      --table-head-bg:#232A2E;
+      --row-hover:#222A2E;
+      --preview-bg:#0B0D0E;
+      --accent-dark:#F2A555;      /* doubles as text on --accent-soft, so it goes lighter */
+      --accent-soft:#3B2A16;
+      --accent-border:#6B4A22;
+      --text-primary:#E7EBED;
+      --text-secondary:#B3BDC2;
+      --muted:#98A3A8;
+      --st-idle:#98A3A8;
+      --border:#2F373B;
+      --border-input:#4A555B;
+      --border-strong:#8A959B;
+      --ok:#5FC48E;
+      --ok-bg:#15301F;
+      --ok-border:#2C5A3F;
+      --warn:#E5AC45;
+      --warn-bg:#33270E;
+      --warn-border:#5E4A1C;
+      --danger:#F08374;
+      --danger-bg:#3A1B18;
+      --danger-border:#6E332D;
+      --st-row-ok:#18241D;
+      --st-row-diff:#2A1B19;
+      --st-row-partial:#272215;
+    }
+
+    /* ---- raised surfaces that were plain white ---- */
+    html[data-theme="dark"] :is(.combobox-list,.slideover,.login-card,.modal,.preview-dialog,.print-options,
+      .col-picker,.zone-detail,#pos-suggest,.pos-total-box,.pos-sumbar,.st-chip){background:var(--bg-panel);}
+    html[data-theme="dark"] :is(.combobox-list,.slideover,.modal,.preview-dialog,.col-picker,#pos-suggest){
+      border:1px solid var(--border-input);}
+    html[data-theme="dark"] #products-table :is(th,td).sticky-col{background:var(--bg-panel);}
+    html[data-theme="dark"] #products-table thead th.sticky-col{background:var(--table-head-bg);}
+    html[data-theme="dark"] #products-table tr:hover td.sticky-col{background:var(--row-hover);}
+
+    /* ---- controls ---- */
+    html[data-theme="dark"] :is(input[type=text],input[type=number],input[type=date],input[type=time],
+      input[type=password],select,textarea,.st-in,.st-cin){background:var(--bg-input);}
+    html[data-theme="dark"] :is(.st-in,.st-cin,.st-btn,.st-fbtn,.st-extra-btn,.st-recv-chk){border-color:var(--border-input);}
+    html[data-theme="dark"] ::placeholder{color:#7C878D;}
+    html[data-theme="dark"] :is(.btn,.chip,.st-btn,.st-fbtn,.st-extra-btn,.st-recv-chk,.seg-btn,.zone-check,
+      .pos-pay-btn,.pos-lines .pl-ret,.pos-pay-btn kbd){background:var(--bg-subtle);}
+    html[data-theme="dark"] :is(.btn,.st-btn,.st-fbtn,.st-extra-btn,.icon-btn):hover{background:var(--bg-hover);}
+    html[data-theme="dark"] .btn.ghost{background:none;}
+    html[data-theme="dark"] .btn.ghost:hover{background:var(--bg-hover);}
+    /* Filled buttons keep their fill; the label goes dark where the fill got lighter. */
+    html[data-theme="dark"] :is(.btn.primary,.chip.active,.history-tab.active,.st-fbtn.active,.seg-btn.active){
+      background:var(--accent);border-color:var(--accent);color:#fff;}
+    html[data-theme="dark"] :is(.btn.primary,.st-save):hover{background:#C56C12;}
+    html[data-theme="dark"] .st-save{border-color:var(--accent);}
+    html[data-theme="dark"] .st-btn.ok{background:var(--ok);border-color:var(--ok);color:#0D1F15;}
+    html[data-theme="dark"] .pos-lines .pl-ret.on{background:var(--danger);border-color:var(--danger);color:#2A0E0A;}
+    html[data-theme="dark"] .pos-pay-btn.active{background:var(--accent-soft);border-color:var(--accent);}
+
+    /* ---- quiet backgrounds: table heads, filter bars, footers, group rows ---- */
+    html[data-theme="dark"] :is(.filter-bar,.unit-level-base,#login-hint,.st-form,.st-foot,.tr-foot,.st-tot,
+      #pos-doc[readonly]){background:var(--bg-subtle);}
+    html[data-theme="dark"] :is(th,.st-grid-head,tr.tr-day td,tr.sr-total td,table.sr-bill-lines tr.sr-sheet td,
+      .pos-lines tr.pl-sheet-head td,.pos-lines tr.pl-sheet-foot td){background:var(--table-head-bg);}
+    html[data-theme="dark"] tbody tr:hover{background:var(--row-hover);}
+    html[data-theme="dark"] tr.sr-click.selected td{background:var(--accent-soft);}
+    html[data-theme="dark"] .gauge-track{background:#343D42;}
+    html[data-theme="dark"] :is(.badge.muted,.st-tot-b){background:#2D353A;color:var(--text-secondary);}
+    html[data-theme="dark"] .preview-body{background:var(--preview-bg);}
+    html[data-theme="dark"] .st-bar{background:var(--bg-input);}
+
+    /* ---- borders and text that were hard-coded greys ---- */
+    html[data-theme="dark"] :is(.st-tot,table.pos-lines td,.ps-opt){border-color:var(--border);}
+    html[data-theme="dark"] :is(.st-chip,.st-bar){border-color:var(--accent-border);}
+    html[data-theme="dark"] :is(.pos-total-box,.pos-sumbar){border-color:var(--border-strong);}
+    html[data-theme="dark"] .pos-lines tr.pl-sheet-head td{border-top-color:var(--border-strong);}
+    html[data-theme="dark"] :is(.st-f label,.st-chip-l,.st-grid-head .st-cols > div,.st-sysline,.st-tot-sys,
+      .st-extra label,.st-remain){color:var(--text-secondary);}
+    html[data-theme="dark"] :is(.st-sub,.st-chip-s,.st-code,.st-unit,.st-diff){color:var(--muted);}
+    html[data-theme="dark"] tr.is-void td{color:#6F7B81;}
+
+    /* ---- status tints ---- */
+    html[data-theme="dark"] :is(.alert-banner.danger,.kpi-card.alert-danger,.pv-warn){border-color:var(--danger-border);}
+    html[data-theme="dark"] :is(.alert-banner.warn,.kpi-card.alert-warn){border-color:var(--warn-border);}
+    html[data-theme="dark"] .alert-banner .alert-jump:hover{background:rgba(255,255,255,.07);}
+    html[data-theme="dark"] .pos-lines .pl-amt.edited{background:var(--warn-bg);}
+    html[data-theme="dark"] .pos-lines tr.is-return td,
+    html[data-theme="dark"] table.pos-lines tr.is-return[data-i]{background:#2A1A18;}
+    html[data-theme="dark"] table.pos-lines tr[data-i]{border-bottom-color:var(--border);}
+    html[data-theme="dark"] #toast{background:#2E373C;border:1px solid var(--border-input);}
+
+    /* ---- sales calendar: the "today" pill and the selected-day ring ---- */
+    html[data-theme="dark"] .sr-day.selected{outline-color:#E7EBED;}
+    html[data-theme="dark"] .sr-day.today .sr-dnum{background:#E7EBED;color:#111416;}
+
+    /* ---- warehouse map ---- */
+    html[data-theme="dark"] .zone-map{background:var(--bg-input);border-color:var(--border-strong);}
+    html[data-theme="dark"] .zone-cell{background:var(--bg-panel);border-color:#5C686E;color:var(--text-secondary);}
+    html[data-theme="dark"] .zone-cell.is-zone{background:#5A2D29;color:#F7D9D5;}
+    html[data-theme="dark"] .zone-cell.is-zone:hover{background:#70362F;}
+    html[data-theme="dark"] .zone-cell.is-zone.selected{background:var(--accent);color:#fff;border-color:var(--accent);}
+    html[data-theme="dark"] .zone-cell.is-zone.hit{background:#FFE08A;border-color:#B7891F;color:#2B2205;}
+    html[data-theme="dark"] .zone-badge{background:#5A2D29;color:#F7D9D5;}
+    html[data-theme="dark"] .zone-badge.none{background:#2D353A;color:var(--text-secondary);}
+
+    /* ---- shadows and scrims need more weight on a dark page ---- */
+    html[data-theme="dark"] :is(.overlay,.modal-backdrop,.preview-backdrop,#sidebar-overlay){background:rgba(0,0,0,.6);}
+    html[data-theme="dark"] :is(.slideover,.modal,.preview-dialog,.pos-sumbar,#pos-suggest,.col-picker,.combobox-list){
+      box-shadow:0 18px 48px rgba(0,0,0,.55);}
+  }
+
 
   /* ==========================================================================
      RESPONSIVE — keep this block LAST in the stylesheet.
@@ -1140,6 +1277,7 @@
       <h1 id="view-title">แดชบอร์ด</h1>
       <div class="topbar-spacer"></div>
       <div class="topbar-org"><b>ระบบจัดการสต๊อกสินค้า</b><span id="topbar-date"></span></div>
+      <button class="icon-btn" id="btn-theme" type="button" title="เปลี่ยนเป็นโหมดมืด" aria-label="เปลี่ยนเป็นโหมดมืด"><i class="ti ti-moon"></i></button>
       <div class="user-chip">
         <div class="user-avatar" id="user-avatar">-</div>
         <div class="user-meta">
@@ -1249,7 +1387,7 @@
 
         <div class="panel">
           <div class="panel-head"><h2>รายการสินค้า</h2></div>
-          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-subtle,#FAFBFB);">
             <div style="margin-bottom:10px;">
               <label>สินค้า</label>
               <select id="rec-product-select"></select>
@@ -1355,7 +1493,7 @@
 
         <div class="panel">
           <div class="panel-head"><h2>รายการที่เบิก</h2></div>
-          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-subtle,#FAFBFB);">
             <div style="margin-bottom:10px;">
               <label>สินค้า</label>
               <select id="transfer-product-select"></select>
@@ -1515,7 +1653,7 @@
 
         <div class="panel">
           <div class="panel-head"><h2>รายการสินค้า</h2><span class="panel-head-sub">เลือกจากสต๊อก หรือพิมพ์ชื่อสินค้าเองก็ได้</span></div>
-          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFBFB;">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--bg-subtle,#FAFBFB);">
             <div style="margin-bottom:10px;">
               <label>สินค้าจากสต๊อก (ไม่บังคับ)</label>
               <select id="order-product-select"></select>
@@ -1820,7 +1958,7 @@
           <div style="padding:16px 20px 0;"><div class="kpi-row" id="sr-month-kpis"></div></div>
           <div class="sr-cal-wrap">
             <div><div class="sr-cal" id="sr-cal"></div>
-              <div class="sr-cal-legend">ขายน้อย <i style="background:color-mix(in srgb, var(--accent) 12%, #fff);"></i><i style="background:color-mix(in srgb, var(--accent) 45%, #fff);"></i><i style="background:color-mix(in srgb, var(--accent) 80%, #fff);"></i> ขายมาก</div>
+              <div class="sr-cal-legend">ขายน้อย <i style="background:color-mix(in srgb, var(--accent) 12%, var(--bg-panel));"></i><i style="background:color-mix(in srgb, var(--accent) 45%, var(--bg-panel));"></i><i style="background:color-mix(in srgb, var(--accent) 80%, var(--bg-panel));"></i> ขายมาก</div>
             </div>
             <div class="sr-week" id="sr-week"></div>
           </div>
@@ -2089,7 +2227,7 @@
         </div>
         <button class="btn small" id="cu-pv-reset" style="width:100%;justify-content:center;">คืนค่าเริ่มต้น</button>
       </div>
-      <div class="preview-body" style="background:#E6EAEC;padding:20px;">
+      <div class="preview-body" style="background:var(--preview-bg,#E6EAEC);padding:20px;">
         <div class="pv-warn" id="cu-pv-warn"><i class="ti ti-alert-triangle"></i><span></span></div>
         <div id="cashup-preview-paper"></div>
       </div>
@@ -2116,7 +2254,7 @@
       <h2 id="sr-bill-title"></h2>
       <button class="icon-btn" id="sr-bill-close" style="margin-left:auto;" aria-label="ปิด"><i class="ti ti-x" style="font-size:18px;"></i></button>
     </div>
-    <div class="preview-body" style="background:#fff;padding:0;">
+    <div class="preview-body" style="background:var(--bg-panel);padding:0;">
       <div class="sr-bill-meta" id="sr-bill-meta"></div>
       <div class="table-scroll"><table class="sr-bill-lines">
         <thead><tr><th class="num">#</th><th>รายการสินค้า</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th></tr></thead>
@@ -2145,7 +2283,7 @@
       </div>
       <button class="icon-btn" id="btn-close-session-detail" style="margin-left:auto;" aria-label="ปิด"><i class="ti ti-x" style="font-size:18px;"></i></button>
     </div>
-    <div class="preview-body" style="background:#fff;padding:0;">
+    <div class="preview-body" style="background:var(--bg-panel);padding:0;">
       <div id="session-detail-meta" style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:12.5px;line-height:1.7;"></div>
       <div class="table-scroll" id="session-detail-wrap"></div>
     </div>

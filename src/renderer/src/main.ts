@@ -2,6 +2,7 @@ import '@tabler/icons-webfont/tabler-icons.min.css'
 import { $, input } from './format'
 import { level, reloadLookups, reloadProducts, state } from './state'
 import { toastError } from './ui'
+import { initTheme } from './theme'
 import { renderDashboard } from './views/dashboard'
 import { initProducts, renderProducts, resetProductFilters } from './views/products'
 import { initReceiving, refreshReceivingDocNumber, renderReceivingSelectors } from './views/receiving'
@@ -216,6 +217,8 @@ function bindLogin(): void {
 /* ---------- bootstrap ---------- */
 
 function bootstrap(): void {
+  initTheme() // first, so the login screen already has the saved theme
+
   $('topbar-date').textContent = new Date().toLocaleDateString('th-TH', {
     day: '2-digit',
     month: '2-digit',
