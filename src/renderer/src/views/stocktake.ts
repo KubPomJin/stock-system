@@ -161,11 +161,16 @@ const STRIPE: Record<RowStatus, string> = {
   partial: 'var(--warn)',
   none: 'var(--border)'
 }
-const ROW_BG: Record<RowStatus, string> = { ok: '#F6FBF8', diff: '#FEF8F7', partial: '#FFFDF7', none: '#FFFFFF' }
+const ROW_BG: Record<RowStatus, string> = {
+  ok: 'var(--st-row-ok,#F6FBF8)',
+  diff: 'var(--st-row-diff,#FEF8F7)',
+  partial: 'var(--st-row-partial,#FFFDF7)',
+  none: 'var(--bg-panel)'
+}
 
 // Variance shown as plain coloured text (matches the approved design).
 function diffText(counted: number | undefined, sys: number, units: ProductView['units']): { text: string; color: string; border: string } {
-  if (counted === undefined) return { text: 'ยังไม่นับ', color: '#6D767B', border: '#C9D1D4' }
+  if (counted === undefined) return { text: 'ยังไม่นับ', color: 'var(--st-idle,#6D767B)', border: 'var(--border-input)' }
   const d = counted - sys
   if (d === 0) return { text: '✓ ตรงกัน', color: 'var(--ok)', border: 'var(--ok)' }
   if (d > 0) return { text: `เกิน ${formatStock(d, units)}`, color: 'var(--warn)', border: 'var(--warn)' }
@@ -257,17 +262,17 @@ export function renderStocktakeTable(): void {
         })
 
         const totD = diffText(allCounted ? totalCounted : undefined, totalSystem, p.units)
-        const totBg = !allCounted ? '#EEF1F2' : totD.color === 'var(--ok)' ? 'var(--ok-bg)' : totD.color === 'var(--warn)' ? 'var(--warn-bg)' : 'var(--danger-bg)'
+        const totBg = !allCounted ? 'var(--bg-app)' : totD.color === 'var(--ok)' ? 'var(--ok-bg)' : totD.color === 'var(--warn)' ? 'var(--warn-bg)' : 'var(--danger-bg)'
         cells += `<div class="st-tot">
           <div class="st-tot-sys">ระบบรวม ${formatStock(totalSystem, p.units)}</div>
           <div class="st-tot-v" id="tot-${p.id}">${allCounted ? formatStock(totalCounted, p.units) : '—'}</div>
-          <div class="st-tot-b" id="totvar-${p.id}" style="background:${totBg};color:${allCounted ? totD.color : '#6D767B'};">${allCounted ? totD.text : 'ยังไม่ครบ'}</div>
+          <div class="st-tot-b" id="totvar-${p.id}" style="background:${totBg};color:${allCounted ? totD.color : 'var(--st-idle,#6D767B)'};">${allCounted ? totD.text : 'ยังไม่ครบ'}</div>
         </div>`
 
         const hasExtra = g.hasReceived || (g.note ?? '') !== ''
         cells += `<div class="st-extra-cell">
           <button type="button" class="st-extra-btn row-toggle" data-p="${p.id}"
-                  style="background:${open ? 'var(--accent-soft)' : '#fff'};border-color:${open || hasExtra ? 'var(--accent)' : '#C9D1D4'};">
+                  style="background:${open ? 'var(--accent-soft)' : 'var(--bg-input,#fff)'};border-color:${open || hasExtra ? 'var(--accent)' : 'var(--border-input)'};">
             ${open ? 'ปิด ▲' : hasExtra ? '● ของเข้า/หมายเหตุ' : '+ ของเข้า/หมายเหตุ'}
           </button>
         </div>`

@@ -208,6 +208,16 @@ Views: `current_stock`, `low_stock_alert`
     ยังอยู่ใต้ขอบจอ (`placeSumbar()` ใน `views/sales.ts`) · ตัวเลขคัดมาจากกล่องยอดรวมใน `updateTotals()` —
     ถ้าเพิ่มบรรทัดใหม่ในกล่องยอดรวมที่ต้องเห็นตลอด ให้เพิ่มใน `updateSumbar()` ด้วย
 
+- **โหมดมืด (dark mode)** — ปุ่มพระจันทร์/พระอาทิตย์บนแถบบน (`#btn-theme`) · เก็บ**ต่อเครื่อง**ใน localStorage `ui.theme`
+  (ไม่ผูกกับผู้ใช้ เพราะหน้า login ต้องใช้ด้วย) · ค่าเริ่มต้น = สว่าง · โค้ดอยู่ใน `src/renderer/src/theme.ts`
+  (`initTheme()` เรียกเป็นอย่างแรกใน `bootstrap()`) → ตั้ง `<html data-theme="dark">`
+  · สีทั้งหมดอยู่ในบล็อก **DARK MODE** ของ `<style>` ใน `index.html` (อยู่ก่อนบล็อก RESPONSIVE) เป็น override ต่อท้าย
+    แบบเดียวกับ DESIGN v2 — กฎโหมดสว่างเดิมไม่ถูกแก้
+  · **ทั้งบล็อกอยู่ใน `@media screen` — ห้ามเอาออก** การพิมพ์ / `printToPDF` ใช้ print media จึงไม่มีกฎโหมดมืดไปถึงเอกสารพิมพ์
+    · กระดาษในหน้าตัวอย่างก่อนพิมพ์ (`.pt-sheet`, `#order-print-area`, `#cashup-preview-paper`) เป็นขาว/ดำทั้งสองโหมด ห้ามใส่สีโหมดมืด
+  · หน้าใหม่: ใช้ตัวแปร (`--bg-panel`, `--bg-input`, `--bg-subtle`, `--bg-hover`, `--border-input`, `--text-*`) แทน `#fff` / สีเทา hex
+    แล้วจะใช้ได้ทั้งสองโหมดเอง · สีที่ตั้งจาก TypeScript ให้ใช้ `var(--ชื่อ, สีโหมดสว่าง)` (ดู `ROW_BG` ใน `views/stocktake.ts`)
+
 ---
 
 ## 7. Build / Run

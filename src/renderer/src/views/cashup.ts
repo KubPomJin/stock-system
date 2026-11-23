@@ -184,14 +184,14 @@ export async function renderCashup(): Promise<void> {
   // ---- alerts ----
   const alerts: string[] = []
   if (d.locked) {
-    alerts.push(`<div class="alert-banner warn" style="background:var(--ok-bg);border-color:#BFE0CC;color:var(--ok);"><i class="ti ti-lock alert-icon"></i>
+    alerts.push(`<div class="alert-banner warn" style="background:var(--ok-bg);border-color:var(--ok-border,#BFE0CC);color:var(--ok);"><i class="ti ti-lock alert-icon"></i>
       <div class="alert-text"><b>เจ้าของตรวจแล้ว</b> โดย ${esc(c?.ownerCheckedBy ?? '')} เมื่อ ${thaiDateTime(c?.ownerCheckedAt)} — ข้อมูลของวันนี้ถูกล็อก</div></div>`)
   } else if (c && d.closeStale) {
     alerts.push(`<div class="alert-banner danger"><i class="ti ti-alert-triangle alert-icon"></i>
       <div class="alert-text"><b>มีการเพิ่ม/แก้/ยกเลิกบิลหลังปิดยอด</b> — ยอดตอนปิด ${baht(c.grandTotal)} (${c.billCount} บิล)
       แต่ตอนนี้เป็น ${baht(d.grandTotal)} (${d.billCount} บิล) · กด "บันทึกปิดยอด" ใหม่เพื่ออัปเดต</div></div>`)
   } else if (c) {
-    alerts.push(`<div class="alert-banner warn" style="background:var(--accent-soft);border-color:#F2D3AD;color:var(--accent-dark);"><i class="ti ti-circle-check alert-icon"></i>
+    alerts.push(`<div class="alert-banner warn" style="background:var(--accent-soft);border-color:var(--accent-border,#F2D3AD);color:var(--accent-dark);"><i class="ti ti-circle-check alert-icon"></i>
       <div class="alert-text">ปิดยอดแล้วโดย ${esc(c.closedBy ?? '')} เมื่อ ${thaiDateTime(c.closedAt)} — รอเจ้าของตรวจ</div></div>`)
   }
   if (d.unspecifiedTotal > 0) {
