@@ -408,6 +408,29 @@ CREATE TABLE cash_closes (
     owner_note TEXT
 );
 
+-- รายจ่ายประจำวัน (v1.6.15): เงินที่จ่ายออกระหว่างวัน
+-- CASH = ออกจากลิ้นชัก (ผลรวมของวัน = cash_closes.cash_out) · CHEQUE = บันทึกไว้เฉยๆ ไม่หักลิ้นชัก
+-- ไม่ลบแถว ใช้ voided · ไม่ผูกกับสต๊อก
+CREATE TABLE cash_expenses (
+    id INTEGER PRIMARY KEY,
+    expense_date TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('FUEL', 'STOCK', 'ADVANCE', 'OTHER')),
+                                             -- น้ำมันรถ / จ่ายค่าสินค้า / พนักงานเบิกล่วงหน้า / อื่นๆ
+    pay_method TEXT NOT NULL DEFAULT 'CASH' CHECK (pay_method IN ('CASH', 'CHEQUE')),
+    amount REAL NOT NULL CHECK (amount > 0),
+    payee TEXT,                              -- ผู้จำหน่าย / ชื่อพนักงาน / จ่ายให้ใคร
+    cheque_no TEXT,
+    note TEXT,
+    voided INTEGER NOT NULL DEFAULT 0,
+    void_reason TEXT,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by INTEGER REFERENCES users(id),
+    updated_at TEXT
+);
+CREATE INDEX idx_cash_expenses_date ON cash_expenses(expense_date);
+CREATE INDEX idx_cash_expenses_payee ON cash_expenses(category, payee);
+
 -- ----------------------------------------------------------------------------
 -- Trigger
 -- ----------------------------------------------------------------------------

@@ -186,6 +186,10 @@ export async function renderCashup(): Promise<void> {
   if (d.locked) {
     alerts.push(`<div class="alert-banner warn" style="background:var(--ok-bg);border-color:var(--ok-border,#BFE0CC);color:var(--ok);"><i class="ti ti-lock alert-icon"></i>
       <div class="alert-text"><b>เจ้าของตรวจแล้ว</b> โดย ${esc(c?.ownerCheckedBy ?? '')} เมื่อ ${thaiDateTime(c?.ownerCheckedAt)} — ข้อมูลของวันนี้ถูกล็อก</div></div>`)
+  } else if (c && d.expenseStale && c.billCount === d.billCount && Math.abs(c.grandTotal - d.grandTotal) < 0.005) {
+    alerts.push(`<div class="alert-banner danger"><i class="ti ti-alert-triangle alert-icon"></i>
+      <div class="alert-text"><b>รายจ่ายเปลี่ยนหลังปิดยอด</b> — ตอนปิดยอดหักเงินใช้ระหว่างวันไว้ ${baht(c.cashOut)}
+      แต่ตอนนี้รายจ่ายเงินสดรวม ${baht(d.expenseCash)} · กด "บันทึกปิดยอด" ใหม่เพื่ออัปเดต</div></div>`)
   } else if (c && d.closeStale) {
     alerts.push(`<div class="alert-banner danger"><i class="ti ti-alert-triangle alert-icon"></i>
       <div class="alert-text"><b>มีการเพิ่ม/แก้/ยกเลิกบิลหลังปิดยอด</b> — ยอดตอนปิด ${baht(c.grandTotal)} (${c.billCount} บิล)
@@ -219,8 +223,19 @@ export async function renderCashup(): Promise<void> {
   applyDenomMode()
   input('cu-float').value = c ? String(c.openingFloat || '') : ''
   input('cu-in').value = c ? String(c.cashInOther || '') : ''
-  input('cu-out').value = c ? String(c.cashOut || '') : ''
-  input('cu-adjust-note').value = c?.adjustNote ?? ''
+  // v1.6.15: a day with lines on หน้ารายจ่ายประจำวัน takes "เงินใช้ระหว่างวัน"
+  // from them (the server does the same on save), so the box is read-only.
+  // A day without any keeps the typed amount, as every older cash-up has.
+  const itemised = d.expenseItemised
+  input('cu-out').value = itemised ? String(d.expenseCash || '') : c ? String(c.cashOut || '') : ''
+  input('cu-out').readOnly = itemised
+  input('cu-adjust-note').value = itemised ? d.expenseSummary : (c?.adjustNote ?? '')
+  input('cu-adjust-note').readOnly = itemised
+  $('cu-exp-info').textContent = itemised
+    ? `มาจากหน้ารายจ่ายประจำวัน ${d.expenseCount} รายการ — แก้ที่หน้านั้น` +
+      (d.expenseCheque ? ` · จ่ายด้วยเช็คอีก ${money(d.expenseCheque)} (ไม่หักลิ้นชัก)` : '')
+    : 'คีย์แยกทีละรายการได้ที่หน้ารายจ่ายประจำวัน แล้วยอดจะมาลงช่องนี้เอง' +
+      (d.expenseCheque ? ` · วันนี้จ่ายด้วยเช็ค ${money(d.expenseCheque)} (ไม่หักลิ้นชัก)` : '')
   ;(document.getElementById('cu-note') as HTMLTextAreaElement).value = c?.note ?? ''
   $('cu-cash-sales').textContent = baht(d.cashTotal)
   $('cu-count-sub').textContent = `ยอดรวม = เงินทอนตั้งต้น − เงินใช้ระหว่างวัน + ขายเงินสด (+ เงินเข้าอื่นๆ)`
@@ -821,6 +836,11 @@ export function initCashup(navigate: (view: string) => void): void {
   $('cu-btn-save').addEventListener('click', () => void saveClose())
   $('cu-btn-print').addEventListener('click', () => void openPreview())
   $('cu-btn-goto-transfers').addEventListener('click', () => goToView('transfers'))
+  $('cu-btn-goto-expenses').addEventListener('click', () => {
+    // Open the expenses page on the day being closed, not on today.
+    if (day) input('ex-date').value = day.date
+    goToView('expenses')
+  })
   $('cu-btn-owner-check').addEventListener('click', () => void ownerCheck(true))
   $('cu-btn-owner-undo').addEventListener('click', () => void ownerCheck(false))
   $('cu-pv-close').addEventListener('click', closePreview)

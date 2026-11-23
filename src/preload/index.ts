@@ -103,6 +103,15 @@ const api: Api = {
     topProducts: (payload) => call('sales:topProducts', payload),
     productTrend: (payload) => call('sales:productTrend', payload)
   },
+  expenses: {
+    day: (date) => call('expenses:day', date),
+    save: (payload) => call('expenses:save', payload),
+    void: (payload) => call('expenses:void', payload),
+    restore: (id) => call('expenses:restore', id),
+    payees: (category) => call('expenses:payees', category),
+    advances: (payload) => call('expenses:advances', payload),
+    advanceYears: () => call('expenses:advanceYears')
+  },
   orders: {
     nextNumber: (bookType) => call('orders:nextNumber', bookType),
     reserveNumbers: (payload) => call('orders:reserveNumbers', payload),

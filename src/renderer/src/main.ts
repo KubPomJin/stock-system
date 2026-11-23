@@ -27,6 +27,7 @@ import { initZones, renderZonesView } from './views/zones'
 import { initCatalog, renderCatalogHistory } from './views/catalog'
 import { initSales, renderSalesView } from './views/sales'
 import { initCashup, renderCashup } from './views/cashup'
+import { initExpenses, renderExpenses } from './views/expenses'
 import { initTransfers, renderTransfers } from './views/transfers'
 import { initSalesReport, renderSalesReport } from './views/salesreport'
 
@@ -43,6 +44,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { view: 'dashboard', label: 'แดชบอร์ด', icon: 'ti-layout-dashboard', minRoleLevel: 1, group: 'ภาพรวม' },
   { view: 'sales', label: 'คีย์บิลขาย', icon: 'ti-receipt', minRoleLevel: 1, group: 'ขายหน้าร้าน' },
+  { view: 'expenses', label: 'รายจ่ายประจำวัน', icon: 'ti-wallet', minRoleLevel: 1, group: 'ขายหน้าร้าน' },
   { view: 'cashup', label: 'ปิดยอดประจำวัน', icon: 'ti-calculator', minRoleLevel: 1, group: 'ขายหน้าร้าน' },
   { view: 'transfers', label: 'ตรวจยอดโอน', icon: 'ti-building-bank', minRoleLevel: 2, group: 'ขายหน้าร้าน' },
   { view: 'salesreport', label: 'สรุปยอดขาย', icon: 'ti-chart-bar', minRoleLevel: 2, group: 'ขายหน้าร้าน' },
@@ -114,6 +116,7 @@ function switchView(view: string): void {
   if (view === 'orders') void renderOrderHistory()
   if (view === 'zones') void renderZonesView()
   if (view === 'sales') void renderSalesView()
+  if (view === 'expenses') void renderExpenses()
   if (view === 'cashup') void renderCashup()
   if (view === 'transfers') void renderTransfers()
   if (view === 'salesreport') void renderSalesReport()
@@ -245,6 +248,7 @@ function bootstrap(): void {
   initCatalog(refreshData)
   initSales(switchView)
   initCashup(switchView)
+  initExpenses()
   initTransfers()
   initSalesReport(switchView)
 

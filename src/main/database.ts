@@ -487,6 +487,31 @@ function migrateSales(): void {
       owner_note TEXT
     );
   `)
+
+  // v1.6.15 — รายจ่ายประจำวัน: money paid out during the day (fuel, paying a
+  // supplier, employee advances). CASH lines are what the cash-up subtracts for
+  // the day; CHEQUE lines are kept for the record and never touch the drawer.
+  // Lines are voided, never deleted. Nothing here is linked to stock.
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS cash_expenses (
+      id INTEGER PRIMARY KEY,
+      expense_date TEXT NOT NULL,
+      category TEXT NOT NULL CHECK (category IN ('FUEL', 'STOCK', 'ADVANCE', 'OTHER')),
+      pay_method TEXT NOT NULL DEFAULT 'CASH' CHECK (pay_method IN ('CASH', 'CHEQUE')),
+      amount REAL NOT NULL CHECK (amount > 0),
+      payee TEXT,
+      cheque_no TEXT,
+      note TEXT,
+      voided INTEGER NOT NULL DEFAULT 0,
+      void_reason TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_by INTEGER REFERENCES users(id),
+      updated_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_cash_expenses_date ON cash_expenses(expense_date);
+    CREATE INDEX IF NOT EXISTS idx_cash_expenses_payee ON cash_expenses(category, payee);
+  `)
 }
 
 // The floor plan the owner drew, oriented the way it is actually seen when

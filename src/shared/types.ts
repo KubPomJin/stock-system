@@ -446,6 +446,76 @@ export interface Api {
     topProducts(payload: { dateFrom: string; dateTo: string; limit?: number }): Promise<ProductSalesRow[]>
     productTrend(payload: { year: number; key: string }): Promise<ProductTrendRow[]>
   }
+  expenses: {
+    day(date: string): Promise<ExpenseDay>
+    save(payload: ExpensePayload): Promise<ExpenseView>
+    void(payload: { id: number; reason: string }): Promise<void>
+    restore(id: number): Promise<void>
+    payees(category: ExpenseCategory): Promise<string[]>
+    advances(payload: { year: number; month?: number | null }): Promise<AdvanceReport>
+    advanceYears(): Promise<number[]>
+  }
+}
+
+// ---------------------------------------------------------------------------
+// รายจ่ายประจำวัน (v1.6.15) — money paid out during the day (cash_expenses)
+// ---------------------------------------------------------------------------
+
+export type ExpenseCategory = 'FUEL' | 'STOCK' | 'ADVANCE' | 'OTHER'
+export type ExpensePayMethod = 'CASH' | 'CHEQUE'
+
+export interface ExpensePayload {
+  id?: number
+  date: string // YYYY-MM-DD
+  category: ExpenseCategory
+  payMethod: ExpensePayMethod // FUEL and ADVANCE are always CASH (the server forces it)
+  amount: number
+  payee: string // supplier / employee / who was paid — required for STOCK and ADVANCE
+  chequeNo: string // CHEQUE only
+  note: string
+}
+
+export interface ExpenseView {
+  id: number
+  date: string
+  category: ExpenseCategory
+  payMethod: ExpensePayMethod
+  amount: number
+  payee: string | null
+  chequeNo: string | null
+  note: string | null
+  voided: boolean
+  voidReason: string | null
+  createdAt: string
+  createdBy: string | null
+  updatedAt: string | null
+  updatedBy: string | null
+}
+
+export interface ExpenseDay {
+  date: string
+  locked: boolean // owner has checked the day — expenses are read-only
+  lines: ExpenseView[] // voided included
+  count: number // live lines
+  cashTotal: number // out of the drawer
+  chequeTotal: number // paid by cheque (not drawer money)
+  byCategory: { category: ExpenseCategory; cash: number; cheque: number }[]
+}
+
+export interface AdvanceRow {
+  payee: string
+  count: number
+  total: number
+  lastDate: string
+  months: number[] // 12 entries, baht per month
+}
+
+export interface AdvanceReport {
+  year: number
+  month: number | null // null = whole year
+  rows: AdvanceRow[] // biggest total first
+  lines: ExpenseView[] // newest first
+  total: number
 }
 
 // ---------------------------------------------------------------------------
@@ -623,7 +693,13 @@ export interface DaySummary {
   sales: SaleView[] // every ticket of the day, voided included
   gaps: { book: string; numbers: string[]; more: number }[]
   close: CashCloseView | null
-  closeStale: boolean // bills changed after the cash-up was saved
+  closeStale: boolean // bills (or expenses) changed after the cash-up was saved
+  expenseCount: number // live lines on หน้ารายจ่ายประจำวัน for this day
+  expenseItemised: boolean // the day has CASH expense lines: expenseCash replaces the typed "เงินใช้ระหว่างวัน"
+  expenseCash: number // cash total of those lines
+  expenseCheque: number // paid by cheque: shown for information, never subtracted
+  expenseSummary: string // "น้ำมันรถ 500.00 · จ่ายค่าสินค้า 2,000.00"
+  expenseStale: boolean // the saved cash-up subtracted a different expense total
   locked: boolean // owner has checked the day — bills are read-only
 }
 

@@ -18,6 +18,8 @@
 import { getDb } from '../database'
 import { getSession } from '../session'
 import { handle } from './helpers'
+import { isDayLocked, isIsoDate, round2, thaiDate } from './dayLock'
+import { expenseCashSummary, expenseTotals } from './expenses'
 import { BOOK_TYPES, counterKey, formatDocNumber, numberInUse, readCounter, syncCounterWithUsedNumber, yearPart } from './orders'
 import type {
   BookNextNumber,
@@ -125,22 +127,7 @@ function nextNoTicketNumber(docDate: string): string {
   return `${NO_TICKET_PREFIX}${yy}-${String(max + 1).padStart(4, '0')}`
 }
 
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100
-}
-
-function isIsoDate(s: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(s)
-}
-
-/* ---------- day lock ---------- */
-
-function isDayLocked(date: string): boolean {
-  const row = getDb()
-    .prepare('SELECT owner_checked_at FROM cash_closes WHERE close_date = ?')
-    .get(date) as { owner_checked_at: string | null } | undefined
-  return !!row?.owner_checked_at
-}
+/* ---------- day lock (shared with expenses.ts — see dayLock.ts) ---------- */
 
 function assertDayOpen(date: string): void {
   if (isDayLocked(date)) {
@@ -149,11 +136,6 @@ function assertDayOpen(date: string): void {
         'ถ้าจำเป็นต้องแก้ ให้เจ้าของกด "ยกเลิกการตรวจ" ที่หน้าปิดยอดประจำวันก่อน'
     )
   }
-}
-
-function thaiDate(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  return y && m && d ? `${d}/${m}/${Number(y) + 543}` : iso
 }
 
 /* ---------- list ---------- */
@@ -649,9 +631,16 @@ function daySummary(date: string): DaySummary {
 
   const totals = dayTotals(date)
   const close = readClose(date)
+  // v1.6.15: once the day has CASH expense lines (หน้ารายจ่ายประจำวัน), their
+  // total IS the day's "เงินใช้ระหว่างวัน" — the cash-up no longer types it.
+  // Cheque lines alone do not switch the day over: no drawer money moved, so
+  // a typed amount on that day must stay as it is.
+  const expenses = expenseTotals(date)
+  const expenseStale = !!close && expenses.cashCount > 0 && Math.abs(close.cashOut - expenses.cashTotal) > 0.005
   const closeStale =
     !!close &&
-    (close.billCount !== totals.billCount ||
+    (expenseStale ||
+      close.billCount !== totals.billCount ||
       Math.abs(close.grandTotal - totals.grandTotal) > 0.005 ||
       Math.abs(close.cashTotal - totals.cashTotal) > 0.005 ||
       Math.abs(close.transferTotal - totals.transferTotal) > 0.005 ||
@@ -686,6 +675,12 @@ function daySummary(date: string): DaySummary {
     gaps: findGaps(bookYears),
     close,
     closeStale,
+    expenseCount: expenses.count,
+    expenseItemised: expenses.cashCount > 0,
+    expenseCash: expenses.cashTotal,
+    expenseCheque: expenses.chequeTotal,
+    expenseSummary: expenseCashSummary(expenses),
+    expenseStale,
     locked: !!close?.ownerCheckedAt
   }
 }
@@ -704,7 +699,14 @@ function saveClose(p: CashClosePayload): CashCloseView {
   }
   const openingFloat = money(p.openingFloat, 'เงินทอนตั้งต้น')
   const cashInOther = money(p.cashInOther, 'เงินเข้าอื่นๆ')
-  const cashOut = money(p.cashOut, 'เงินจ่ายออก')
+  // Itemised expenses win over the typed figure: the renderer shows the box
+  // read-only in that case, and the server does not trust it either way. A day
+  // with no CASH expense lines keeps the typed amount and note (every cash-up saved
+  // before v1.6.15 is like that, and must not change when it is re-saved).
+  const expenses = expenseTotals(p.date)
+  const itemised = expenses.cashCount > 0
+  const cashOut = itemised ? expenses.cashTotal : money(p.cashOut, 'เงินจ่ายออก')
+  const adjustNote = itemised ? expenseCashSummary(expenses) || null : p.adjustNote?.trim() || null
   const coinsOther = money(p.coinsOther, 'เศษสตางค์ / อื่นๆ')
 
   const counts: Record<string, number> = {}
@@ -741,7 +743,7 @@ function saveClose(p: CashClosePayload): CashCloseView {
       openingFloat,
       cashInOther,
       cashOut,
-      p.adjustNote?.trim() || null,
+      adjustNote,
       JSON.stringify(counts),
       coinsOther,
       countedTotal,

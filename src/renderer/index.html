@@ -837,6 +837,27 @@
   .tr-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-top:1px solid var(--border);background:#FAFBFB;}
   tr.tr-day td{background:#F2F5F6;font-size:14px;padding:8px 16px;}
 
+  /* ---- รายจ่ายประจำวัน (v1.6.15) ----
+     Colours come from variables only, so the page needs no rule in the DARK
+     MODE block. */
+  .ex-form{margin:16px 20px 18px;padding:16px 18px;border:1px solid var(--border-input);border-radius:10px;background:var(--bg-subtle,#FAFBFB);}
+  .ex-form.editing{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .ex-form-title{font-size:15px;font-weight:700;margin-bottom:10px;}
+  .ex-fields{display:grid;grid-template-columns:minmax(200px,1.4fr) minmax(150px,.8fr) auto minmax(150px,.8fr) minmax(200px,1.6fr);
+    gap:12px 14px;align-items:end;margin-top:14px;}
+  .ex-fields .seg{height:44px;}
+  .ex-fields .seg-btn{padding:0 16px;font-size:15px;}
+  .ex-form-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;}
+  tr.ex-adv-row{cursor:pointer;}
+  tr.ex-adv-row.selected td{background:var(--accent-soft);}
+  .ex-adv-detail-head{padding:14px 20px 8px;font-size:15px;font-weight:700;border-top:1px solid var(--border);}
+  .ex-months{display:flex;gap:6px;flex-wrap:wrap;padding:0 20px 14px;}
+  .ex-month{border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:12.5px;color:var(--text-secondary);min-width:74px;}
+  .ex-month b{display:block;font-size:13.5px;color:var(--text-primary);font-family:'JetBrains Mono','Cascadia Mono',Consolas,monospace;}
+  .ex-month.zero{opacity:.45;}
+  @media screen and (max-width:1100px){.ex-fields{grid-template-columns:1fr 1fr;}.ex-f-note{grid-column:1 / -1;}}
+  @media screen and (max-width:560px){.ex-fields{grid-template-columns:1fr;}}
+
   /* ---- สรุปยอดขาย ---- */
   .sr-bar{height:12px;background:var(--accent);border-radius:3px;}
   td.sr-bar-cell{width:26%;}
@@ -1860,6 +1881,8 @@
                 <div class="cu-calc-row"><span>เงินทอนตั้งต้น (ตอนเปิดร้าน)</span><input type="number" id="cu-float" step="0.01" min="0"></div>
                 <div class="cu-calc-row"><span>− เงินใช้ระหว่างวัน (จ่ายออกจากลิ้นชัก)</span><input type="number" id="cu-out" step="0.01" min="0"></div>
                 <div class="cu-calc-row"><input type="text" id="cu-adjust-note" placeholder="ใช้ไปกับอะไร เช่น ซื้อน้ำแข็ง 40, ค่าส่งของ 100"></div>
+                <div class="cu-calc-row" style="padding-top:0;"><span class="field-hint" id="cu-exp-info" style="margin:0;"></span>
+                  <button class="btn small" id="cu-btn-goto-expenses" type="button" style="flex-shrink:0;"><i class="ti ti-wallet"></i>รายจ่ายประจำวัน</button></div>
                 <div class="cu-calc-row"><span>+ ขายเป็นเงินสด (จากบิล)</span><b class="mono" id="cu-cash-sales">฿0.00</b></div>
                 <div class="cu-calc-row"><span>+ เงินเข้าอื่นๆ (เช่น ลูกค้าเครดิตมาจ่าย)</span><input type="number" id="cu-in" step="0.01" min="0"></div>
                 <div class="cu-calc-row total"><span>ยอดรวม — เงินสดที่ควรมีในลิ้นชัก</span><b class="mono" id="cu-expected">฿0.00</b></div>
@@ -1933,6 +1956,75 @@
             <button class="btn" id="tr-btn-notfound"><i class="ti ti-alert-triangle"></i>ไม่พบยอด</button>
             <button class="btn" id="tr-btn-pending"><i class="ti ti-arrow-back-up"></i>กลับเป็นรอตรวจ</button>
           </div>
+        </div>
+      </div>
+
+      <!-- ===== ขายหน้าร้าน: รายจ่ายประจำวัน (v1.6.15) ===== -->
+      <div class="view" id="view-expenses">
+        <div id="ex-alerts"></div>
+        <div class="panel">
+          <div class="panel-head"><h2>รายจ่ายประจำวัน</h2><span class="panel-head-sub">เงินที่จ่ายออกระหว่างวัน — เงินสดจะไปหักในหน้าปิดยอดประจำวันให้เอง</span>
+            <div class="panel-actions"><input type="date" id="ex-date" style="width:auto;"></div>
+          </div>
+          <div style="padding:16px 20px 0;"><div class="kpi-row" id="ex-kpis"></div></div>
+
+          <div class="ex-form" id="ex-form">
+            <div class="ex-form-title" id="ex-form-title">เพิ่มรายจ่าย</div>
+            <div class="chip-row" id="ex-cat-chips"></div>
+            <div class="ex-fields">
+              <div class="ex-f ex-f-payee">
+                <label for="ex-payee" id="ex-payee-label">จ่ายให้ใคร</label>
+                <input type="text" id="ex-payee" list="ex-payee-list" autocomplete="off">
+                <datalist id="ex-payee-list"></datalist>
+              </div>
+              <div class="ex-f ex-f-amount">
+                <label for="ex-amount">จำนวนเงิน (บาท)</label>
+                <input type="number" id="ex-amount" step="0.01" min="0" class="mono" style="text-align:right;font-weight:700;font-size:18px;">
+              </div>
+              <div class="ex-f" id="ex-method-wrap">
+                <label>จ่ายด้วย</label>
+                <div class="seg" id="ex-method">
+                  <button type="button" class="seg-btn active" data-v="CASH">เงินสด</button>
+                  <button type="button" class="seg-btn" data-v="CHEQUE">เช็ค</button>
+                </div>
+              </div>
+              <div class="ex-f" id="ex-cheque-wrap" style="display:none;">
+                <label for="ex-cheque">เลขที่เช็ค (ถ้ามี)</label>
+                <input type="text" id="ex-cheque" class="mono" autocomplete="off">
+              </div>
+              <div class="ex-f ex-f-note">
+                <label for="ex-note">หมายเหตุ (ถ้ามี)</label>
+                <input type="text" id="ex-note" autocomplete="off">
+              </div>
+            </div>
+            <div class="ex-form-foot">
+              <span class="field-hint" id="ex-form-hint" style="margin:0;"></span>
+              <div style="display:flex;gap:8px;margin-left:auto;">
+                <button class="btn" id="ex-btn-cancel" style="display:none;">ยกเลิกการแก้ไข</button>
+                <button class="btn primary" id="ex-btn-save"><i class="ti ti-device-floppy"></i><span id="ex-btn-save-text">บันทึกรายจ่าย</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-scroll"><table>
+            <thead><tr><th>เวลาที่บันทึก</th><th>ประเภท</th><th>จ่ายให้</th><th>จ่ายด้วย</th><th class="num">จำนวนเงิน</th><th>หมายเหตุ</th><th>ผู้บันทึก</th><th></th></tr></thead>
+            <tbody id="ex-body"></tbody>
+          </table></div>
+          <div class="tr-foot" id="ex-foot"></div>
+        </div>
+
+        <div class="panel" id="ex-adv-panel" style="display:none;">
+          <div class="panel-head"><h2>พนักงานเบิกล่วงหน้า — สรุปรายคน</h2><span class="panel-head-sub">ดูว่าใครเบิกบ่อยแค่ไหน เท่าไร · กดที่ชื่อเพื่อดูทุกครั้งที่เบิก</span>
+            <div class="panel-actions">
+              <select id="ex-adv-year" style="width:auto;min-width:120px;"></select>
+              <select id="ex-adv-month" style="width:auto;min-width:140px;"></select>
+            </div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>พนักงาน</th><th class="num">จำนวนครั้ง</th><th class="num">รวมที่เบิก</th><th class="num">เฉลี่ย/ครั้ง</th><th>เบิกล่าสุด</th><th class="sr-bar-cell"></th></tr></thead>
+            <tbody id="ex-adv-body"></tbody>
+          </table></div>
+          <div id="ex-adv-detail"></div>
         </div>
       </div>
 
