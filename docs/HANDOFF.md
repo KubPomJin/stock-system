@@ -1,6 +1,6 @@
 # HANDOFF — สรุปสถานะโปรเจกต์ StockKeep (สำหรับเปิดแชตใหม่)
 
-> อัปเดตล่าสุด: **7 พฤศจิกายน 2569** · เวอร์ชันปัจจุบัน **v1.6.13** (build + push ขึ้น GitHub + อยู่บน Google Drive แล้ว)
+> อัปเดตล่าสุด: **23 พฤศจิกายน 2569** · เวอร์ชันปัจจุบัน **v1.6.14** (build แล้ว · push ขึ้น GitHub บน branch `feature/dark-mode` — **ยังไม่ merge เข้า main และยังไม่ขึ้น Google Drive**)
 > เอกสารนี้ทำไว้ให้เปิดแชตใหม่แล้วทำงานต่อได้ทันที โดยไม่ต้องเล่าประวัติซ้ำ
 
 ---
@@ -28,7 +28,7 @@
 Desktop app (Electron + TypeScript + SQLite) จัดการสต๊อกร้านวัสดุก่อสร้าง UI ภาษาไทยทั้งหมด
 - โค้ด: `D:\Claude Code\Home\Program\stock-system\`
 - ฐานข้อมูลจริง: `%APPDATA%\stockkeep\stockkeep.db`
-- Installer ล่าสุด: `release\StockKeep Setup 1.6.13.exe` (อยู่บน Drive โฟลเดอร์ `Home\release update` แล้ว)
+- Installer ล่าสุด: `release\StockKeep Setup 1.6.14.exe` (**ยังไม่ขึ้น Drive** — บน Drive โฟลเดอร์ `Home\release update` ยังเป็น 1.6.13)
 - เข้าระบบครั้งแรก: `admin` / `admin123`
 - โปรแกรมคู่: **BillKeep** ที่ `D:\Claude Code\Home\Program\order program\bill-system\`
 
@@ -52,7 +52,7 @@ npx tsc --noEmit # ตรวจ type
 
 ---
 
-## 3. สถานะล่าสุด (v1.6.13)
+## 3. สถานะล่าสุด (v1.6.14)
 
 ทำเสร็จและ build เป็น installer แล้ว:
 
@@ -70,7 +70,24 @@ npx tsc --noEmit # ตรวจ type
 | สำรอง/กู้คืนข้อมูล | Export/Import ไฟล์ `.db` |
 | UI ทั้งระบบ | design v2 (ตัวหนังสือ 15px, สีเทาเข้ม `#3F4A4F`, ช่องกรอก 44px) · **v1.6.11 ใช้ได้ทุกขนาดจอ/แบ่งครึ่งจอ** |
 
-> ✅ ทุกอย่างที่แก้ไว้ถูก build เป็น installer แล้ว (v1.6.13) — ไม่มีงานค้างที่ยังไม่ได้ build
+> ✅ ทุกอย่างที่แก้ไว้ถูก build เป็น installer แล้ว (v1.6.14) — ไม่มีงานค้างที่ยังไม่ได้ build
+> ⚠️ v1.6.14 อยู่บน branch `feature/dark-mode` — ยังไม่ merge เข้า main · เจ้าของยังไม่ได้ลอง · ยังไม่ขึ้น Drive
+
+### v1.6.14 — โหมดมืด (23 พ.ย. 2569)
+- ปุ่มพระจันทร์/พระอาทิตย์บนแถบบน (`#btn-theme`) · จำค่าต่อเครื่องใน localStorage `ui.theme` · ค่าเริ่มต้น = สว่าง
+- โค้ด: `src/renderer/src/theme.ts` + บล็อก **DARK MODE** ใน `<style>` ของ `index.html` (ก่อนบล็อก RESPONSIVE) —
+  เป็น override ต่อท้าย กฎโหมดสว่างไม่ถูกแก้ · **ทั้งบล็อกอยู่ใน `@media screen`** เอกสารพิมพ์จึงไม่เปลี่ยน (กติกาอยู่ใน CLAUDE.md ข้อ 6)
+- เทสต์บนโฟลเดอร์ข้อมูลแยก (`--user-data-dir`) ผ่าน remote debugging: 14 หน้าที่ 1440 px, คีย์บิลที่ 768 px, แถบบนที่ 480 px,
+  ภาพ print media ของใบตรวจนับเหมือนกันทุกไบต์ทั้งสองโหมด
+- **ยังไม่ได้ดูในโหมดมืด:** หน้าต่างแก้สินค้า, ตัวอย่างพิมพ์ใบสั่งสินค้า/ใบสรุปปิดยอด, ปฏิทินยอดขายที่มีข้อมูล · ยังไม่ได้พิมพ์จริง
+- **เครื่องนี้ไม่มี Python** — `npm install` ล้มตอน compile better-sqlite3 สำหรับ Node · ทางแก้:
+  `npm install --ignore-scripts` → `node node_modules/electron/install.js` → `npx electron-builder install-app-deps`
+  (ดึง prebuilt ของ Electron มาแทน)
+- **`npm run dist` ครั้งแรกบนเครื่องนี้ล้มที่ winCodeSign** ("Cannot create symbolic link" — Windows ไม่ได้เปิด Developer Mode) ·
+  ทางแก้ที่ใช้: แตกไฟล์ `.7z` ใน `%LOCALAPPDATA%\electron-builder\Cache\winCodeSign` ลงโฟลเดอร์ `winCodeSign-2.6.0` ข้างกันด้วย
+  `node_modules/7zip-bin/win/x64/7za.exe x -y` (error 2 ไฟล์ของ macOS ไม่เกี่ยว) แล้วรัน `npm run dist` ใหม่ — ทำครั้งเดียวต่อเครื่อง
+- **StockKeep ตัวติดตั้งเปิดใช้งานอยู่บนเครื่องนี้พร้อมข้อมูลจริง** — `npm run dev` ตรงๆ จะชี้ฐานข้อมูลจริงและโดน single-instance lock ·
+  ให้รัน dev ด้วย `npx electron-vite dev -- --user-data-dir=C:/Claude/stockkeep-dev-data` (ฐานข้อมูลว่างแยกต่างหาก)
 
 ### v1.6.13 — ติ๊กหลายบิลแล้วย้ายวันที่ (7 พ.ย. 2569)
 - เจ้าของขอ: ลืมเปลี่ยนวันที่ก่อนคีย์ บิลของวันนี้จำนวนมากไปอยู่วันที่ 19/10/2569 — อยากเลือกหลายบิลแล้วย้ายทีเดียว
