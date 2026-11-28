@@ -455,6 +455,102 @@ export interface Api {
     advances(payload: { year: number; month?: number | null }): Promise<AdvanceReport>
     advanceYears(): Promise<number[]>
   }
+  names: {
+    pending(filter: NameFilter): Promise<NamePage>
+    apply(payload: NameApplyPayload): Promise<{ lines: number; name: string }>
+    skip(payload: { names: string[]; skipped: boolean }): Promise<void>
+    items(): Promise<NamedItem[]>
+    renameItem(payload: { id: number; name: string }): Promise<{ lines: number }>
+    updateItem(payload: { id: number; unitName: string; unitPrice: number }): Promise<void>
+    undo(payload: { saleItemId?: number; productId?: number }): Promise<{ lines: number }>
+    searchIndex(): Promise<ItemSearchIndex>
+  }
+}
+
+// ---------------------------------------------------------------------------
+// จัดระเบียบชื่อสินค้าในบิล (v1.6.16) — typed bill lines -> one agreed name
+// ---------------------------------------------------------------------------
+
+export interface NameFilter {
+  search?: string
+  showSkipped?: boolean
+  offset?: number
+  limit?: number
+}
+
+// One way a name was typed on bills (exact text, trimmed).
+export interface NameSpelling {
+  name: string
+  lines: number
+  // true = same as the group's main spelling apart from spaces / quotes /
+  // common misspellings; false = only LOOKS alike (could be another item).
+  same: boolean
+}
+
+export interface NameSuggestion {
+  kind: 'product' | 'saleItem'
+  id: number
+  name: string
+  barcode: string | null
+  score: number // 0..1
+  // The WHOLE name is nearly identical (not just the typed words found inside a
+  // longer name) — the only case the page pre-selects for the user.
+  sure: boolean
+}
+
+export interface NameGroup {
+  key: string
+  name: string // most-used spelling
+  lines: number // bill lines over every spelling
+  bills: number
+  spellings: NameSpelling[]
+  units: string // 'ถุง, ตัก'
+  commonUnit: string
+  lastPrice: number // latest price charged in commonUnit
+  priceLow: number
+  priceHigh: number
+  lastSold: string | null
+  skipped: boolean
+  suggestions: NameSuggestion[]
+}
+
+export interface NamePage {
+  groups: NameGroup[]
+  total: number // groups matching the filter
+  pendingNames: number // distinct typed names still unsorted (whole database)
+  pendingLines: number
+  doneLines: number // lines already tidied by this page
+}
+
+export type NameTarget =
+  | { type: 'product'; productId: number }
+  | { type: 'saleItem'; saleItemId: number }
+  | { type: 'new'; name: string; unitName: string; unitPrice: number }
+
+export interface NameApplyPayload {
+  names: string[] // exact typed spellings to tidy
+  target: NameTarget
+}
+
+// An agreed name: either a "sale item" (sold but not stock-counted) or a
+// stock product that typed spellings were pointed at.
+export interface NamedItem {
+  kind: 'saleItem' | 'product'
+  id: number
+  name: string
+  barcode: string | null
+  unitName: string
+  unitPrice: number
+  lines: number // bill lines carrying it
+  tidied: number // of those, lines whose text was changed by the clean-up (can be undone)
+  lastSold: string | null
+  aliases: string[] // other spellings that now lead here
+}
+
+export interface ItemSearchIndex {
+  saleItems: { id: number; name: string; unitName: string; unitPrice: number; aliases: string[]; uses: number }[]
+  productUses: Record<number, number> // product id -> bill lines, for ranking
+  productAliases: Record<number, string[]> // spellings pointed at a stock product
 }
 
 // ---------------------------------------------------------------------------

@@ -431,6 +431,43 @@ CREATE TABLE cash_expenses (
 CREATE INDEX idx_cash_expenses_date ON cash_expenses(expense_date);
 CREATE INDEX idx_cash_expenses_payee ON cash_expenses(category, payee);
 
+-- จัดชื่อสินค้าในบิล (v1.6.16)
+-- order_doc_lines ได้คอลัมน์เพิ่ม: sale_item_id INTEGER REFERENCES sale_items(id)
+--                                  orig_description TEXT  -- ข้อความที่พิมพ์ไว้เดิม ก่อนถูกจัดชื่อ (ใช้ยกเลิกการจัด)
+-- sale_items = ชื่อที่ขายแต่ไม่นับสต๊อก (ทรายหยาบ, หิน ...) — ไม่ใช่แถวใน products โดยตั้งใจ
+CREATE TABLE sale_items (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    name_key TEXT NOT NULL UNIQUE,           -- textKey(name) จาก src/shared/textMatch.ts
+    unit_name TEXT,                          -- หน่วย/ราคาที่ขึ้นให้ตอนคีย์บิล (แก้ในบิลได้)
+    unit_price REAL NOT NULL DEFAULT 0,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by INTEGER REFERENCES users(id),
+    updated_at TEXT
+);
+-- "การสะกดแบบนี้ = ของชิ้นนั้น" ชี้ไปที่ sale_items หรือ products อย่างใดอย่างหนึ่ง
+CREATE TABLE item_aliases (
+    id INTEGER PRIMARY KEY,
+    alias TEXT NOT NULL,
+    alias_key TEXT NOT NULL UNIQUE,
+    product_id INTEGER REFERENCES products(id),
+    sale_item_id INTEGER REFERENCES sale_items(id),
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_item_aliases_product ON item_aliases(product_id);
+CREATE INDEX idx_item_aliases_sale_item ON item_aliases(sale_item_id);
+-- ชื่อที่เจ้าของกด "ข้าม" ในหน้าจัดชื่อ
+CREATE TABLE item_name_skips (
+    name_key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    skipped_by INTEGER REFERENCES users(id),
+    skipped_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_order_doc_lines_sale_item ON order_doc_lines(sale_item_id);
+CREATE INDEX idx_order_doc_lines_product ON order_doc_lines(product_id);
+
 -- ----------------------------------------------------------------------------
 -- Trigger
 -- ----------------------------------------------------------------------------

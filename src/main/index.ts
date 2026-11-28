@@ -12,6 +12,7 @@ import { registerExchangeHandlers } from './ipc/exchange'
 import { registerOrderHandlers } from './ipc/orders'
 import { registerSalesHandlers } from './ipc/sales'
 import { registerExpenseHandlers } from './ipc/expenses'
+import { registerItemNameHandlers } from './ipc/itemNames'
 import { registerPrintHandlers } from './ipc/print'
 import { registerZoneHandlers } from './ipc/zones'
 import { registerCatalogHandlers } from './ipc/catalog'
@@ -75,6 +76,7 @@ if (!gotLock) {
     registerOrderHandlers()
     registerSalesHandlers()
     registerExpenseHandlers()
+    registerItemNameHandlers()
     registerPrintHandlers()
     registerZoneHandlers()
     registerCatalogHandlers()

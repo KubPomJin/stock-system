@@ -112,6 +112,16 @@ const api: Api = {
     advances: (payload) => call('expenses:advances', payload),
     advanceYears: () => call('expenses:advanceYears')
   },
+  names: {
+    pending: (filter) => call('names:pending', filter),
+    apply: (payload) => call('names:apply', payload),
+    skip: (payload) => call('names:skip', payload),
+    items: () => call('names:items'),
+    renameItem: (payload) => call('names:renameItem', payload),
+    updateItem: (payload) => call('names:updateItem', payload),
+    undo: (payload) => call('names:undo', payload),
+    searchIndex: () => call('names:searchIndex')
+  },
   orders: {
     nextNumber: (bookType) => call('orders:nextNumber', bookType),
     reserveNumbers: (payload) => call('orders:reserveNumbers', payload),

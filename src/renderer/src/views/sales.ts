@@ -10,6 +10,7 @@ import { level, state } from '../state'
 import { promptModal, showToast, toastError } from '../ui'
 import type { BookNextNumber, ProductView, SalePayMethod, SaleView } from '../../../shared/types'
 import { money, payLabel, sheetsLabel, splitText, thaiDate, thaiDateTime, todayIso, transferBadge } from './salesCommon'
+import { refreshItemIndex, saleItemForName, searchItems, type Found, type SaleItemEntry } from '../itemSearch'
 
 interface Line {
   productId: number | null
@@ -62,39 +63,9 @@ let goToView: (view: string) => void = () => {}
    Product search (one floating dropdown shared by every line)
    ========================================================================= */
 
-let indexFor: ProductView[] | null = null
-let searchIndex: { p: ProductView; hay: string; bar: string }[] = []
-
-function ensureIndex(): void {
-  if (indexFor === state.products) return
-  indexFor = state.products
-  searchIndex = state.products.map((p) => ({
-    p,
-    bar: (p.barcode ?? '').toLowerCase(),
-    hay: `${p.barcode ?? ''} ${p.subBarcode ?? ''} ${p.description}`.toLowerCase()
-  }))
-}
-
-// Every typed word must appear; exact barcode first, then names starting with
-// the text, then the rest — so typing a barcode + Enter picks the right item.
-function searchProducts(text: string, limit = 10): ProductView[] {
-  const q = text.trim().toLowerCase()
-  if (!q) return []
-  ensureIndex()
-  const words = q.split(/\s+/)
-  const scored: { p: ProductView; score: number }[] = []
-  for (const e of searchIndex) {
-    if (!words.every((w) => e.hay.includes(w))) continue
-    let score = 3
-    if (e.bar === q) score = 0
-    else if (e.p.description.toLowerCase().startsWith(q)) score = 1
-    else if (e.bar.startsWith(q)) score = 2
-    scored.push({ p: e.p, score })
-    if (scored.length > 400) break
-  }
-  scored.sort((a, b) => a.score - b.score || a.p.description.localeCompare(b.p.description, 'th'))
-  return scored.slice(0, limit).map((s) => s.p)
-}
+// v1.6.16: the search itself lives in ../itemSearch (shared with the name
+// clean-up page). It finds stock products AND agreed sale items, forgives
+// spacing / quotes / common misspellings, and lists best sellers first.
 
 function retailPerBase(p: ProductView): number {
   return p.prices?.RETAIL ?? 0
@@ -106,7 +77,7 @@ function baseUnit(p: ProductView): { name: string; qtyPerBase: number } | null {
 }
 
 let suggestFor = -1 // line index the dropdown belongs to
-let suggestItems: ProductView[] = []
+let suggestItems: Found[] = []
 let suggestActive = 0
 
 function suggestBox(): HTMLElement {
@@ -126,7 +97,16 @@ function renderSuggest(): void {
   if (!typed) return closeSuggest()
 
   const opts = suggestItems
-    .map((p, i) => {
+    .map((f, i) => {
+      if (f.kind === 'saleItem') {
+        // An agreed name for something sold but not stock-counted (sand, stone ...).
+        return `<div class="ps-opt${i === suggestActive ? ' active' : ''}" data-k="${i}">
+        <span class="ps-bar ps-sale">ชื่อขาย</span>
+        <span class="ps-desc">${esc(f.s.name)}</span>
+        <span class="ps-price">${f.s.unitPrice ? money(f.s.unitPrice) : '—'}${f.s.unitName ? ` / ${esc(f.s.unitName)}` : ''}</span>
+      </div>`
+      }
+      const p = f.p
       const price = retailPerBase(p)
       const bu = baseUnit(p)
       return `<div class="ps-opt${i === suggestActive ? ' active' : ''}" data-k="${i}">
@@ -186,7 +166,7 @@ function openSuggest(i: number): void {
   const el = document.querySelector<HTMLInputElement>(`.pl-item[data-i="${i}"]`)
   if (!el) return
   suggestFor = i
-  suggestItems = searchProducts(el.value)
+  suggestItems = searchItems(el.value)
   suggestActive = 0
   renderSuggest()
 }
@@ -194,13 +174,30 @@ function openSuggest(i: number): void {
 function pickSuggestion(k: number): void {
   const i = suggestFor
   if (i < 0) return
-  const p = suggestItems[k]
+  const f = suggestItems[k]
   closeSuggest()
-  if (p) applyProduct(i, p)
+  if (f?.kind === 'product') applyProduct(i, f.p)
+  else if (f?.kind === 'saleItem') applySaleItem(i, f.s)
   else lines[i].productId = null // chose "use the typed text"
   renderRow(i)
   updateTotals()
   focusCell(i, 'pl-qty')
+}
+
+// A sale item is not a product: the line stays "typed text" (productId null)
+// carrying the agreed name, and the server links it to the sale item on save.
+function applySaleItem(i: number, s: SaleItemEntry): void {
+  lines[i] = {
+    productId: null,
+    description: s.name,
+    qty: lines[i].qty || 1,
+    unitName: s.unitName,
+    unitPrice: s.unitPrice,
+    amount: null,
+    note: lines[i].note,
+    ret: lines[i].ret,
+    sheet: lines[i].sheet
+  }
 }
 
 function applyProduct(i: number, p: ProductView): void {
@@ -251,11 +248,14 @@ function amountTagHtml(l: Line, i: number): string {
 
 function rowHtml(l: Line, i: number): string {
   const p = l.productId ? state.products.find((x) => x.id === l.productId) : undefined
+  const known = !p && l.description.trim() ? saleItemForName(l.description) : undefined
   const tag = p
     ? `<div class="pl-tag"><span class="mono">${esc(p.barcode)}</span></div>`
-    : l.description.trim()
-      ? '<div class="pl-tag free">ไม่อยู่ในรายการสินค้า — บันทึกเป็นข้อความ</div>'
-      : ''
+    : known
+      ? `<div class="pl-tag">ชื่อขาย${known.name !== l.description.trim() ? ` — จะบันทึกเป็น "${esc(known.name)}"` : ''}</div>`
+      : l.description.trim()
+        ? '<div class="pl-tag free">ไม่อยู่ในรายการสินค้า — บันทึกเป็นข้อความ</div>'
+        : ''
   const unitOpts = (p?.units ?? []).map((u) => `<option value="${esc(u.name)}"></option>`).join('')
   // Numbered within its own ticket, like the paper (1-8 on each).
   const k = lines.filter((x, j) => j <= i && x.sheet === l.sheet).length
@@ -1346,6 +1346,7 @@ export async function openSaleForEdit(id: number): Promise<void> {
 }
 
 export async function renderSalesView(): Promise<void> {
+  void refreshItemIndex() // agreed names + best sellers for the item search
   await refreshNextNumbers()
   if (!editingId && !lines.some((l) => l.description.trim())) suggestDoc()
   await renderDayList()

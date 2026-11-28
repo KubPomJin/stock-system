@@ -1,6 +1,6 @@
 # CLAUDE.md — StockKeep (ระบบจัดการสต๊อกสินค้า)
 
-> สถานะ: โปรแกรมนี้ **สร้างเสร็จและใช้งานจริงแล้ว** (ปัจจุบัน v1.6.15) — ไฟล์นี้อธิบาย
+> สถานะ: โปรแกรมนี้ **สร้างเสร็จและใช้งานจริงแล้ว** (ปัจจุบัน v1.6.16) — ไฟล์นี้อธิบาย
 > โครงสร้างและการทำงานจริงของระบบ ณ ปัจจุบัน (ไม่ใช่เอกสารช่วงออกแบบแล้ว)
 > ใช้เป็น context เมื่อจะแก้ StockKeep ต่อ หรือสร้าง **โปรแกรมใหม่ที่เชื่อมโยงกับข้อมูลของ StockKeep**
 > โครงสร้างฐานข้อมูลปัจจุบันทั้งหมดอยู่ใน `schema.sql` (ในโฟลเดอร์นี้)
@@ -59,6 +59,7 @@ stock-system/
 │   │       ├── sales.ts           # ขายหน้าร้าน: คีย์บิล, ปิดยอดประจำวัน, ตรวจโอน, สรุปยอดขาย
 │   │       ├── expenses.ts        # รายจ่ายประจำวัน (cash_expenses) + สรุปเบิกล่วงหน้ารายคน
 │   │       ├── dayLock.ts         # isDayLocked() — ใช้ร่วมกันระหว่าง sales.ts กับ expenses.ts
+│   │       ├── itemNames.ts       # จัดชื่อสินค้าในบิล: sale_items / item_aliases + resolveTypedName()
 │   │       ├── print.ts           # สั่งพิมพ์ / printToPDF / รายชื่อเครื่องพิมพ์
 │   │       ├── catalog.ts         # นำเข้ารายการสินค้าจาก Excel ของ 4POS
 │   │       └── backup.ts          # export / import ฐานข้อมูล (dialog)
@@ -68,11 +69,14 @@ stock-system/
 │   │   └── src/
 │   │       ├── main.ts            # nav (role-aware), login flow, refreshData()
 │   │       ├── state.ts, format.ts, ui.ts
+│   │       ├── itemSearch.ts      # ค้นหาสินค้า + ชื่อขาย (ใช้ทั้งหน้าคีย์บิลและหน้าจัดชื่อ)
 │   │       └── views/             # dashboard, products, receiving, stocktake,
 │   │                              #   transfer, history, zones, orders,
 │   │                              #   exchange, catalog, users,
-│   │                              #   sales, expenses, cashup, transfers, salesreport (+ salesCommon)
-│   └── shared/types.ts            # types ใช้ร่วม main + renderer (รวม Api surface)
+│   │                              #   sales, expenses, cashup, transfers, salesreport, itemnames (+ salesCommon)
+│   └── shared/
+│       ├── types.ts               # types ใช้ร่วม main + renderer (รวม Api surface)
+│       └── textMatch.ts           # normText()/textKey()/คะแนนความคล้ายของชื่อ — ใช้ทั้ง main และ renderer
 ├── schema.sql                     # โครงสร้าง DB ปัจจุบันทั้งหมด (ไฟล์อ้างอิงนี้)
 ├── CHANGELOG.md
 ├── docs/NETWORK-PLAN.md           # แผน shared DB หลายเครื่อง (ยังไม่ทำ)
@@ -94,7 +98,8 @@ stock-system/
 ตารางหลัก: `categories`, `units`, `suppliers`, `locations`, `products`, `product_units`,
 `stock_movements`, `stock_receiving(+_lines)`, `stocktake_sessions(+ _lines)`,
 `bill_imports`, `catalog_imports`, `roles`, `users`, `price_tiers`, `product_prices`,
-`zones`, `product_zones`, `order_docs(+ _lines)`, `order_counters`, `cash_closes`, `cash_expenses`
+`zones`, `product_zones`, `order_docs(+ _lines)`, `order_counters`, `cash_closes`, `cash_expenses`,
+`sale_items`, `item_aliases`, `item_name_skips`
 Views: `current_stock`, `low_stock_alert`
 
 **หัวใจ 3 อย่างที่ต้องไม่พลาด:**
@@ -123,6 +128,7 @@ Views: `current_stock`, `low_stock_alert`
 | รายจ่ายประจำวัน | staff | คีย์เงินที่จ่ายออกระหว่างวัน: น้ำมันรถ / จ่ายค่าสินค้า (เงินสดหรือเช็ค) / พนักงานเบิกล่วงหน้า / อื่นๆ — เงินสดไปหักในหน้าปิดยอดเอง · สรุปเบิกล่วงหน้ารายคน (stock_manager+) |
 | ปิดยอดประจำวัน | staff | นับแบงก์/เหรียญ เทียบยอดที่ควรมี → ขาด/เกิน, เลขที่ใบที่ขาดหาย, พิมพ์ใบสรุป A4 · เจ้าของ (admin) กดตรวจ = ล็อกบิลของวันนั้น |
 | ตรวจยอดโอน | stock_manager | ติ๊กบิลโอนที่เห็นยอดในบัญชีแล้ว ค้างข้ามวันได้ (ตรวจได้แม้วันถูกล็อก) |
+| จัดชื่อสินค้าในบิล | stock_manager | รวมชื่อที่พิมพ์ในบิลไม่เหมือนกันให้เป็นชื่อเดียว: จับเข้าสินค้าในสต๊อก / ตั้งเป็น "ชื่อขาย" (ไม่นับสต๊อก) / ข้าม · เปลี่ยนชื่อ · ยกเลิกการจัดได้ |
 | สรุปยอดขาย | stock_manager | ยอดรายเดือนทั้งปี → ปฏิทินรายวัน + เทียบเดือนก่อน + วันในสัปดาห์ → บิลของวัน → รายการในบิล · สินค้าขายดี → แนวโน้มรายเดือน |
 
 **การตรวจนับ (สำคัญ):** ทุกครั้งที่บันทึก = 1 รอบ (session) เก็บ **ทุกรายการที่นับ** ลง `stocktake_lines`
@@ -179,6 +185,26 @@ Views: `current_stock`, `low_stock_alert`
     **ปิดไว้ ไม่ลบทิ้ง** (เจ้าของขอให้เปิดกลับได้) · ตารางตรวจเงินสดมีแบบคิดให้ / เว้นช่องเขียนมือ
   · หน้าจอนับเงินค่าเริ่มต้น = ใส่ยอดรวมช่องเดียว (เก็บใน `coins_other`, `counts_json` ว่าง) ·
     นับแยกแบงก์เป็นตัวเลือก (localStorage `cashup.useDenoms`)
+
+- **จัดชื่อสินค้าในบิล (v1.6.16)** — จากไฟล์สำรองของร้าน (27 พ.ย. 2569): บรรทัดในบิลที่**พิมพ์เอง**มี 3,428 จาก 6,139 บรรทัด
+  = 58% ของยอดขาย · ส่วนใหญ่เป็นของที่**ไม่มีในรายการสินค้า** (ทราย หิน ทินเนอร์ ตะปูชั่งกิโล) และของชิ้นเดียวกันสะกดหลายแบบ
+  · **`sale_items` = "ชื่อขาย"** — ของที่ขายแต่ไม่นับสต๊อก · **ตั้งใจไม่ใส่ใน `products`** จะได้ไม่โผล่ในตรวจนับ / เตือนสต๊อกต่ำ /
+    แดชบอร์ด / ไฟล์ catalog ของ BillKeep · **ห้ามย้ายเข้า `products` โดยไม่ถาม**
+  · **`item_aliases`** = "สะกดแบบนี้ = ของชิ้นนั้น" (ชี้ไป sale item หรือ product) · key มาจาก `textKey()` ใน `src/shared/textMatch.ts`
+    (ตัดช่องว่าง / เครื่องหมายนิ้ว / สะกดผิดที่เจอบ่อย: น๊อต-น็อต, แกลอน-แกลลอน, ACC0-ACCO, ปี๊ป-ปีบ) — **main กับ renderer ใช้ไฟล์เดียวกัน**
+    ถ้าแก้กฎใน `normText()` ค่า `alias_key` / `name_key` ที่เก็บไว้แล้วจะไม่ตรง ต้องคำนวณใหม่ใน migration
+  · **ระบบแค่เสนอ คนเป็นคนตัดสิน** — คะแนนความคล้ายจับผิดได้ (`อิฐแดง` → ประตูลายอิฐแดง) จึง**ห้ามจับคู่อัตโนมัติ** ·
+    หน้าเลือกให้ล่วงหน้าเฉพาะเมื่อชื่อทั้งชื่อเกือบเหมือนกัน (`NameSuggestion.sure`) นอกนั้นค่าเริ่มต้น = ตั้งเป็นชื่อขายใหม่
+    · การสะกดที่ key เดียวกันติ๊กให้ ส่วนที่แค่ "คล้าย" (โครงผนังเบาตัวซี / ตัวยู) **ไม่ติ๊กให้** ต้องติ๊กเอง
+  · การจัดชื่อแก้บรรทัดในบิลแค่ `description` + ลิงก์ (`product_id` / `sale_item_id`) + เก็บข้อความเดิมใน `orig_description`
+    — **ไม่แตะ qty / หน่วย / ราคา / amount** ยอดเงิน ปิดยอด รายงาน จึงไม่ขยับ · เพราะอย่างนี้**วันที่เจ้าของตรวจแล้ว (ล็อก) ก็จัดชื่อได้**
+    · `names:undo` คืนข้อความเดิมจาก `orig_description` · แก้บิลแล้วบันทึกใหม่ = บรรทัดถูกสร้างใหม่ `orig_description` ของบิลนั้นหาย
+  · **บิลใหม่:** `saveSale()` เรียก `resolveTypedName()` ทุกบรรทัดที่พิมพ์เอง — ถ้ามี alias จะบันทึกเป็นชื่อที่ตกลงไว้ + ลิงก์ให้เลย ·
+    หน้าคีย์บิลไม่ได้ส่ง sale item id: เลือกชื่อขายจากช่องค้นหา = บรรทัดพิมพ์เอง (`productId` null) ที่ใช้ชื่อที่ตกลงไว้ แล้ว server ลิงก์เอง
+  · **ค้นหาในหน้าคีย์บิล** (`src/renderer/src/itemSearch.ts`) — สินค้า + ชื่อขาย + การสะกดเดิมทั้งหมด · คำสลับที่ได้ ·
+    เรียง: บาร์โค้ดตรง → ชื่อขึ้นต้นตรง → **ขายบ่อยขึ้นก่อน** (`names:searchIndex`, lvl 1 — ส่งแค่ชื่อ หน่วย ราคาขาย)
+  · สิทธิ์จัดชื่อ = lvl 2+ · รายงานสินค้าขายดียังจัดกลุ่มบรรทัดพิมพ์เองตาม `description` (ยังไม่ได้ใช้ `sale_item_id`) ซึ่งพอ เพราะชื่อเป็นชื่อเดียวแล้ว
+  · ไม่แตะสต๊อก — ห้ามเพิ่ม `stock_movements` จาก `itemNames.ts`
 
 - **รายจ่ายประจำวัน (v1.6.15)** — เจ้าของขอ: น้ำมันรถ, จ่ายค่าสินค้าที่เข้ามา (เงินพอ = จ่ายสด, ไม่พอ = จ่ายเช็ค), พนักงานเบิกล่วงหน้า
   ใช้เงินของวันนั้น · ตาราง `cash_expenses` · IPC `expenses:*` ใน `ipc/expenses.ts` · หน้า `views/expenses.ts`

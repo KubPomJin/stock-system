@@ -837,6 +837,56 @@
   .tr-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-top:1px solid var(--border);background:#FAFBFB;}
   tr.tr-day td{background:#F2F5F6;font-size:14px;padding:8px 16px;}
 
+  /* ---- จัดชื่อสินค้าในบิล (v1.6.16) — variables only, so no DARK MODE rules ---- */
+  .ps-opt .ps-bar.ps-sale{font-family:inherit;font-weight:700;color:var(--accent-dark);}
+  .nm-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--border);}
+  .nm-progress{flex:1;min-width:220px;}
+  .nm-progress-text{font-size:14px;color:var(--text-secondary);margin-bottom:6px;}
+  .nm-progress-text b{color:var(--text-primary);}
+  .nm-bar{height:10px;border-radius:20px;background:var(--bg-subtle,#EEF1F2);border:1px solid var(--border);overflow:hidden;}
+  .nm-bar i{display:block;height:100%;background:var(--ok);border-radius:20px;}
+  .nm-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-subtle,#FAFBFB);}
+  .nm-tools input[type=text]{flex:1;min-width:220px;}
+  .nm-check{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--text-primary);margin:0;cursor:pointer;white-space:nowrap;}
+  .nm-check input{width:18px;height:18px;margin:0;accent-color:var(--accent);}
+  .nm-card{border-bottom:1px solid var(--border);padding:16px 20px 18px;}
+  .nm-card.skipped{opacity:.6;}
+  .nm-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+  .nm-name{font-size:19px;font-weight:700;}
+  .nm-meta{font-size:13.5px;color:var(--text-secondary);}
+  .nm-step{font-size:13px;font-weight:700;color:var(--text-secondary);margin:14px 0 7px;}
+  .nm-spellings{display:flex;flex-wrap:wrap;gap:6px;}
+  .nm-sp{display:inline-flex;align-items:center;gap:7px;margin:0;padding:6px 11px;border:1px solid var(--border-input);border-radius:6px;
+    background:var(--bg-panel);font-size:14.5px;font-weight:600;color:var(--text-primary);cursor:pointer;}
+  .nm-sp input{width:17px;height:17px;margin:0;accent-color:var(--accent);}
+  .nm-sp small{font-weight:500;color:var(--text-secondary);font-size:12.5px;}
+  .nm-sp.maybe{border-style:dashed;}
+  .nm-sp.maybe em{font-style:normal;font-size:12px;font-weight:700;color:var(--warn);}
+  .nm-choices{display:flex;flex-direction:column;gap:6px;}
+  .nm-choice{display:flex;align-items:center;gap:10px;margin:0;padding:9px 12px;border:1px solid var(--border);border-radius:8px;
+    background:var(--bg-panel);cursor:pointer;font-size:15px;font-weight:500;color:var(--text-primary);}
+  .nm-choice:has(input:checked){border-color:var(--accent);background:var(--accent-soft);}
+  .nm-choice input[type=radio]{width:18px;height:18px;margin:0;flex-shrink:0;accent-color:var(--accent);}
+  .nm-choice .nm-kind{flex-shrink:0;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--bg-subtle,#EEF1F2);color:var(--text-secondary);}
+  .nm-choice .nm-kind.sale{background:var(--ok-bg);color:var(--ok);}
+  .nm-choice .nm-cname{flex:1;min-width:0;}
+  .nm-choice .nm-cbar{font-size:12.5px;color:var(--text-secondary);}
+  .nm-choice .nm-score{flex-shrink:0;font-size:12.5px;font-weight:700;color:var(--text-secondary);}
+  .nm-new-fields{display:grid;grid-template-columns:minmax(220px,1fr) 130px 130px;gap:8px;flex:1;min-width:0;}
+  .nm-new-fields input{height:40px;}
+  .nm-find{position:relative;flex:1;min-width:0;}
+  .nm-find input{height:40px;}
+  .nm-find-list{margin-top:6px;border:1px solid var(--border);border-radius:8px;max-height:230px;overflow-y:auto;background:var(--bg-panel);}
+  .nm-find-opt{padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:14.5px;display:flex;gap:10px;align-items:baseline;}
+  .nm-find-opt:last-child{border-bottom:none;}
+  .nm-find-opt:hover{background:var(--accent-soft);}
+  .nm-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;}
+  .nm-actions .nm-summary{font-size:14px;color:var(--text-secondary);margin-right:auto;}
+  .nm-pager{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 20px;}
+  .nm-alias{display:inline-block;margin:2px 4px 2px 0;padding:1px 8px;border-radius:20px;background:var(--bg-subtle,#EEF1F2);font-size:12.5px;color:var(--text-secondary);}
+  @media screen and (max-width:760px){.nm-new-fields{grid-template-columns:1fr 1fr;}.nm-new-fields input:first-child{grid-column:1 / -1;}
+    .nm-choice{flex-wrap:wrap;}}
+
   /* ---- รายจ่ายประจำวัน (v1.6.15) ----
      Colours come from variables only, so the page needs no rule in the DARK
      MODE block. */
@@ -2025,6 +2075,45 @@
             <tbody id="ex-adv-body"></tbody>
           </table></div>
           <div id="ex-adv-detail"></div>
+        </div>
+      </div>
+
+      <!-- ===== ขายหน้าร้าน: จัดชื่อสินค้าในบิล (v1.6.16) ===== -->
+      <div class="view" id="view-itemnames">
+        <div class="panel">
+          <div class="panel-head"><h2>จัดชื่อสินค้าในบิล</h2><span class="panel-head-sub">รวมชื่อที่พิมพ์ไม่เหมือนกันให้เป็นชื่อเดียว — ยอดเงินในบิลไม่เปลี่ยน และยกเลิกได้ทุกครั้ง</span>
+            <div class="panel-actions">
+              <div class="seg" id="nm-tabs">
+                <button type="button" class="seg-btn active" data-tab="pending">รอจัด</button>
+                <button type="button" class="seg-btn" data-tab="done">ชื่อที่จัดแล้ว</button>
+              </div>
+            </div>
+          </div>
+          <div class="nm-top">
+            <div class="nm-progress">
+              <div class="nm-progress-text" id="nm-progress-text"></div>
+              <div class="nm-bar"><i id="nm-progress-bar" style="width:0%;"></i></div>
+            </div>
+          </div>
+
+          <div id="nm-pending">
+            <div class="nm-tools">
+              <input type="text" id="nm-search" placeholder="ค้นหาชื่อที่พิมพ์ไว้ในบิล เช่น ตะปู, ทินเนอร์" autocomplete="off">
+              <label class="nm-check"><input type="checkbox" id="nm-show-skipped">แสดงชื่อที่ข้ามไว้</label>
+            </div>
+            <div id="nm-list"></div>
+            <div class="nm-pager" id="nm-pager"></div>
+          </div>
+
+          <div id="nm-done" style="display:none;">
+            <div class="nm-tools">
+              <input type="text" id="nm-done-search" placeholder="ค้นหาชื่อที่จัดแล้ว" autocomplete="off">
+            </div>
+            <div class="table-scroll"><table>
+              <thead><tr><th>ชื่อที่ใช้</th><th>ประเภท</th><th>หน่วย / ราคา</th><th class="num">ใช้ในบิล</th><th>ชื่อเดิมที่รวมไว้</th><th></th></tr></thead>
+              <tbody id="nm-done-body"></tbody>
+            </table></div>
+          </div>
         </div>
       </div>
 

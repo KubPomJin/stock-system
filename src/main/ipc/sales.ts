@@ -20,6 +20,7 @@ import { getSession } from '../session'
 import { handle } from './helpers'
 import { isDayLocked, isIsoDate, round2, thaiDate } from './dayLock'
 import { expenseCashSummary, expenseTotals } from './expenses'
+import { resolveTypedName } from './itemNames'
 import { BOOK_TYPES, counterKey, formatDocNumber, numberInUse, readCounter, syncCounterWithUsedNumber, yearPart } from './orders'
 import type {
   BookNextNumber,
@@ -235,6 +236,16 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
     }))
     .filter((l) => l.description !== '')
     .map((l) => ({ ...l, amount: l.amount ?? round2(l.qty * l.unitPrice) }))
+    // v1.6.16: a typed name the owner has already sorted (จัดระเบียบชื่อสินค้า)
+    // gets its agreed name and link as the bill is saved, so the same spelling
+    // never has to be tidied twice. Unknown names are stored exactly as typed.
+    .map((l) => {
+      if (l.productId) return { ...l, saleItemId: null as number | null }
+      const hit = resolveTypedName(l.description)
+      return hit
+        ? { ...l, productId: hit.productId, saleItemId: hit.saleItemId, description: hit.description }
+        : { ...l, saleItemId: null as number | null }
+    })
   if (!lines.length) throw new Error('กรุณาใส่รายการสินค้าอย่างน้อย 1 รายการ')
   for (let n = 1; n <= sheetCount; n++) {
     if (!lines.some((l) => l.sheet === n)) {
@@ -420,14 +431,15 @@ function saveSale(p: SalePayload): { id: number; docNumber: string } {
     }
 
     const ins = db.prepare(
-      `INSERT INTO order_doc_lines (order_id, line_no, product_id, description, location_name, qty, unit_name, unit_price, amount, note, is_return, sheet_no)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO order_doc_lines (order_id, line_no, product_id, sale_item_id, description, location_name, qty, unit_name, unit_price, amount, note, is_return, sheet_no)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`
     )
     lines.forEach((l, i) => {
       ins.run(
         id,
         i + 1,
         l.productId,
+        l.saleItemId,
         l.description,
         sign(l) * l.qty,
         l.unitName || null,

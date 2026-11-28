@@ -512,6 +512,52 @@ function migrateSales(): void {
     CREATE INDEX IF NOT EXISTS idx_cash_expenses_date ON cash_expenses(expense_date);
     CREATE INDEX IF NOT EXISTS idx_cash_expenses_payee ON cash_expenses(category, payee);
   `)
+
+  // v1.6.16 — จัดระเบียบชื่อสินค้าในบิล. Over half of the sales are bill lines
+  // typed by hand; these tables give each such name one agreed form.
+  //   sale_items       a name that is sold but NOT stock-counted (ทรายหยาบ ...).
+  //                    Deliberately not a row in products: nothing in the stock
+  //                    views, stocktakes or the BillKeep catalogue ever sees it.
+  //   item_aliases     "this spelling means that item" (a sale item OR a product)
+  //   item_name_skips  names the owner chose to leave as they are
+  // order_doc_lines.sale_item_id links a line to its sale item, and
+  // orig_description keeps the text as it was typed when a tidy-up rewrites
+  // description — that is what makes every tidy-up undoable.
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS sale_items (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      name_key TEXT NOT NULL UNIQUE,
+      unit_name TEXT,
+      unit_price REAL NOT NULL DEFAULT 0,
+      created_by INTEGER REFERENCES users(id),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_by INTEGER REFERENCES users(id),
+      updated_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS item_aliases (
+      id INTEGER PRIMARY KEY,
+      alias TEXT NOT NULL,
+      alias_key TEXT NOT NULL UNIQUE,
+      product_id INTEGER REFERENCES products(id),
+      sale_item_id INTEGER REFERENCES sale_items(id),
+      created_by INTEGER REFERENCES users(id),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_item_aliases_product ON item_aliases(product_id);
+    CREATE INDEX IF NOT EXISTS idx_item_aliases_sale_item ON item_aliases(sale_item_id);
+    CREATE TABLE IF NOT EXISTS item_name_skips (
+      name_key TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      skipped_by INTEGER REFERENCES users(id),
+      skipped_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+  const nameCols = (d.prepare('PRAGMA table_info(order_doc_lines)').all() as { name: string }[]).map((c) => c.name)
+  if (!nameCols.includes('sale_item_id')) d.exec('ALTER TABLE order_doc_lines ADD COLUMN sale_item_id INTEGER REFERENCES sale_items(id)')
+  if (!nameCols.includes('orig_description')) d.exec('ALTER TABLE order_doc_lines ADD COLUMN orig_description TEXT')
+  d.exec('CREATE INDEX IF NOT EXISTS idx_order_doc_lines_sale_item ON order_doc_lines(sale_item_id);')
+  d.exec('CREATE INDEX IF NOT EXISTS idx_order_doc_lines_product ON order_doc_lines(product_id);')
 }
 
 // The floor plan the owner drew, oriented the way it is actually seen when

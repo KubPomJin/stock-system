@@ -28,6 +28,7 @@ import { initCatalog, renderCatalogHistory } from './views/catalog'
 import { initSales, renderSalesView } from './views/sales'
 import { initCashup, renderCashup } from './views/cashup'
 import { initExpenses, renderExpenses } from './views/expenses'
+import { initItemNames, renderItemNames } from './views/itemnames'
 import { initTransfers, renderTransfers } from './views/transfers'
 import { initSalesReport, renderSalesReport } from './views/salesreport'
 
@@ -48,6 +49,7 @@ const NAV_ITEMS: NavItem[] = [
   { view: 'cashup', label: 'ปิดยอดประจำวัน', icon: 'ti-calculator', minRoleLevel: 1, group: 'ขายหน้าร้าน' },
   { view: 'transfers', label: 'ตรวจยอดโอน', icon: 'ti-building-bank', minRoleLevel: 2, group: 'ขายหน้าร้าน' },
   { view: 'salesreport', label: 'สรุปยอดขาย', icon: 'ti-chart-bar', minRoleLevel: 2, group: 'ขายหน้าร้าน' },
+  { view: 'itemnames', label: 'จัดชื่อสินค้าในบิล', icon: 'ti-tags', minRoleLevel: 2, group: 'ขายหน้าร้าน' },
   { view: 'products', label: 'สินค้า', icon: 'ti-box', minRoleLevel: 1, group: 'คลังสินค้า' },
   { view: 'zones', label: 'ผังโกดัง', icon: 'ti-map-2', minRoleLevel: 1, group: 'คลังสินค้า' },
   { view: 'receiving', label: 'รับสินค้า', icon: 'ti-truck-delivery', minRoleLevel: 2, group: 'คลังสินค้า' },
@@ -120,6 +122,7 @@ function switchView(view: string): void {
   if (view === 'cashup') void renderCashup()
   if (view === 'transfers') void renderTransfers()
   if (view === 'salesreport') void renderSalesReport()
+  if (view === 'itemnames') void renderItemNames()
 }
 
 /* ---------- mobile sidebar drawer ---------- */
@@ -249,6 +252,7 @@ function bootstrap(): void {
   initSales(switchView)
   initCashup(switchView)
   initExpenses()
+  initItemNames()
   initTransfers()
   initSalesReport(switchView)
 
